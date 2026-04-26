@@ -1,5 +1,6 @@
 param(
-	[string]$GodotPath = ""
+	[string]$GodotPath = "",
+	[int]$QuitAfter = 30
 )
 
 $ErrorActionPreference = "Stop"
@@ -55,7 +56,8 @@ $godot = Resolve-GodotCommand -ExplicitPath $GodotPath
 Write-Host "Using Godot: $godot"
 
 $logPath = Join-Path $ProjectRoot ".godot-headless.log"
-$arguments = @("--headless", "--path", $ProjectRoot, "--log-file", $logPath, "--quit")
+$iterations = [Math]::Max($QuitAfter, 1)
+$arguments = @("--headless", "--path", $ProjectRoot, "--log-file", $logPath, "--quit-after", $iterations)
 $process = Start-Process -FilePath $godot -ArgumentList $arguments -NoNewWindow -Wait -PassThru
 $exitCode = $process.ExitCode
 if ($exitCode -ne 0) {
