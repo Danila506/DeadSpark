@@ -133,7 +133,8 @@ func set_bleeding(value: bool) -> void:
 	player.bleeding_timer = 0.0
 	if player.is_bleeding:
 		player.bleeding_trail_timer = max(player.bleeding_trail_interval_sec, 0.01)
-		player._spawn_bleeding_trail_mark()
+		if player.blood_effects_controller != null:
+			player.blood_effects_controller.spawn_bleeding_trail_mark()
 	if not player.is_bleeding:
 		player.bleeding_trail_timer = 0.0
 	player.status_effects_changed.emit()

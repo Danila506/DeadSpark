@@ -68,13 +68,8 @@ enum {
 @export_range(0.05, 1.0, 0.05) var stealth_noise_multiplier: float = 0.25
 
 const WALK_SNOW_STREAM: AudioStream = preload("res://Assets/AudioWaw/WeaponSounds/WalkSnow.wav")
-const BLEEDING_EFFECT_FRAMES: SpriteFrames = preload("res://Resources/Effects/Bloody.tres")
 const WALK_SNOW_MIN_MOVE_LENGTH: float = 0.1
 const WALK_SNOW_MIN_PLAY_SECONDS: float = 0.3
-const MENU_SAVE_FILE_PATH: String = "user://savegame.json"
-const DEATH_FADE_IN_SEC: float = 0.9
-const DEATH_HOLD_SEC: float = 0.8
-const DEATH_FADE_OUT_SEC: float = 0.9
 
 
 @onready var anim: AnimatedSprite2D = $BodySprite
@@ -137,12 +132,16 @@ const PLAYER_INTERACTION_CONTROLLER = preload("res://Player/player_interaction_c
 const PLAYER_MOVEMENT_CONTROLLER = preload("res://Player/player_movement_controller.gd")
 const PLAYER_TIMED_ACTION_CONTROLLER = preload("res://Player/player_timed_action_controller.gd")
 const PLAYER_STATUS_HINT_CONTROLLER = preload("res://Player/player_status_hint_controller.gd")
+const PLAYER_DEATH_EFFECTS_CONTROLLER = preload("res://Player/player_death_effects_controller.gd")
+const PLAYER_BLOOD_EFFECTS_CONTROLLER = preload("res://Player/player_blood_effects_controller.gd")
 
 var vitals_controller
 var interaction_controller
 var movement_controller
 var timed_action_controller
 var status_hint_controller
+var death_effects_controller
+var blood_effects_controller
 
 
 func _ready() -> void:
@@ -151,6 +150,8 @@ func _ready() -> void:
 	movement_controller = PLAYER_MOVEMENT_CONTROLLER.new(self)
 	timed_action_controller = PLAYER_TIMED_ACTION_CONTROLLER.new(self)
 	status_hint_controller = PLAYER_STATUS_HINT_CONTROLLER.new(self)
+	death_effects_controller = PLAYER_DEATH_EFFECTS_CONTROLLER.new(self)
+	blood_effects_controller = PLAYER_BLOOD_EFFECTS_CONTROLLER.new(self)
 	add_to_group("player")
 	base_move_speed = max(max(base_move_speed, speed), 1.0)
 	speed = base_move_speed
@@ -446,7 +447,8 @@ func take_damage_from(amount: float, source: Node, hit_context: Dictionary = {})
 	if is_dead:
 		return
 	if amount > 0.0:
-		_spawn_hit_blood(source, hit_context)
+		if blood_effects_controller != null:
+			blood_effects_controller.spawn_hit_blood(source, hit_context)
 
 	if source != null and source.is_in_group("bandit"):
 		if randf() <= clamp(fracture_from_bandit_chance, 0.0, 1.0):
@@ -458,7 +460,8 @@ func take_enemy_damage(amount: float, bleed_chance: float = 0.25, damage_type: i
 	if is_dead:
 		return
 	if amount > 0.0:
-		_spawn_hit_blood(null, {})
+		if blood_effects_controller != null:
+			blood_effects_controller.spawn_hit_blood(null, {})
 
 	if randf() <= clamp(bleed_chance, 0.0, 1.0):
 		_set_bleeding(true)
@@ -498,76 +501,8 @@ func _source_matches_any_group(source: Node, groups: Array[StringName]) -> bool:
 
 
 func die() -> void:
-	if is_dead:
-		return
-
-	is_dead = true
-	_clear_menu_continue_save()
-	_stop_walk_snow_sfx()
-	call_deferred("_play_death_screen_and_go_to_menu")
-
-
-func _clear_menu_continue_save() -> void:
-	if FileAccess.file_exists(MENU_SAVE_FILE_PATH):
-		DirAccess.remove_absolute(MENU_SAVE_FILE_PATH)
-
-
-func _play_death_screen_and_go_to_menu() -> void:
-	_ensure_death_overlay()
-	if death_overlay_layer == null or death_overlay_rect == null or death_overlay_label == null:
-		_go_to_menu()
-		return
-
-	death_overlay_layer.visible = true
-	death_overlay_rect.modulate.a = 0.0
-	death_overlay_label.modulate.a = 0.0
-
-	var fade_in_tween: Tween = create_tween()
-	fade_in_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	fade_in_tween.tween_property(death_overlay_rect, "modulate:a", 1.0, DEATH_FADE_IN_SEC)
-	fade_in_tween.parallel().tween_property(death_overlay_label, "modulate:a", 1.0, DEATH_FADE_IN_SEC * 0.8)
-	await fade_in_tween.finished
-
-	await get_tree().create_timer(DEATH_HOLD_SEC).timeout
-
-	var fade_out_tween: Tween = create_tween()
-	fade_out_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	fade_out_tween.tween_property(death_overlay_rect, "modulate:a", 0.0, DEATH_FADE_OUT_SEC)
-	fade_out_tween.parallel().tween_property(death_overlay_label, "modulate:a", 0.0, DEATH_FADE_OUT_SEC * 0.8)
-	await fade_out_tween.finished
-
-	_go_to_menu()
-
-
-func _ensure_death_overlay() -> void:
-	if death_overlay_layer != null and is_instance_valid(death_overlay_layer):
-		return
-
-	death_overlay_layer = CanvasLayer.new()
-	death_overlay_layer.layer = 100
-	death_overlay_layer.visible = false
-	add_child(death_overlay_layer)
-
-	death_overlay_rect = ColorRect.new()
-	death_overlay_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	death_overlay_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	death_overlay_rect.color = Color(0.0, 0.0, 0.0, 1.0)
-	death_overlay_rect.modulate = Color(1.0, 1.0, 1.0, 0.0)
-	death_overlay_layer.add_child(death_overlay_rect)
-
-	death_overlay_label = Label.new()
-	death_overlay_label.set_anchors_preset(Control.PRESET_CENTER)
-	death_overlay_label.offset_left = -280.0
-	death_overlay_label.offset_top = -48.0
-	death_overlay_label.offset_right = 280.0
-	death_overlay_label.offset_bottom = 48.0
-	death_overlay_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	death_overlay_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	death_overlay_label.text = "ИГРА ОКОНЧЕНА"
-	death_overlay_label.add_theme_font_size_override("font_size", 56)
-	death_overlay_label.add_theme_color_override("font_color", Color(0.95, 0.95, 0.95, 1.0))
-	death_overlay_label.modulate = Color(1.0, 1.0, 1.0, 0.0)
-	death_overlay_layer.add_child(death_overlay_label)
+	if death_effects_controller != null:
+		death_effects_controller.die()
 
 
 func _setup_walk_snow_sfx() -> void:
@@ -916,131 +851,5 @@ func _trigger_primary_interaction() -> bool:
 
 
 func _update_bleeding_trail(delta: float) -> void:
-	if is_dead or not is_bleeding:
-		return
-
-	bleeding_trail_timer += delta
-	if bleeding_trail_timer < max(bleeding_trail_interval_sec, 0.01):
-		return
-
-	bleeding_trail_timer = 0.0
-	_spawn_bleeding_trail_mark()
-
-
-func _spawn_bleeding_trail_mark() -> void:
-	if BLEEDING_EFFECT_FRAMES == null:
-		return
-	if not BLEEDING_EFFECT_FRAMES.has_animation(bleeding_effect_animation_name):
-		return
-
-	var frame_count: int = BLEEDING_EFFECT_FRAMES.get_frame_count(bleeding_effect_animation_name)
-	if frame_count <= 0:
-		return
-
-	var random_pool_size: int = min(frame_count, 3)
-	var random_frame_index: int = randi() % random_pool_size
-	var frame_texture: Texture2D = BLEEDING_EFFECT_FRAMES.get_frame_texture(bleeding_effect_animation_name, random_frame_index)
-	if frame_texture == null:
-		return
-
-	var fx_root: Node = get_tree().current_scene
-	if fx_root == null:
-		fx_root = get_parent()
-	if fx_root == null:
-		return
-
-	var blood_mark: Sprite2D = Sprite2D.new()
-	blood_mark.texture = frame_texture
-	blood_mark.top_level = true
-	blood_mark.scale = bleeding_trail_scale
-	blood_mark.modulate = Color(1.0, 1.0, 1.0, 0.95)
-	blood_mark.z_index = bleeding_trail_z_index
-	blood_mark.global_position = global_position + bleeding_trail_offset + Vector2(
-		randf_range(-bleeding_trail_random_radius, bleeding_trail_random_radius),
-		randf_range(-bleeding_trail_random_radius, bleeding_trail_random_radius)
-	)
-	if bleeding_trail_random_rotation:
-		blood_mark.rotation = randf_range(-PI, PI)
-	fx_root.add_child(blood_mark)
-
-	var fade_tween: Tween = blood_mark.create_tween()
-	fade_tween.tween_property(blood_mark, "modulate:a", 0.0, max(bleeding_trail_lifetime_sec, 0.1))
-	fade_tween.finished.connect(func() -> void:
-		if is_instance_valid(blood_mark):
-			blood_mark.queue_free()
-	)
-
-
-func _spawn_hit_blood(source: Node, hit_context: Dictionary = {}) -> void:
-	if BLEEDING_EFFECT_FRAMES == null:
-		return
-
-	var animation_name: String = _resolve_hit_blood_animation_name()
-	if animation_name.is_empty():
-		return
-
-	var fx_root: Node = get_tree().current_scene
-	if fx_root == null:
-		fx_root = get_parent()
-	if fx_root == null:
-		return
-
-	var hit_position: Vector2 = global_position + hit_blood_offset
-	if hit_context.has("hit_position") and hit_context.get("hit_position") is Vector2:
-		hit_position = hit_context.get("hit_position") + hit_blood_offset
-
-	var away_direction: Vector2 = Vector2.RIGHT
-	if source is Node2D:
-		away_direction = (global_position - (source as Node2D).global_position).normalized()
-	if away_direction == Vector2.ZERO:
-		away_direction = Vector2.RIGHT
-
-	var blood_sprite: AnimatedSprite2D = AnimatedSprite2D.new()
-	blood_sprite.top_level = true
-	blood_sprite.sprite_frames = BLEEDING_EFFECT_FRAMES
-	blood_sprite.animation = animation_name
-	blood_sprite.global_position = hit_position
-	blood_sprite.scale = hit_blood_effect_scale
-	blood_sprite.z_index = hit_blood_z_index
-	blood_sprite.flip_h = away_direction.x < 0.0
-	blood_sprite.flip_v = abs(away_direction.y) > abs(away_direction.x) and away_direction.y < 0.0
-	fx_root.add_child(blood_sprite)
-
-	BLEEDING_EFFECT_FRAMES.set_animation_loop(animation_name, false)
-	BLEEDING_EFFECT_FRAMES.set_animation_speed(animation_name, max(hit_blood_anim_fps, 1.0))
-	blood_sprite.play(animation_name)
-
-	var fly_target: Vector2 = blood_sprite.global_position + away_direction * max(hit_blood_fly_distance, 0.0)
-	var fly_tween: Tween = blood_sprite.create_tween()
-	fly_tween.tween_property(
-		blood_sprite,
-		"global_position",
-		fly_target,
-		max(hit_blood_fly_duration_sec, 0.05)
-	)
-
-	blood_sprite.animation_finished.connect(func() -> void:
-		if is_instance_valid(blood_sprite):
-			blood_sprite.queue_free()
-	)
-
-
-func _resolve_hit_blood_animation_name() -> String:
-	if BLEEDING_EFFECT_FRAMES == null:
-		return ""
-
-	var available: Array[String] = []
-	for name in hit_blood_animation_names:
-		var trimmed: String = String(name).strip_edges()
-		if trimmed.is_empty():
-			continue
-		if BLEEDING_EFFECT_FRAMES.has_animation(trimmed):
-			available.append(trimmed)
-
-	if available.is_empty():
-		var all_names: PackedStringArray = BLEEDING_EFFECT_FRAMES.get_animation_names()
-		if all_names.is_empty():
-			return ""
-		return String(all_names[0])
-
-	return available[randi() % available.size()]
+	if blood_effects_controller != null:
+		blood_effects_controller.update_bleeding_trail(delta)

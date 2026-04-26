@@ -4,9 +4,11 @@ const SAVE_FILE_PATH: String = "user://savegame.json"
 const DEFAULT_LEVEL_PATH: String = "res://level.tscn"
 
 @onready var continue_button: Button = $CenterContainer/MenuPanel/VBox/Continue
+@onready var soundtrack_player: AudioStreamPlayer = $SoundTrack
 
 
 func _ready() -> void:
+	_disable_soundtrack_for_headless()
 	_update_continue_button_state()
 
 
@@ -36,6 +38,26 @@ func _on_continue_pressed() -> void:
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
+
+
+func _disable_soundtrack_for_headless() -> void:
+	if soundtrack_player == null:
+		return
+	if DisplayServer.get_name() != "headless":
+		return
+	if soundtrack_player.playing:
+		soundtrack_player.stop()
+	soundtrack_player.autoplay = false
+	soundtrack_player.stream = null
+
+
+func _exit_tree() -> void:
+	if soundtrack_player == null:
+		return
+	if soundtrack_player.playing:
+		soundtrack_player.stop()
+	# Release stream reference to avoid playback resources lingering on shutdown.
+	soundtrack_player.stream = null
 
 
 func _update_continue_button_state() -> void:

@@ -81,15 +81,6 @@ const CURSOR_HEAT_BUILD_PER_SEC: float = 0.75
 const CURSOR_HEAT_RECOVER_PER_SEC: float = 1.25
 const AIM_SETTLE_RECOVER_PER_SEC: float = 1.85
 const MIN_BULLET_DISTANCE: float = 8.0
-const ENEMY_GROUP: StringName = &"enemy"
-const MELEE_SWING_ANIMATION_FRONT: String = "SwingAttackFront"
-const MELEE_SWING_ANIMATION_BACK: String = "SwingAttackBack"
-const MELEE_SWING_ANIMATION_RIGHT_LEGACY: String = "SwingAttackRight"
-const MELEE_SWING_ANIMATION_DOWN_LEGACY: String = "SwingAttackDown"
-const MELEE_COOLDOWN: float = 0.45
-const MIN_RELOAD_TIME_SEC: float = 0.35
-const AKP_103_RESOURCE_PATH: String = "res://Resources/AR_Weapons/akp_103/akp_103.tres"
-const AKP_103_SILENCED_SHOT_SOUND: AudioStream = preload("res://Assets/AudioWaw/WeaponSounds/akp_103/akp_103Silencer.wav")
 const WEAPON_NOISE_CONTROLLER = preload("res://Player/weapon_noise_controller.gd")
 const WEAPON_RELOAD_CONTROLLER = preload("res://Player/weapon_reload_controller.gd")
 const WEAPON_SHOOTING_CONTROLLER = preload("res://Player/weapon_shooting_controller.gd")
@@ -122,14 +113,21 @@ func _process(delta: float) -> void:
 	_update_spread(delta)
 	_update_cursor_heat(delta)
 	_update_cursor()
-	_update_shoot_cooldown(delta)
-	_update_melee_attack(delta)
-	_update_melee_camera_shake(delta)
-	_update_reload(delta)
-	_try_reload()
+	if shooting_controller != null:
+		shooting_controller.update_shoot_cooldown(delta)
+	if melee_controller != null:
+		melee_controller.update_melee_attack(delta)
+		melee_controller.update_melee_camera_shake(delta)
+	if reload_controller != null:
+		reload_controller.update(delta)
 	_sync_reload_state_from_controller()
-	_try_melee_attack()
-	_try_shoot()
+	if reload_controller != null:
+		reload_controller.try_reload()
+	_sync_reload_state_from_controller()
+	if melee_controller != null:
+		melee_controller.try_melee_attack()
+	if shooting_controller != null:
+		shooting_controller.try_shoot()
 
 
 func _update_current_weapon() -> void:
@@ -248,123 +246,6 @@ func _update_spread(delta: float) -> void:
 	current_bullet_distance = max(MIN_BULLET_DISTANCE, min(_get_aim_distance(), current_weapon.bullet_max_distance))
 
 
-func _update_shoot_cooldown(delta: float) -> void:
-	if shooting_controller != null:
-		shooting_controller.update_shoot_cooldown(delta)
-
-
-func _update_reload(delta: float) -> void:
-	if reload_controller != null:
-		reload_controller.update(delta)
-	_sync_reload_state_from_controller()
-
-
-func _try_reload() -> void:
-	if reload_controller != null:
-		reload_controller.try_reload()
-	_sync_reload_state_from_controller()
-
-
-func _try_shoot() -> void:
-	if shooting_controller != null:
-		shooting_controller.try_shoot()
-
-
-func _try_melee_attack() -> void:
-	if melee_controller != null:
-		melee_controller.try_melee_attack()
-
-
-func _update_melee_attack(delta: float) -> void:
-	if melee_controller != null:
-		melee_controller.update_melee_attack(delta)
-
-
-func _play_melee_attack_animation() -> void:
-	if melee_controller != null:
-		melee_controller.play_melee_attack_animation()
-
-
-func _stop_melee_attack_animation() -> void:
-	if melee_controller != null:
-		melee_controller.stop_melee_attack_animation()
-
-
-func _get_melee_visual_slot() -> EquipmentVisualSlot:
-	if melee_controller != null:
-		return melee_controller.get_melee_visual_slot()
-	return null
-
-
-func _apply_melee_hit() -> void:
-	if melee_controller != null:
-		melee_controller.apply_melee_hit()
-
-
-func _can_use_unarmed_melee() -> bool:
-	return melee_controller != null and melee_controller.can_use_unarmed_melee()
-
-
-func _find_best_melee_target() -> Node2D:
-	if melee_controller != null:
-		return melee_controller.find_best_melee_target()
-	return null
-
-
-func _is_damage_target_dead(target: Node) -> bool:
-	return melee_controller == null or melee_controller.is_damage_target_dead(target)
-
-
-func _start_melee_camera_shake() -> void:
-	if melee_controller != null:
-		melee_controller.start_melee_camera_shake()
-
-
-func _update_melee_camera_shake(delta: float) -> void:
-	if melee_controller != null:
-		melee_controller.update_melee_camera_shake(delta)
-
-
-func _spawn_melee_blood_effect(hit_world_position: Vector2) -> void:
-	if melee_controller != null:
-		melee_controller.spawn_melee_blood_effect(hit_world_position)
-
-
-func _get_melee_blood_frames() -> SpriteFrames:
-	if melee_controller != null:
-		return melee_controller.get_melee_blood_frames()
-	return null
-
-
-func _resolve_blood_animation_name(frames: SpriteFrames) -> String:
-	if melee_controller != null:
-		return melee_controller.resolve_blood_animation_name(frames)
-	return ""
-
-
-func _resolve_blood_hit_animation_name(frames: SpriteFrames) -> String:
-	if melee_controller != null:
-		return melee_controller.resolve_blood_hit_animation_name(frames)
-	return ""
-
-
-func _get_melee_attack_direction() -> String:
-	if melee_controller != null:
-		return melee_controller.get_melee_attack_direction()
-	return "right"
-
-
-func _get_player_facing_vector() -> Vector2:
-	if melee_controller != null:
-		return melee_controller.get_player_facing_vector()
-	return Vector2.RIGHT
-
-
-func _shoot() -> void:
-	if shooting_controller != null:
-		shooting_controller.shoot()
-
-
 func _setup_shoot_sfx() -> void:
 	if shooting_controller != null:
 		shooting_controller.setup_shoot_sfx()
@@ -391,32 +272,6 @@ func _resolve_weapon_audio_nodes() -> void:
 		weapon_reload_sfx = AudioStreamPlayer.new()
 		weapon_reload_sfx.name = "WeaponReload"
 		audio_root.add_child(weapon_reload_sfx)
-
-
-func _play_shot_sfx() -> void:
-	if shooting_controller != null:
-		shooting_controller.play_shot_sfx()
-
-
-func _resolve_shot_stream_for_current_weapon() -> AudioStream:
-	if shooting_controller != null:
-		return shooting_controller.resolve_shot_stream_for_current_weapon()
-	return null
-
-
-func _is_akp_103_with_silencer() -> bool:
-	return shooting_controller != null and shooting_controller.is_akp_103_with_silencer()
-
-
-func _emit_player_shot_noise() -> void:
-	if shooting_controller != null:
-		shooting_controller.emit_player_shot_noise()
-
-
-func _get_attachment_shot_loudness_multiplier() -> float:
-	if shooting_controller != null:
-		return shooting_controller.get_attachment_shot_loudness_multiplier()
-	return 1.0
 
 
 func _notify_enemies_about_noise(noise_position: Vector2, noise_radius: float) -> void:
@@ -577,10 +432,6 @@ func _update_cursor_heat(delta: float) -> void:
 		cursor_heat_ratio = move_toward(cursor_heat_ratio, 0.0, settle_speed * delta)
 
 
-func _should_fire_now() -> bool:
-	return shooting_controller != null and shooting_controller.should_fire_now()
-
-
 func _get_spread_settle_speed() -> float:
 	if current_weapon == null:
 		return AIM_SETTLE_RECOVER_PER_SEC
@@ -678,11 +529,6 @@ func _is_player_moving() -> bool:
 	return player.velocity.length() > 0.1
 
 
-func _spawn_projectiles(spawn_pos: Vector2) -> void:
-	if shooting_controller != null:
-		shooting_controller.spawn_projectiles(spawn_pos)
-
-
 func _get_aim_target_world_position() -> Vector2:
 	return player.get_global_mouse_position() + aim_target_offset
 
@@ -692,18 +538,6 @@ func _get_direction_to_aim_target(from_position: Vector2) -> Vector2:
 	if direction == Vector2.ZERO:
 		return Vector2.DOWN
 	return direction
-
-
-func _get_pellet_direction(base_direction: Vector2) -> Vector2:
-	if shooting_controller != null:
-		return shooting_controller.get_pellet_direction(base_direction)
-	return _get_spread_direction(base_direction)
-
-
-func _get_pellet_distance() -> float:
-	if shooting_controller != null:
-		return shooting_controller.get_pellet_distance()
-	return current_bullet_distance
 
 
 func _start_reload() -> void:
@@ -836,7 +670,10 @@ func _update_melee_debug_visual() -> void:
 		return
 
 	var half_angle: float = deg_to_rad(clamp(melee_hit_angle_degrees, 1.0, 359.0) * 0.5)
-	var base_angle: float = _get_player_facing_vector().angle()
+	var facing_vector: Vector2 = Vector2.RIGHT
+	if melee_controller != null:
+		facing_vector = melee_controller.get_player_facing_vector()
+	var base_angle: float = facing_vector.angle()
 	var segments: int = max(melee_debug_segments, 6)
 
 	var polygon_points: PackedVector2Array = PackedVector2Array()

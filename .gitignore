@@ -6,6 +6,7 @@
 *.tmp
 *.bak
 *.swp
+.godot-headless*.log
 
 # Export credentials are machine/user specific.
 export_credentials.cfg
