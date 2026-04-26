@@ -124,6 +124,5 @@ func _ensure_loot() -> void:
 		if template_item == null:
 			continue
 
-		var item_instance: ItemData = template_item.duplicate(true)
-		item_instance.stack_count = 1
+		var item_instance: ItemData = template_item.create_instance(1)
 		loot_slots[slot_index] = item_instance

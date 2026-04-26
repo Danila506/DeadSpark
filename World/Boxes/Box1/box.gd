@@ -128,8 +128,7 @@ func _ensure_loot() -> void:
 		var guaranteed_slot_index: int = free_indices[guaranteed_slot_pos]
 		free_indices.remove_at(guaranteed_slot_pos)
 
-		var guaranteed_item_instance: ItemData = guaranteed_item.duplicate(true)
-		guaranteed_item_instance.stack_count = 1
+		var guaranteed_item_instance: ItemData = guaranteed_item.create_instance(1)
 		loot_slots[guaranteed_slot_index] = guaranteed_item_instance
 
 	if loot_pool.is_empty() or free_indices.is_empty():
@@ -149,6 +148,5 @@ func _ensure_loot() -> void:
 		if template_item == null:
 			continue
 
-		var item_instance: ItemData = template_item.duplicate(true)
-		item_instance.stack_count = 1
+		var item_instance: ItemData = template_item.create_instance(1)
 		loot_slots[slot_index] = item_instance

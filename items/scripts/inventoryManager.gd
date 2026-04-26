@@ -43,7 +43,7 @@ func apply_endurance_percent_loss_to_equipped(slot_type: int, percent_loss: floa
 
 	set_equipped(slot_type, null)
 	item_broken.emit(slot_type, item)
-	endurance_loss_remainder_by_item_id.erase(item.get_instance_id())
+	endurance_loss_remainder_by_item_id.erase(_get_runtime_item_key(item))
 	return true
 
 
@@ -70,32 +70,35 @@ func apply_damage_to_equipped_clothing(damage_amount: float, damage_type: int = 
 
 		set_equipped(slot_type, null)
 		item_broken.emit(slot_type, clothing_item)
-		endurance_loss_remainder_by_item_id.erase(clothing_item.get_instance_id())
+		endurance_loss_remainder_by_item_id.erase(_get_runtime_item_key(clothing_item))
 
 
 func get_weapon_runtime_state(item: ItemData) -> Dictionary:
 	if item == null:
 		return Dictionary()
 
-	var item_id: int = item.get_instance_id()
-	if not weapon_runtime_state.has(item_id):
-		weapon_runtime_state[item_id] = {
+	if item.has_method("get_weapon_runtime_state"):
+		return item.get_weapon_runtime_state()
+
+	var item_key: Variant = _get_runtime_item_key(item)
+	if not weapon_runtime_state.has(item_key):
+		weapon_runtime_state[item_key] = {
 			"ammo_in_mag": max(item.magazine_size, 0),
 			"reserve_ammo": max(item.reserve_ammo, 0),
 			"attached_scope": null,
 			"attached_attachments": {}
 		}
 	else:
-		var existing_state: Dictionary = weapon_runtime_state[item_id]
+		var existing_state: Dictionary = weapon_runtime_state[item_key]
 		if not existing_state.has("attached_attachments"):
 			existing_state["attached_attachments"] = {}
 		if existing_state.has("attached_scope") and existing_state["attached_scope"] != null:
 			var attachments: Dictionary = existing_state.get("attached_attachments", {})
 			attachments[ATTACHMENT_SLOT_SCOPE] = existing_state["attached_scope"]
 			existing_state["attached_attachments"] = attachments
-		weapon_runtime_state[item_id] = existing_state
+		weapon_runtime_state[item_key] = existing_state
 
-	return weapon_runtime_state[item_id]
+	return weapon_runtime_state[item_key]
 
 
 func get_ammo_in_mag(item: ItemData) -> int:
@@ -115,13 +118,16 @@ func set_ammo_state(item: ItemData, ammo_in_mag: int, reserve_ammo: int) -> void
 	var clamped_magazine: int = int(clamp(ammo_in_mag, 0, max(item.magazine_size, 0)))
 	var clamped_reserve: int = int(clamp(reserve_ammo, 0, max(item.reserve_ammo, 0)))
 	var current_state: Dictionary = get_weapon_runtime_state(item)
-	var item_id: int = item.get_instance_id()
-	weapon_runtime_state[item_id] = {
+	var next_state: Dictionary = {
 		"ammo_in_mag": clamped_magazine,
 		"reserve_ammo": clamped_reserve,
 		"attached_scope": current_state.get("attached_scope", null),
 		"attached_attachments": current_state.get("attached_attachments", {}).duplicate(true)
 	}
+	if item.has_method("set_weapon_runtime_state"):
+		item.set_weapon_runtime_state(next_state)
+	else:
+		weapon_runtime_state[_get_runtime_item_key(item)] = next_state
 	ammo_state_changed.emit(item)
 
 
@@ -136,22 +142,25 @@ func copy_runtime_state(from_item: ItemData, to_item: ItemData) -> void:
 	if from_item == null or to_item == null:
 		return
 
-	var source_item_id: int = from_item.get_instance_id()
-	if not weapon_runtime_state.has(source_item_id):
+	var source_state: Dictionary = get_weapon_runtime_state(from_item)
+	if source_state.is_empty():
 		return
 
-	var runtime_copy: Dictionary = weapon_runtime_state[source_item_id].duplicate(true)
+	var runtime_copy: Dictionary = source_state.duplicate(true)
 	var attached_scope: ItemData = runtime_copy.get("attached_scope", null)
 	if attached_scope != null:
-		runtime_copy["attached_scope"] = attached_scope.duplicate(true)
+		runtime_copy["attached_scope"] = _clone_runtime_item(attached_scope)
 	var attached_attachments: Dictionary = runtime_copy.get("attached_attachments", {})
 	if not attached_attachments.is_empty():
 		var copied_attachments: Dictionary = {}
 		for slot_key in attached_attachments.keys():
 			var attachment_item: ItemData = attached_attachments.get(slot_key, null)
-			copied_attachments[slot_key] = attachment_item.duplicate(true) if attachment_item != null else null
+			copied_attachments[slot_key] = _clone_runtime_item(attachment_item)
 		runtime_copy["attached_attachments"] = copied_attachments
-	weapon_runtime_state[to_item.get_instance_id()] = runtime_copy
+	if to_item.has_method("set_weapon_runtime_state"):
+		to_item.set_weapon_runtime_state(runtime_copy)
+	else:
+		weapon_runtime_state[_get_runtime_item_key(to_item)] = runtime_copy
 
 
 func get_attached_scope(weapon_item: ItemData) -> ItemData:
@@ -235,7 +244,7 @@ func set_attached_attachment(weapon_item: ItemData, attachment_item: ItemData) -
 	attachments[slot_type] = attachment_item
 	state["attached_attachments"] = attachments
 	state["attached_scope"] = attachments.get(ATTACHMENT_SLOT_SCOPE, null)
-	weapon_runtime_state[weapon_item.get_instance_id()] = state
+	_set_weapon_runtime_state_for_item(weapon_item, state)
 	equipment_changed.emit(weapon_item.item_type, weapon_item)
 	return true
 
@@ -257,7 +266,7 @@ func detach_attached_attachment(weapon_item: ItemData, slot_type: int) -> ItemDa
 	attachments.erase(slot_type)
 	state["attached_attachments"] = attachments
 	state["attached_scope"] = attachments.get(ATTACHMENT_SLOT_SCOPE, null)
-	weapon_runtime_state[weapon_item.get_instance_id()] = state
+	_set_weapon_runtime_state_for_item(weapon_item, state)
 	equipment_changed.emit(weapon_item.item_type, weapon_item)
 	return detached_attachment
 
@@ -465,16 +474,39 @@ func _consume_item_endurance_percent(item: ItemData, percent_loss: float) -> boo
 	if safe_percent_loss <= 0.0:
 		return false
 
-	var item_id: int = item.get_instance_id()
-	var accumulated_loss: float = safe_percent_loss + float(endurance_loss_remainder_by_item_id.get(item_id, 0.0))
+	var item_key: Variant = _get_runtime_item_key(item)
+	var accumulated_loss: float = safe_percent_loss + float(endurance_loss_remainder_by_item_id.get(item_key, 0.0))
 	var applied_loss_int: int = int(floor(accumulated_loss))
-	endurance_loss_remainder_by_item_id[item_id] = accumulated_loss - float(applied_loss_int)
+	endurance_loss_remainder_by_item_id[item_key] = accumulated_loss - float(applied_loss_int)
 
 	if applied_loss_int <= 0:
 		return false
 
 	item.endurance = max(item.endurance - applied_loss_int, 0)
 	return true
+
+
+func _get_runtime_item_key(item: ItemData) -> Variant:
+	if item != null and item.has_method("get_runtime_id"):
+		return item.get_runtime_id()
+	return item.get_instance_id()
+
+
+func _set_weapon_runtime_state_for_item(item: ItemData, state: Dictionary) -> void:
+	if item == null:
+		return
+	if item.has_method("set_weapon_runtime_state"):
+		item.set_weapon_runtime_state(state)
+	else:
+		weapon_runtime_state[_get_runtime_item_key(item)] = state
+
+
+func _clone_runtime_item(item: ItemData) -> ItemData:
+	if item == null:
+		return null
+	if item.has_method("create_runtime_copy"):
+		return item.create_runtime_copy()
+	return item.duplicate(true)
 
 
 func _count_ammo_in_item(item: ItemData, ammo_type: String = "") -> int:

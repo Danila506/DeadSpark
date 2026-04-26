@@ -54,6 +54,8 @@ enum AttachmentSlot {
 @export var inventory_icon: Texture2D
 @export var inventory_icon_scale: float = 1.0
 @export var inventory_icon_rotation_degrees: float = 0.0
+# Default runtime values copied into ItemInstance. Keep them here so existing
+# item .tres files remain definitions, while spawned/equipped items get identity.
 @export var stack_count: int = 1
 @export var max_stack_size: int = 1
 @export var show_stack_count_in_inventory: bool = false
@@ -86,6 +88,7 @@ enum AttachmentSlot {
 
 # Анимации предмета поверх персонажа
 @export var equipped_frames: SpriteFrames
+# Legacy-compatible storage surface. Runtime copies live on ItemInstance.
 var runtime_storage_items: Array[ItemData] = []
 
 
@@ -180,6 +183,43 @@ var runtime_storage_items: Array[ItemData] = []
 
 @export var aim_distance_min: float = 32.0
 @export var aim_distance_max: float = 260.0
+
+
+func create_instance(initial_stack_count: int = -1, initial_endurance: int = -1) -> ItemData:
+	var instance_script: Script = load("res://items/scripts/item_instance.gd") as Script
+	if instance_script == null:
+		var fallback: ItemData = duplicate(true)
+		if initial_stack_count >= 0:
+			fallback.stack_count = initial_stack_count
+		if initial_endurance >= 0:
+			fallback.endurance = initial_endurance
+		fallback.runtime_storage_items.clear()
+		return fallback
+
+	var item_instance: ItemData = instance_script.new() as ItemData
+	item_instance.call("setup_from_definition", self, initial_stack_count, initial_endurance)
+	return item_instance
+
+
+func create_runtime_copy() -> ItemData:
+	var item_copy: ItemData = create_instance(stack_count, endurance)
+	item_copy.runtime_storage_items.clear()
+	for stored_item in runtime_storage_items:
+		if stored_item == null:
+			item_copy.runtime_storage_items.append(null)
+		elif stored_item.has_method("create_runtime_copy"):
+			item_copy.runtime_storage_items.append(stored_item.create_runtime_copy())
+		else:
+			item_copy.runtime_storage_items.append(stored_item.duplicate(true))
+	return item_copy
+
+
+func get_definition() -> ItemData:
+	return self
+
+
+func is_runtime_instance() -> bool:
+	return false
 
 
 func _validate_property(property: Dictionary) -> void:

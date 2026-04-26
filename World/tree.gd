@@ -163,10 +163,11 @@ func _drop_wood() -> void:
 			continue
 
 		scene_root.add_child(pickup)
+		var wood_instance: ItemData = wood_item_data.create_instance()
 		if pickup.has_method("setup_from_item_data"):
-			pickup.setup_from_item_data(wood_item_data.duplicate(true))
+			pickup.setup_from_item_data(wood_instance)
 		elif "item_data" in pickup:
-			pickup.item_data = wood_item_data.duplicate(true)
+			pickup.item_data = wood_instance
 
 		if pickup is Node2D:
 			var drop_offset := Vector2(

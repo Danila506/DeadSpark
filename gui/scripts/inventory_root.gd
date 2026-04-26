@@ -733,19 +733,10 @@ func _clone_item_data(item: ItemData) -> ItemData:
 	if item == null:
 		return null
 
-	var item_copy: ItemData = item.duplicate(true)
-	item_copy.runtime_storage_items.clear()
+	if item.has_method("create_runtime_copy"):
+		return item.create_runtime_copy()
 
-	for stored_item in item.runtime_storage_items:
-		if stored_item == null:
-			item_copy.runtime_storage_items.append(null)
-		else:
-			item_copy.runtime_storage_items.append(_clone_item_data(stored_item))
-
-	if InventoryManager != null and InventoryManager.has_method("copy_runtime_state"):
-		InventoryManager.copy_runtime_state(item, item_copy)
-
-	return item_copy
+	return item.duplicate(true)
 
 
 func _get_closest_nearby_item() -> Node:

@@ -1148,7 +1148,7 @@ func _ensure_loot_slots() -> void:
 		var template_item: ItemData = available_loot_pool[randi_range(0, available_loot_pool.size() - 1)]
 		if template_item == null:
 			continue
-		var item_instance: ItemData = template_item.duplicate(true)
+		var item_instance: ItemData = template_item.create_instance()
 		if item_instance.is_ammo_item:
 			var ammo_count: int = randi_range(1, safe_max_ammo)
 			item_instance.stack_count = min(ammo_count, max(item_instance.max_stack_size, 1))

@@ -61,7 +61,7 @@ func spawn_items() -> void:
 		var item_data: ItemData = valid_items[rng.randi_range(0, valid_items.size() - 1)]
 		if item_data == null:
 			continue
-		var item_copy: ItemData = item_data.duplicate(true)
+		var item_copy: ItemData = item_data.create_instance()
 		_apply_random_endurance_if_needed(item_copy)
 		
 		var pickup: Node2D = pickup_scene.instantiate()
