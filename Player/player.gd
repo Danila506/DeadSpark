@@ -158,8 +158,6 @@ func _ready() -> void:
 	_update_stealth_state()
 	walk_snow_sfx = _resolve_walk_snow_sfx()
 	_setup_walk_snow_sfx()
-	if camera_2d != null:
-		camera_2d.limit_enabled = false
 	stats_changed.emit()
 	_collect_equipment_visual_slots()
 	_connect_inventory_signals()

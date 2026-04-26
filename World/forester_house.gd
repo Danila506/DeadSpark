@@ -27,10 +27,10 @@ const INSIDE_HOUSE_ANCHOR_META: StringName = &"inside_house_anchor"
 @export_range(0.0, 1.0, 0.01) var outside_right_alpha_when_inside: float = 0.2
 @export_range(0.0, 1.0, 0.01) var outside_shadow_alpha_when_inside: float = 0.12
 @export var wardrobe_food_pool: Array[ItemData] = [
-	preload("res://Resources/food/apple.tres"),
-	preload("res://Resources/food/tomate.tres"),
-	preload("res://Resources/food/pepper.tres"),
-	preload("res://Resources/food/eggplant.tres")
+	preload("res://Resources/Food/apple.tres"),
+	preload("res://Resources/Food/tomate.tres"),
+	preload("res://Resources/Food/pepper.tres"),
+	preload("res://Resources/Food/eggplant.tres")
 ]
 
 var player_in_house: bool = false
