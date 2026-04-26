@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://brhx7jeqn1s68"]
+
+[ext_resource type="Texture2D" uid="uid://jgwbo3h4r28f" path="res://Assets/itemAssets/inventory_icon/Food/appleInv.png" id="1_cp2k1"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_script"]
+[ext_resource type="Texture2D" uid="uid://bc2hvwfe07h7n" path="res://Assets/itemAssets/on_world_icon/Food/appleWrd.png" id="3_38y6y"]
+
+[resource]
+script = ExtResource("2_script")
+storage_category = 3
+item_name = "Яблоко"
+world_icon = ExtResource("3_38y6y")
+inventory_icon = ExtResource("1_cp2k1")
+inventory_icon_scale = 0.75
+max_stack_size = 10
+show_stack_count_in_inventory = true
+food_restore_amount = 6.0
+water_restore_amount = 4.0
+item_type = 10
+can_be_held_in_left_hand = true

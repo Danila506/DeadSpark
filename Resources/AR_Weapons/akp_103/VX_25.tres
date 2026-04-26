@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dx65g0m8pb2h7"]
+
+[ext_resource type="Texture2D" uid="uid://cnc1hynmxh241" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/scope_Hexagon_VX25_Inv.png" id="1_11xcv"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_11xcv"]
+[ext_resource type="Texture2D" uid="uid://ddlynm63fe8nf" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/scope_Hexagon_VX25_OnWeapon.png" id="2_hr0a0"]
+[ext_resource type="Texture2D" uid="uid://u4m6pic5hllc" path="res://Assets/itemAssets/on_world_icon/AR_Weapon/akp_103/scope_Hexagon_VX25_Wrd.png" id="3_hr0a0"]
+[ext_resource type="Texture2D" uid="uid://b3e877amj8wcv" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/Handle_akp_103OnWeapon.png" id="4_ehto8"]
+[ext_resource type="Resource" uid="uid://c81ye2fo7ai7f" path="res://Resources/AR_Weapons/akp_103/akp_103.tres" id="4_weapon"]
+[ext_resource type="Texture2D" uid="uid://82awnmjm7buc" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/silencer_akp_103_OnWeapon.png" id="6_uc1po"]
+
+[resource]
+script = ExtResource("2_11xcv")
+auto_place_into_equipment_on_pickup = false
+item_name = "Прицел Hexagon VX_25"
+world_icon = ExtResource("3_hr0a0")
+inventory_icon = ExtResource("1_11xcv")
+can_be_held_in_left_hand = true
+is_weapon_attachment = true
+mounted_scope_texture = ExtResource("2_hr0a0")
+mounted_handle_texture = ExtResource("4_ehto8")
+mounted_silencer_texture = ExtResource("6_uc1po")
+allowed_scope_weapons = Array[ExtResource("2_11xcv")]([ExtResource("4_weapon")])
+attachment_spread_multiplier = 0.85

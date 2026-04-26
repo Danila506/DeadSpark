@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://de78r2udd1nj0"]
+
+[ext_resource type="Texture2D" uid="uid://blvvwnepwdntt" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/kar92l/Scope_ZF_43Inv.png" id="1_vbn30"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_lsc5t"]
+[ext_resource type="Texture2D" uid="uid://22tg02ef4oyh" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/kar92l/scope_ZF_43OnWeapon.png" id="2_vtpqf"]
+[ext_resource type="Texture2D" uid="uid://q0y0af87khda" path="res://Assets/itemAssets/on_world_icon/AR_Weapon/kar92l/Scope_ZF-43Wrd.png" id="4_u3sjw"]
+
+[resource]
+script = ExtResource("2_lsc5t")
+auto_place_into_equipment_on_pickup = false
+item_name = "Прицел ZF-43"
+world_icon = ExtResource("4_u3sjw")
+inventory_icon = ExtResource("1_vbn30")
+inventory_icon_scale = 0.8
+is_scope_attachment = true
+mounted_scope_texture = ExtResource("2_vtpqf")
+mounted_scope_scale = Vector2(1.5, 1.5)
+mounted_scope_rotation_degrees = 180.0
+mounted_scope_flip_h = true
+mounted_scope_flip_v = true
+allowed_scope_weapon_names = Array[String](["Kar92l"])
+scope_aim_settle_time_multiplier = 0.75
+scope_spread_multiplier = 0.85

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://shp2mqbh83ab"]
+
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="1_lckp4"]
+[ext_resource type="Texture2D" uid="uid://hpmya3prk80o" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/Handle_akp_103Inv.png" id="2_041vx"]
+[ext_resource type="Texture2D" uid="uid://h57jqwxvbg80" path="res://Assets/itemAssets/on_world_icon/AR_Weapon/akp_103/Handle_akp_103Wrd.png" id="3_6m6le"]
+[ext_resource type="Texture2D" uid="uid://b3e877amj8wcv" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/Handle_akp_103OnWeapon.png" id="4_6m6le"]
+[ext_resource type="Resource" uid="uid://c81ye2fo7ai7f" path="res://Resources/AR_Weapons/akp_103/akp_103.tres" id="4_weapon"]
+
+[resource]
+script = ExtResource("1_lckp4")
+auto_place_into_equipment_on_pickup = false
+item_name = "Рукоятка(akp_103)"
+world_icon = ExtResource("3_6m6le")
+inventory_icon = ExtResource("2_041vx")
+can_be_held_in_left_hand = true
+is_weapon_attachment = true
+attachment_slot = 1
+mounted_scope_texture = ExtResource("4_6m6le")
+mounted_handle_texture = ExtResource("4_6m6le")
+allowed_scope_weapons = Array[ExtResource("1_lckp4")]([ExtResource("4_weapon")])
+attachment_spread_multiplier = 0.85

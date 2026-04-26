@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bqajukabmd3tf"]
+
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="1_o4olq"]
+[ext_resource type="Texture2D" uid="uid://cykb8v556krxg" path="res://World/Assets/Biom2/stoneInv.png" id="2_fffmo"]
+[ext_resource type="Texture2D" uid="uid://braeqhsh0kyja" path="res://World/Assets/Biom2/stoneWrd.png" id="3_0vdk4"]
+
+[resource]
+script = ExtResource("1_o4olq")
+item_name = "Камни"
+world_icon = ExtResource("3_0vdk4")
+inventory_icon = ExtResource("2_fffmo")
+inventory_icon_scale = 0.8
+max_stack_size = 3
+show_stack_count_in_inventory = true

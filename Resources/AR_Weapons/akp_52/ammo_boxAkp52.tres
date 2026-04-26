@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bel7dsmn1wbcy"]
+
+[ext_resource type="Texture2D" uid="uid://cak83xu544rkq" path="res://Assets/itemAssets/inventory_icon/bullets/ammoAk52Inv.png" id="1_bkrxb"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_l1ji1"]
+[ext_resource type="Texture2D" uid="uid://ds34n4exhlmpb" path="res://Assets/itemAssets/on_world_icon/bullets/ammoAk52Wrd.png" id="3_0e3hr"]
+
+[resource]
+script = ExtResource("2_l1ji1")
+item_name = "Патроны"
+world_icon = ExtResource("3_0e3hr")
+inventory_icon = ExtResource("1_bkrxb")
+inventory_icon_scale = 0.52
+stack_count = 30
+max_stack_size = 30
+show_stack_count_in_inventory = true
+is_ammo_item = true
+ammo_type = "akp52"

@@ -1,0 +1,174 @@
+[gd_scene format=3 uid="uid://dpeca326tk5bb"]
+
+[ext_resource type="Texture2D" uid="uid://bf2myl3tkrqdd" path="res://World/Assets/ForesterHouse/foresterHouseInside.png" id="1_a2fq1"]
+[ext_resource type="Texture2D" uid="uid://b6jenuxjc83bf" path="res://World/Assets/ForesterHouse/wardrobeNormal.png" id="2_54uxd"]
+[ext_resource type="Texture2D" uid="uid://do0itb6x1ol06" path="res://World/Assets/ForesterHouse/ForesterHouseOutside.png" id="3_1r0iw"]
+[ext_resource type="Texture2D" uid="uid://oyvlpaip68aq" path="res://World/Assets/ForesterHouse/wardrobeNearest.png" id="4_3m0vj"]
+[ext_resource type="Texture2D" uid="uid://by6q40ha6t5vf" path="res://World/Assets/ForesterHouse/wardrobeOpened.png" id="5_2mspn"]
+[ext_resource type="Texture2D" uid="uid://t6de1kbyxu6y" path="res://World/Assets/ForesterHouse/wardrobeOpenedOutline.png" id="6_cg3yo"]
+[ext_resource type="Script" uid="uid://cssarhefclf05" path="res://World/forester_house.gd" id="7_house_script"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_wardrobe"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_54uxd")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_3m0vj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_2mspn")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_cg3yo")
+}],
+"loop": false,
+"name": &"default",
+"speed": 1.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wardrobe"]
+size = Vector2(16, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_house"]
+size = Vector2(57, 31)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_shadow_zone"]
+size = Vector2(10, 32)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall_left"]
+size = Vector2(2.0234375, 25.592772)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall_right"]
+size = Vector2(1.1558757, 37.346962)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall_top"]
+size = Vector2(82.51953, 5)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_stdgs"]
+size = Vector2(42, 5)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_3kckw"]
+size = Vector2(31.80663, 5)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_enhwp"]
+size = Vector2(2, 31.707317)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall_inner"]
+size = Vector2(35, 0)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_t4d8k"]
+size = Vector2(18.5, 13)
+
+[node name="ForesterHouse" type="Node2D" unique_id=176547218]
+script = ExtResource("7_house_script")
+
+[node name="ForesterHouseOutside" type="Sprite2D" parent="." unique_id=794156031]
+position = Vector2(8, 1)
+texture = ExtResource("3_1r0iw")
+region_enabled = true
+region_rect = Rect2(0, 0, 83.2, 64)
+
+[node name="ForesterHouseOutsideRight" type="Sprite2D" parent="." unique_id=794156033]
+position = Vector2(52, 14)
+texture = ExtResource("3_1r0iw")
+region_enabled = true
+region_rect = Rect2(83.16284, 29.705488, 8.131226, 32.35704)
+
+[node name="ForesterHouseOutsideShadow" type="Sprite2D" parent="." unique_id=794156032]
+z_index = 10
+position = Vector2(52, 14)
+texture = ExtResource("3_1r0iw")
+region_enabled = true
+region_rect = Rect2(83.16284, 29.705488, 8.131226, 32.35704)
+
+[node name="ForesterHouseInside" type="Sprite2D" parent="." unique_id=994156032]
+texture = ExtResource("1_a2fq1")
+
+[node name="WardrobeSprite" type="AnimatedSprite2D" parent="ForesterHouseInside" unique_id=513315038]
+position = Vector2(16, 0)
+sprite_frames = SubResource("SpriteFrames_wardrobe")
+offset = Vector2(0.5, 0)
+
+[node name="WardrobeArea" type="Area2D" parent="ForesterHouseInside" unique_id=1219130003]
+position = Vector2(16, 2)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ForesterHouseInside/WardrobeArea" unique_id=1219130004]
+position = Vector2(0, 5)
+shape = SubResource("RectangleShape2D_wardrobe")
+
+[node name="InteractLabel" type="Label" parent="ForesterHouseInside" unique_id=1219130005]
+offset_left = -38.0
+offset_top = -52.0
+offset_right = 70.0
+offset_bottom = -29.0
+theme_override_font_sizes/font_size = 16
+text = "[E] - открыть"
+horizontal_alignment = 1
+
+[node name="HouseArea" type="Area2D" parent="." unique_id=1219130001]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HouseArea" unique_id=1219130002]
+position = Vector2(0.5, 13.5)
+shape = SubResource("RectangleShape2D_house")
+
+[node name="ShadowArea" type="Area2D" parent="." unique_id=1219130010]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ShadowArea" unique_id=1219130011]
+position = Vector2(54, 14)
+shape = SubResource("RectangleShape2D_shadow_zone")
+
+[node name="CollisionOutside" type="StaticBody2D" parent="." unique_id=1635001001]
+
+[node name="LeftWall" type="CollisionShape2D" parent="CollisionOutside" unique_id=1635001002]
+position = Vector2(-30.011719, 15.362813)
+scale = Vector2(1, 1.435)
+shape = SubResource("RectangleShape2D_wall_left")
+
+[node name="RightWall" type="CollisionShape2D" parent="CollisionOutside" unique_id=1635001003]
+position = Vector2(53.422062, 15.699991)
+scale = Vector2(0.63, 0.98)
+shape = SubResource("RectangleShape2D_wall_right")
+
+[node name="TopWall" type="CollisionShape2D" parent="CollisionOutside" unique_id=1635001004]
+position = Vector2(12.54, 2.5)
+shape = SubResource("RectangleShape2D_wall_top")
+
+[node name="Under" type="CollisionShape2D" parent="CollisionOutside" unique_id=956054081]
+position = Vector2(-9, 31.23)
+shape = SubResource("RectangleShape2D_stdgs")
+
+[node name="Wood" type="CollisionShape2D" parent="CollisionOutside" unique_id=1299102431]
+position = Vector2(39.392498, 31.5)
+scale = Vector2(0.905, 1)
+shape = SubResource("RectangleShape2D_3kckw")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CollisionOutside" unique_id=1535195067]
+position = Vector2(30, 13.25)
+scale = Vector2(1, 1.025)
+shape = SubResource("RectangleShape2D_enhwp")
+
+[node name="CollisionInside" type="StaticBody2D" parent="." unique_id=1635001005]
+
+[node name="LeftWall" type="CollisionShape2D" parent="CollisionInside" unique_id=1635001006]
+position = Vector2(-26, 13.285)
+scale = Vector2(0.5051929, 1.269881)
+shape = SubResource("RectangleShape2D_wall_left")
+
+[node name="RightWall" type="CollisionShape2D" parent="CollisionInside" unique_id=1635001007]
+position = Vector2(27.281124, 18.5)
+scale = Vector2(1, 0.5599995)
+shape = SubResource("RectangleShape2D_wall_right")
+
+[node name="TopWall" type="CollisionShape2D" parent="CollisionInside" unique_id=1635001008]
+position = Vector2(12.535, -0.475)
+shape = SubResource("RectangleShape2D_wall_top")
+
+[node name="InnerWall" type="CollisionShape2D" parent="CollisionInside" unique_id=1635001009]
+position = Vector2(-9.5, 29)
+shape = SubResource("RectangleShape2D_wall_inner")
+
+[node name="Wardrobe" type="CollisionShape2D" parent="CollisionInside" unique_id=1574084950]
+position = Vector2(16.75, 4.5)
+shape = SubResource("RectangleShape2D_t4d8k")

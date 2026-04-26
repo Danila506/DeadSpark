@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EnemyConfig" format=3 uid="uid://dkrtbybkvqt6v"]
+
+[ext_resource type="Script" uid="uid://cqqnapiape3dt" path="res://Enemies/AI/config/enemy_config.gd" id="1_enemy_cfg"]
+
+[resource]
+script = ExtResource("1_enemy_cfg")
+max_health = 90.0
+patrol_speed = 95.0
+chase_speed = 150.0
+search_speed = 120.0
+acceleration = 760.0
+deceleration = 900.0
+attack_range = 16.0
+attack_damage = 11.0
+attack_cooldown_sec = 0.8
+attack_windup_sec = 0.08
+attack_damage_type = 2
+vision_radius = 240.0
+vision_fov_deg = 130.0
+hearing_radius = 360.0
+sensor_interval_sec = 0.1
+search_duration_sec = 2.2
+transition_cooldown_sec = 0.05

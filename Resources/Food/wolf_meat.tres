@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://beg6txsseh2d7"]
+
+[ext_resource type="Texture2D" uid="uid://cd2t08nueov66" path="res://Assets/itemAssets/inventory_icon/Food/wolfMeetInv.png" id="1_vleku"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_script"]
+[ext_resource type="Texture2D" uid="uid://ce3o2pt7t2311" path="res://Assets/itemAssets/on_world_icon/Food/wolfMeetWrd.png" id="3_y8vwv"]
+
+[resource]
+script = ExtResource("2_script")
+storage_category = 3
+item_name = "Мясо волка"
+world_icon = ExtResource("3_y8vwv")
+inventory_icon = ExtResource("1_vleku")
+inventory_icon_scale = 0.8
+max_stack_size = 10
+show_stack_count_in_inventory = true
+food_restore_amount = 14.0
+water_restore_amount = -2.0
+item_type = 10
+can_be_held_in_left_hand = true
+food_poison_chance = 0.4

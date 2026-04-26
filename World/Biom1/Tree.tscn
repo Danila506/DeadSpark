@@ -1,0 +1,53 @@
+[gd_scene format=3 uid="uid://bvnyn0y44u1iq"]
+
+[ext_resource type="Texture2D" uid="uid://d02yvwti8yxw3" path="res://World/Assets/Biom1/treeNormal.png" id="1_4nadt"]
+[ext_resource type="Script" uid="uid://cemernbfb7wsm" path="res://World/tree.gd" id="1_tree_script"]
+[ext_resource type="Texture2D" uid="uid://86815amcgvma" path="res://World/Assets/Biom1/treeOutline.png" id="2_pxxe0"]
+[ext_resource type="Texture2D" uid="uid://ba6ani5eqvsf1" path="res://World/Assets/Biom1/felledTree.png" id="4_figow"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_figow"]
+radius = 31.0
+height = 92.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pxxe0"]
+
+[node name="Tree" type="Node2D" unique_id=729033390]
+script = ExtResource("1_tree_script")
+
+[node name="NormalSprite" type="Sprite2D" parent="." unique_id=300631293]
+position = Vector2(0, -58)
+texture = ExtResource("1_4nadt")
+
+[node name="OutlineSprite" type="Sprite2D" parent="." unique_id=504005299]
+visible = false
+position = Vector2(0, -58)
+texture = ExtResource("2_pxxe0")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=2112013521]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=697912936]
+position = Vector2(1, -22)
+scale = Vector2(0.95, 1.05)
+shape = SubResource("CapsuleShape2D_figow")
+
+[node name="InteractLabel" type="Label" parent="." unique_id=760591141]
+visible = false
+offset_left = -52.0
+offset_top = -84.0
+offset_right = 56.0
+offset_bottom = -61.0
+theme_override_font_sizes/font_size = 16
+text = "[F] - срубить"
+horizontal_alignment = 1
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=401946651]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=1345896454]
+position = Vector2(1, -2.999999)
+scale = Vector2(0.915, 0.435)
+shape = SubResource("RectangleShape2D_pxxe0")
+
+[node name="FelledTree" type="Sprite2D" parent="." unique_id=903431522]
+z_index = -1
+position = Vector2(-30, -22)
+texture = ExtResource("4_figow")

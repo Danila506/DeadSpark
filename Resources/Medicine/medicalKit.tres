@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://u67eg11c0mo5"]
+
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="1_l25j7"]
+[ext_resource type="Texture2D" uid="uid://bjeh1i8p5b857" path="res://Assets/itemAssets/on_world_icon/Medicine/medicalKit.png" id="2_hudni"]
+
+[resource]
+script = ExtResource("1_l25j7")
+world_icon = ExtResource("2_hudni")
+inventory_icon_scale = 0.8

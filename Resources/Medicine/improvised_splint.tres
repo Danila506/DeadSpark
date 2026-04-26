@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bimabypk1unf"]
+
+[ext_resource type="Texture2D" uid="uid://tsmt1hjyjry6" path="res://Assets/itemAssets/inventory_icon/Medicine/improvised_splintInv.png" id="1_j2j70"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_7ewc1"]
+[ext_resource type="Texture2D" uid="uid://c33rilfaj0wds" path="res://Assets/itemAssets/on_world_icon/Medicine/improvised_splintWrd.png" id="3_o7cdn"]
+
+[resource]
+script = ExtResource("2_7ewc1")
+storage_category = 4
+item_name = "Самодельная шина"
+world_icon = ExtResource("3_o7cdn")
+inventory_icon = ExtResource("1_j2j70")
+inventory_icon_scale = 0.8
+medical_use_time_sec = 20.0
+medical_heal_fracture = true

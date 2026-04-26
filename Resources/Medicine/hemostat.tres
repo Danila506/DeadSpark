@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://ds3lkqq1aei3p"]
+
+[ext_resource type="Texture2D" uid="uid://bf0ek5elquikf" path="res://Assets/itemAssets/inventory_icon/Medicine/hemostatInv.png" id="1_esy0i"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_0u2df"]
+[ext_resource type="Texture2D" uid="uid://bcya8fi1xitpe" path="res://Assets/itemAssets/on_world_icon/Medicine/hemostatWrd.png" id="3_18n11"]
+
+[resource]
+script = ExtResource("2_0u2df")
+storage_category = 4
+item_name = "Гемостат"
+world_icon = ExtResource("3_18n11")
+inventory_icon = ExtResource("1_esy0i")
+inventory_icon_scale = 0.8

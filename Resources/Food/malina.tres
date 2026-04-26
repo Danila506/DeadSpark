@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://byaac7wamrfgu"]
+
+[ext_resource type="Texture2D" uid="uid://o6t5hr8cdvfo" path="res://Assets/itemAssets/inventory_icon/Food/malinaInv.png" id="1_x1eqm"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_y5hvo"]
+[ext_resource type="Texture2D" uid="uid://d3s6f8yukusdc" path="res://Assets/itemAssets/on_world_icon/Food/malinaWrd.png" id="3_ie6uh"]
+
+[resource]
+script = ExtResource("2_y5hvo")
+storage_category = 3
+item_name = "Малина"
+world_icon = ExtResource("3_ie6uh")
+inventory_icon = ExtResource("1_x1eqm")
+inventory_icon_scale = 0.75
+max_stack_size = 10
+show_stack_count_in_inventory = true
+food_restore_amount = 5.0
+water_restore_amount = 5.0
+item_type = 10
+can_be_held_in_left_hand = true

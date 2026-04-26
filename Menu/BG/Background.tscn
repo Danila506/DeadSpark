@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://cwijoaanlfdjd"]
+
+[node name="Background" type="Node2D" unique_id=287139730]
+
+[node name="Parallax2D" type="Parallax2D" parent="." unique_id=811044962]
+repeat_size = Vector2(1152, 0)
+autoscroll = Vector2(100, 0)
+
+[node name="BackgroundLayer1" type="Sprite2D" parent="Parallax2D" unique_id=1377771155]
+position = Vector2(576, 324)
+scale = Vector2(3.6000004, 3.6000004)
+
+[node name="Parallax2D2" type="Parallax2D" parent="." unique_id=997109630]
+repeat_size = Vector2(1152, 0)
+autoscroll = Vector2(150, 0)
+
+[node name="BackgroundLayer2" type="Sprite2D" parent="Parallax2D2" unique_id=2050922558]
+position = Vector2(576, 324)
+scale = Vector2(3.6000001, 3.6)
+
+[node name="Parallax2D3" type="Parallax2D" parent="." unique_id=417475454]
+repeat_size = Vector2(1152, 0)
+autoscroll = Vector2(250, 0)
+
+[node name="BackgroundLayer3" type="Sprite2D" parent="Parallax2D3" unique_id=1533948308]
+position = Vector2(575.99994, 324)
+scale = Vector2(3.5999997, 3.6000001)

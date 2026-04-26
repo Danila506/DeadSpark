@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://diuk0looy07hv"]
+
+[ext_resource type="Texture2D" uid="uid://ch6jcn403yi2i" path="res://Assets/itemAssets/inventory_icon/Medicine/HealthBoxInv.png" id="1_v68af"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_uio8b"]
+[ext_resource type="Texture2D" uid="uid://db6k5lwpdib6p" path="res://Assets/itemAssets/on_world_icon/Medicine/HealthBoxWrd.png" id="3_7l4h1"]
+
+[resource]
+script = ExtResource("2_uio8b")
+storage_category = 4
+item_name = "Медицинский набор"
+world_icon = ExtResource("3_7l4h1")
+inventory_icon = ExtResource("1_v68af")
+inventory_icon_scale = 0.8
+medical_use_time_sec = 10.0
+medical_health_restore = 75.0
+medical_stop_bleeding = true
+medical_heal_fracture = true

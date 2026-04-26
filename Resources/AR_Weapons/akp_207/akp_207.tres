@@ -1,0 +1,60 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://c2dp8fl3xvk51"]
+
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="1_yfn7e"]
+[ext_resource type="Texture2D" uid="uid://dpx6qqvbuf5bi" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_207/akp_207Inv.png" id="2_qr1kn"]
+[ext_resource type="Texture2D" uid="uid://cghallh8mtwli" path="res://Assets/itemAssets/on_world_icon/AR_Weapon/akp_207/akp_207Wrd.png" id="3_a11qb"]
+[ext_resource type="SpriteFrames" uid="uid://bbcej4nry8e6l" path="res://Resources/AR_Weapons/Sprites/akp_103.tres" id="4_frames"]
+[ext_resource type="Texture2D" uid="uid://dhj3hwv0qr13g" path="res://Assets/Sights/sight.png" id="5_cursor"]
+[ext_resource type="Texture2D" uid="uid://jlqlub1oao7h" path="res://Assets/Sights/cursorLowSpread.png" id="6_cursor_low"]
+[ext_resource type="Texture2D" uid="uid://by0iwuio78qtd" path="res://Assets/Sights/cursorMediumSpread.png" id="7_cursor_mid"]
+[ext_resource type="Texture2D" uid="uid://brvu3jo4col46" path="res://Assets/Sights/cursorHighSpread.png" id="8_cursor_high"]
+[ext_resource type="PackedScene" uid="uid://e3uqauak7fap" path="res://Projectile/projectile.tscn" id="9_bullet"]
+[ext_resource type="Texture2D" uid="uid://cak83xu544rkq" path="res://Assets/itemAssets/inventory_icon/bullets/ammoAk52Inv.png" id="10_ammo_inv"]
+[ext_resource type="Texture2D" uid="uid://ds34n4exhlmpb" path="res://Assets/itemAssets/on_world_icon/bullets/ammoAk52Wrd.png" id="11_ammo_world"]
+[ext_resource type="AudioStream" uid="uid://b8cli6q0vscgi" path="res://Assets/AudioWaw/WeaponSounds/akp_52/akp_52.wav" id="12_shot"]
+[ext_resource type="AudioStream" uid="uid://bt8yqg5v0uh7g" path="res://Assets/AudioWaw/WeaponSounds/akp_52/akp_52_reload.wav" id="13_reload"]
+
+[resource]
+script = ExtResource("1_yfn7e")
+storage_category = 1
+can_be_stored_in_clothing = false
+item_name = "АКП-207"
+world_icon = ExtResource("3_a11qb")
+inventory_icon = ExtResource("2_qr1kn")
+inventory_icon_rotation_degrees = -45.0
+ammo_type = "akp52"
+weapon_endurance_loss_percent_per_shot = 0.2
+weapon_endurance_loss_percent_per_melee_hit = 0.5
+item_type = 0
+equipped_frames = ExtResource("4_frames")
+mounted_scope_scale = Vector2(1, 1)
+can_receive_scope_attachment = true
+can_receive_weapon_attachments = true
+scope_rotation_right = 90.0
+scope_inventory_offset = Vector2(-17, -44)
+handle_inventory_offset = Vector2(53, -4)
+silencer_inventory_offset = Vector2(148, -26.335)
+aim_cursor = ExtResource("5_cursor")
+aim_cursor_low_spread = ExtResource("6_cursor_low")
+aim_cursor_medium_spread = ExtResource("7_cursor_mid")
+aim_cursor_high_spread = ExtResource("8_cursor_high")
+bullet_scene = ExtResource("9_bullet")
+shot_sound = ExtResource("12_shot")
+reload_sound = ExtResource("13_reload")
+shot_sound_volume_db = -4.0
+reload_sound_volume_db = -10.0
+fire_delay = 0.09
+bullet_speed = 940.0
+bullet_max_distance = 390.0
+bullet_min_distance = 150.0
+damage = 40.0
+ammo_inventory_icon = ExtResource("10_ammo_inv")
+ammo_world_icon = ExtResource("11_ammo_world")
+reload_time_sec = 3.8
+min_spread_degrees = 0.9
+max_spread_degrees = 20.0
+spread_increase_per_shot = 6.5
+spread_recovery_per_sec = 2.5
+running_spread_multiplier = 1.45
+aim_distance_min = 100.0
+aim_distance_max = 280.0

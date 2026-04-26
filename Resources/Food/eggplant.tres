@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://67dv6v3jp5dv"]
+
+[ext_resource type="Texture2D" uid="uid://dhacdp1lp4egt" path="res://Assets/itemAssets/inventory_icon/Food/eggplantInv.png" id="1_hyb8r"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_script"]
+[ext_resource type="Texture2D" uid="uid://beyqrc0ylyxhy" path="res://Assets/itemAssets/on_world_icon/Food/eggplantWrd.png" id="3_qg7v2"]
+
+[resource]
+script = ExtResource("2_script")
+storage_category = 3
+item_name = "Баклажан"
+world_icon = ExtResource("3_qg7v2")
+inventory_icon = ExtResource("1_hyb8r")
+inventory_icon_scale = 0.75
+max_stack_size = 10
+show_stack_count_in_inventory = true
+food_restore_amount = 8.0
+water_restore_amount = 2.0
+item_type = 10
+can_be_held_in_left_hand = true

@@ -1,0 +1,59 @@
+[gd_scene format=4 uid="uid://b6rsdynib7tli"]
+
+[ext_resource type="Texture2D" uid="uid://bx3jbhovgpl4f" path="res://Assets/World/Enemies/banditBaseLayer.png" id="1_cpjxf"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_d2o0l"]
+texture = ExtResource("1_cpjxf")
+1:1/size_in_atlas = Vector2i(6, 4)
+1:1/0 = 0
+1:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-36.64873, 6.180664, 28.98819, 3.9173226, 15.582241, 21.153545, -41.87183, 19.238409)
+1:7/size_in_atlas = Vector2i(5, 2)
+1:7/0 = 0
+8:8/size_in_atlas = Vector2i(3, 3)
+8:8/0 = 0
+8:8/0/physics_layer_0/polygon_0/points = PackedVector2Array(-11.755981, -11.009575, 8, -8, 1.306221, 13.995216, -15.861244, 10.636364)
+8:1/size_in_atlas = Vector2i(4, 6)
+8:1/0 = 0
+8:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-25.564598, -43.105278, 11.382782, -42.73207, 12.502396, 27.430626, -27.057426, 27.803837)
+13:1/size_in_atlas = Vector2i(9, 4)
+13:1/0 = 0
+13:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-52.43542, -18.846897, 44.971302, -19.593307, 44.598095, 19.2201, -52.062214, 18.47369)
+13:6/size_in_atlas = Vector2i(8, 4)
+13:6/0 = 0
+13:6/0/physics_layer_0/polygon_0/points = PackedVector2Array(-47.210537, -20.712925, 42.358864, -19.2201, 42.73207, 16.607658, -43.105274, 14.368423)
+24:3/size_in_atlas = Vector2i(7, 4)
+24:3/0 = 0
+24:3/0/physics_layer_0/polygon_0/points = PackedVector2Array(-53.181835, -18.100483, 24.44498, -18.100483, 24.071774, 19.96651, -51.689007, 18.47369)
+22:9/size_in_atlas = Vector2i(3, 2)
+22:9/0 = 0
+27:9/size_in_atlas = Vector2i(3, 2)
+27:9/0 = 0
+34:1/size_in_atlas = Vector2i(4, 8)
+34:1/0 = 0
+42:1/size_in_atlas = Vector2i(4, 8)
+42:1/0 = 0
+48:3/size_in_atlas = Vector2i(3, 2)
+48:3/0 = 0
+48:6/size_in_atlas = Vector2i(3, 2)
+48:6/0 = 0
+52:6/size_in_atlas = Vector2i(3, 2)
+52:6/0 = 0
+52:3/size_in_atlas = Vector2i(3, 2)
+52:3/0 = 0
+48:10/size_in_atlas = Vector2i(3, 2)
+48:10/0 = 0
+52:10/size_in_atlas = Vector2i(4, 2)
+52:10/0 = 0
+52:13/size_in_atlas = Vector2i(4, 2)
+52:13/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_xs5b2"]
+physics_layer_0/collision_layer = 1
+sources/0 = SubResource("TileSetAtlasSource_d2o0l")
+
+[node name="BanditBase" type="Node2D" unique_id=515154822]
+
+[node name="BanditBaseLayer" type="TileMapLayer" parent="." unique_id=1651870417]
+rotation = -0.0007949845
+tile_map_data = PackedByteArray("AAAAAPn/AAAIAAEAAAD4////AAAYAAMAAAD5//v/AAABAAEAAAD+//3/AAAWAAkAAAADAP//AAABAAcAAAD3/wMAAAAbAAkAAAD6/wIAAAA0AA0AAAD7/wEAAAA0AA0AAAAKAP7/AAAwAAoAAAAIAP//AAA0AA0AAAAHAAIAAAANAAYAAAACAAMAAAAIAAgAAAAEAPf/AAAwAAMAAAAHAPn/AAAiAAEAAAADAAgAAAAqAAEAAAD9/wYAAAANAAEAAAD//woAAAAwAAMAAAAHAAcAAAAwAAoAAAAIAAcAAAAwAAoAAAAJAAgAAAAwAAoAAAD5//j/AAAwAAoAAAA=")
+tile_set = SubResource("TileSet_xs5b2")

@@ -1,0 +1,133 @@
+[gd_scene format=3 uid="uid://bvagfnkd2xpjg"]
+
+[ext_resource type="Script" uid="uid://cjari2cgah7mi" path="res://HUD/hud.gd" id="1_yu8mg"]
+[ext_resource type="Texture2D" uid="uid://cfb47hmnjqxfe" path="res://HUD/assets/hudBG.png" id="2_mi5n8"]
+[ext_resource type="Texture2D" uid="uid://c4y165olqsspw" path="res://HUD/assets/Bars/healthBackBar.png" id="3_6dvid"]
+[ext_resource type="Texture2D" uid="uid://53l2sabxxd33" path="res://HUD/assets/Bars/foodBackBar.png" id="3_jvmdh"]
+[ext_resource type="Texture2D" uid="uid://iu7tqvxq3fk5" path="res://HUD/assets/Injuries/hudInjurieshud.png" id="3_whk5m"]
+[ext_resource type="Texture2D" uid="uid://dymxa4kl4gsyp" path="res://HUD/assets/Bars/foodBar.png" id="4_1rsjr"]
+[ext_resource type="Texture2D" uid="uid://b3vl3xlld7nv3" path="res://HUD/assets/Injuries/Stats/bleeding.png" id="4_axroe"]
+[ext_resource type="Texture2D" uid="uid://fronbiobaixw" path="res://HUD/assets/Bars/healthBar.png" id="4_y0nqa"]
+[ext_resource type="Texture2D" uid="uid://vw2l6lm7ygha" path="res://HUD/assets/Bars/temperatureBackBar.png" id="5_2q3se"]
+[ext_resource type="Texture2D" uid="uid://vmqcx0lvl48m" path="res://HUD/assets/Injuries/Stats/fracture.png" id="5_5p8r3"]
+[ext_resource type="Texture2D" uid="uid://ulu7fkoonnv1" path="res://HUD/assets/Injuries/Stats/disease.png" id="6_o3jd6"]
+[ext_resource type="Texture2D" uid="uid://brglfv06xowpk" path="res://HUD/assets/Bars/temperatureBar.png" id="6_q5vrg"]
+[ext_resource type="Texture2D" uid="uid://7wqvu76g7her" path="res://HUD/assets/Bars/waterBackBar.png" id="7_03xa0"]
+[ext_resource type="Texture2D" uid="uid://dqgc7g1sn02rn" path="res://HUD/assets/Injuries/Stats/regeneration.png" id="7_trc5y"]
+[ext_resource type="Texture2D" uid="uid://brw62eqf0vs05" path="res://HUD/assets/Bars/waterBar.png" id="8_5ac6t"]
+[ext_resource type="Texture2D" uid="uid://bevk6uknwcnwr" path="res://HUD/assets/Bars/radiationBackBar.png" id="11_aayvn"]
+[ext_resource type="Texture2D" uid="uid://jxtlubwik0ad" path="res://HUD/assets/Bars/radiationBar.png" id="12_ltn1w"]
+[ext_resource type="Texture2D" uid="uid://drpw36pc7ewwg" path="res://HUD/assets/Bars/staminaBackBar.png" id="13_yngjm"]
+[ext_resource type="Texture2D" uid="uid://b8byqqvy6huvf" path="res://HUD/assets/Bars/staminaBar.png" id="14_afx7j"]
+
+[node name="HUD" type="CanvasLayer" unique_id=168184425]
+offset = Vector2(152, 46)
+scale = Vector2(2, 2)
+transform = Transform2D(2, 0, 0, 2, 152, 46)
+script = ExtResource("1_yu8mg")
+
+[node name="HUDTexture" type="TextureRect" parent="." unique_id=133931243]
+offset_left = -76.0
+offset_top = -23.0
+offset_right = 86.0
+offset_bottom = 34.0
+scale = Vector2(1.5, 1.5)
+texture = ExtResource("2_mi5n8")
+
+[node name="Stats" type="TextureRect" parent="HUDTexture" unique_id=2134470060]
+layout_mode = 0
+offset_left = 53.666668
+offset_top = 33.333336
+offset_right = 121.66667
+offset_bottom = 57.333336
+texture = ExtResource("3_whk5m")
+
+[node name="Bleeding" type="Sprite2D" parent="HUDTexture/Stats" unique_id=1319115700]
+visible = false
+position = Vector2(14.666665, 11.666666)
+texture = ExtResource("4_axroe")
+offset = Vector2(-0.17, -0.17)
+
+[node name="Fracture" type="Sprite2D" parent="HUDTexture/Stats" unique_id=380819446]
+visible = false
+position = Vector2(27.666668, 12.333331)
+texture = ExtResource("5_5p8r3")
+offset = Vector2(-0.17, 0.17)
+
+[node name="Disease" type="Sprite2D" parent="HUDTexture/Stats" unique_id=1988480345]
+visible = false
+position = Vector2(41.333336, 11.666664)
+texture = ExtResource("6_o3jd6")
+offset = Vector2(0.17, 0.335)
+
+[node name="Regeneration" type="Sprite2D" parent="HUDTexture/Stats" unique_id=1640692974]
+visible = false
+position = Vector2(55.333336, 11.999999)
+texture = ExtResource("7_trc5y")
+offset = Vector2(0.17, 0)
+
+[node name="HealthBar" type="TextureProgressBar" parent="." unique_id=1069980010]
+offset_left = -44.0
+offset_top = -9.0
+offset_right = -12.0
+offset_bottom = -4.0
+scale = Vector2(1.5, 1.5)
+value = 100.0
+texture_under = ExtResource("3_6dvid")
+texture_progress = ExtResource("4_y0nqa")
+texture_progress_offset = Vector2(1, 1)
+
+[node name="TemeratureBar" type="TextureProgressBar" parent="." unique_id=1418379480]
+offset_left = -44.0
+offset_top = 11.0
+offset_right = -12.0
+offset_bottom = 16.0
+scale = Vector2(1.5, 1.5)
+value = 100.0
+texture_under = ExtResource("5_2q3se")
+texture_progress = ExtResource("6_q5vrg")
+texture_progress_offset = Vector2(1, 1)
+
+[node name="WaterBar" type="TextureProgressBar" parent="." unique_id=1488776940]
+offset_left = 27.0
+offset_top = -9.0
+offset_right = 59.0
+offset_bottom = -4.0
+scale = Vector2(1.5, 1.5)
+value = 100.0
+texture_under = ExtResource("7_03xa0")
+texture_progress = ExtResource("8_5ac6t")
+texture_progress_offset = Vector2(1, 1)
+
+[node name="FoodBar" type="TextureProgressBar" parent="." unique_id=1005638642]
+offset_left = 27.0
+offset_top = 12.0
+offset_right = 59.0
+offset_bottom = 17.0
+scale = Vector2(1.5, 1.5)
+value = 100.0
+texture_under = ExtResource("3_jvmdh")
+texture_progress = ExtResource("4_1rsjr")
+texture_progress_offset = Vector2(1, 1)
+
+[node name="RadiationBar" type="TextureProgressBar" parent="." unique_id=1142058682]
+offset_left = 108.0
+offset_top = -9.0
+offset_right = 140.0
+offset_bottom = -4.0
+scale = Vector2(1.5, 1.5)
+value = 100.0
+texture_under = ExtResource("11_aayvn")
+texture_progress = ExtResource("12_ltn1w")
+texture_progress_offset = Vector2(1, 1)
+
+[node name="StaminaBar" type="TextureProgressBar" parent="." unique_id=274657223]
+offset_left = 108.0
+offset_top = 12.0
+offset_right = 140.0
+offset_bottom = 17.0
+scale = Vector2(1.5, 1.5)
+value = 100.0
+texture_under = ExtResource("13_yngjm")
+texture_progress = ExtResource("14_afx7j")
+texture_progress_offset = Vector2(1, 1)

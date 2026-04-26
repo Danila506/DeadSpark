@@ -1,0 +1,32 @@
+[gd_resource type="SpriteFrames" format=3 uid="uid://d4dswf3gekngb"]
+
+[ext_resource type="Texture2D" uid="uid://b57gj67bubp4h" path="res://Assets/itemAssets/animation_sprites/misc/bonfire.png" id="1_qenxl"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_avmbx"]
+atlas = ExtResource("1_qenxl")
+region = Rect2(15, 19, 32, 30)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vfpda"]
+atlas = ExtResource("1_qenxl")
+region = Rect2(47, 19, 32, 30)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_30wp7"]
+atlas = ExtResource("1_qenxl")
+region = Rect2(79, 19, 32, 30)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_avmbx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vfpda")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_30wp7")
+}],
+"loop": true,
+"name": &"bonfire",
+"speed": 10.0
+}]

@@ -1,0 +1,49 @@
+[gd_scene format=3 uid="uid://d221qedc4lrk2"]
+
+[ext_resource type="Texture2D" uid="uid://b3o3u4u4mjx16" path="res://World/Boxes/Box1/box.png" id="1_6ef2o"]
+[ext_resource type="Texture2D" uid="uid://lxpvw1151ret" path="res://World/Boxes/Box1/boxOpened.png" id="2_y3d7t"]
+[ext_resource type="Texture2D" uid="uid://bmn7tmdsi383i" path="res://World/Boxes/Box1/boxOpenedOutline.png" id="3_fio36"]
+[ext_resource type="Texture2D" uid="uid://cmkcuwwwu05no" path="res://World/Boxes/Box1/boxOutline.png" id="4_gs3qg"]
+[ext_resource type="Script" uid="uid://i7ccjtoicwrh" path="res://World/Boxes/Box1/box.gd" id="5_box_script"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_interact"]
+size = Vector2(48, 32)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_yloi1"]
+size = Vector2(32, 15.200001)
+
+[node name="Box1" type="Node2D" unique_id=1496263817]
+script = ExtResource("5_box_script")
+
+[node name="Box" type="Sprite2D" parent="." unique_id=2090137849]
+texture = ExtResource("1_6ef2o")
+
+[node name="BoxOpened" type="Sprite2D" parent="." unique_id=1437765036]
+texture = ExtResource("2_y3d7t")
+
+[node name="BoxOpenedOutline" type="Sprite2D" parent="." unique_id=364331806]
+texture = ExtResource("3_fio36")
+
+[node name="BoxOutline" type="Sprite2D" parent="." unique_id=1802467350]
+texture = ExtResource("4_gs3qg")
+
+[node name="InteractArea" type="Area2D" parent="." unique_id=1123125001]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractArea" unique_id=1123125002]
+shape = SubResource("RectangleShape2D_interact")
+
+[node name="InteractLabel" type="Label" parent="." unique_id=1123125003]
+offset_left = -47.0
+offset_top = -31.0
+offset_right = 47.0
+offset_bottom = -12.0
+theme_override_font_sizes/font_size = 14
+text = "[E] - открыть"
+horizontal_alignment = 1
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=530711378]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=1534155524]
+position = Vector2(0, 4.4999995)
+scale = Vector2(0.935, 1)
+shape = SubResource("RectangleShape2D_yloi1")

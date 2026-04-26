@@ -1,0 +1,15 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Godot/editor temporary files
+*.tmp
+*.bak
+*.swp
+
+# Export credentials are machine/user specific.
+export_credentials.cfg
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

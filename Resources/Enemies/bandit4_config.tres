@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="EnemyConfig" format=3 uid="uid://bm0bicjyy2fo5"]
+
+[ext_resource type="Script" uid="uid://cqqnapiape3dt" path="res://Enemies/AI/config/enemy_config.gd" id="1_enemy_cfg"]
+[ext_resource type="PackedScene" uid="uid://e3uqauak7fap" path="res://Projectile/projectile.tscn" id="2_projectile"]
+
+[resource]
+script = ExtResource("1_enemy_cfg")
+max_health = 120.0
+patrol_speed = 75.0
+chase_speed = 120.0
+search_speed = 95.0
+acceleration = 620.0
+deceleration = 760.0
+attack_range = 165.0
+attack_range_exit_multiplier = 1.35
+attack_damage = 14.0
+attack_cooldown_sec = 0.9
+attack_windup_sec = 0.12
+attack_damage_type = 1
+is_ranged_enemy = true
+ranged_preferred_distance = 150.0
+ranged_min_distance = 105.0
+ranged_retreat_step_distance = 120.0
+projectile_scene = ExtResource("2_projectile")
+ranged_spread_degrees = 11.0
+vision_radius = 310.0
+vision_fov_deg = 120.0
+hearing_radius = 320.0
+sensor_interval_sec = 0.12
+suspicious_duration_sec = 1.4
+search_duration_sec = 3.8
+use_avoidance = true

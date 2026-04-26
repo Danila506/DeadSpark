@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://3qy057u0b4wg"]
+
+[ext_resource type="Texture2D" uid="uid://b58ih74ohm4pq" path="res://Assets/itemAssets/inventory_icon/Medicine/splintInv.png" id="1_qrclg"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_3fdjg"]
+[ext_resource type="Texture2D" uid="uid://ktasrrnr1v1j" path="res://Assets/itemAssets/on_world_icon/Medicine/splintWrd.png" id="3_u437a"]
+
+[resource]
+script = ExtResource("2_3fdjg")
+storage_category = 4
+item_name = "Медицинская Шина"
+world_icon = ExtResource("3_u437a")
+inventory_icon = ExtResource("1_qrclg")
+inventory_icon_scale = 0.8
+medical_use_time_sec = 10.0
+medical_heal_fracture = true

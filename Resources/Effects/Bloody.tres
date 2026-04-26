@@ -1,0 +1,98 @@
+[gd_resource type="SpriteFrames" format=3 uid="uid://7bc7lsd2cotr"]
+
+[ext_resource type="Texture2D" uid="uid://cfdqwvfqlnsnk" path="res://Assets/Effects/blood.png" id="1_hytpb"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_p0538"]
+atlas = ExtResource("1_hytpb")
+region = Rect2(13, 17, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bg8de"]
+atlas = ExtResource("1_hytpb")
+region = Rect2(45, 17, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8bnuf"]
+atlas = ExtResource("1_hytpb")
+region = Rect2(77, 17, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xtce3"]
+atlas = ExtResource("1_hytpb")
+region = Rect2(175, 40, 22, 29)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1d0bq"]
+atlas = ExtResource("1_hytpb")
+region = Rect2(197, 40, 22, 29)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vmrrh"]
+atlas = ExtResource("1_hytpb")
+region = Rect2(219, 40, 22, 29)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1liwv"]
+atlas = ExtResource("1_hytpb")
+region = Rect2(241, 40, 22, 29)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2sisr"]
+atlas = ExtResource("1_hytpb")
+region = Rect2(175, 11, 22, 29)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_go6bj"]
+atlas = ExtResource("1_hytpb")
+region = Rect2(197, 11, 22, 29)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j7pk5"]
+atlas = ExtResource("1_hytpb")
+region = Rect2(219, 11, 22, 29)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6fc4r"]
+atlas = ExtResource("1_hytpb")
+region = Rect2(241, 11, 22, 29)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_p0538")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bg8de")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8bnuf")
+}],
+"loop": true,
+"name": &"Bleeding",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xtce3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1d0bq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vmrrh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1liwv")
+}],
+"loop": true,
+"name": &"BloodyVariant2",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2sisr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_go6bj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_j7pk5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6fc4r")
+}],
+"loop": true,
+"name": &"bloodyVariant1",
+"speed": 5.0
+}]

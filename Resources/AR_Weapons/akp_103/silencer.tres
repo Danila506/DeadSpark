@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bs7sffg60ghpv"]
+
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="1_cqig2"]
+[ext_resource type="Texture2D" uid="uid://ch1qe3sf4eeff" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/silencer_akp_103_Inv.png" id="2_t1oe2"]
+[ext_resource type="Texture2D" uid="uid://82awnmjm7buc" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/silencer_akp_103_OnWeapon.png" id="3_nln0y"]
+[ext_resource type="Texture2D" uid="uid://dfxg87k7h88xk" path="res://Assets/itemAssets/on_world_icon/AR_Weapon/akp_103/silencer_akp_103_Wrd.png" id="4_cxdhw"]
+[ext_resource type="Texture2D" uid="uid://b3e877amj8wcv" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/Handle_akp_103OnWeapon.png" id="4_j0phk"]
+[ext_resource type="Texture2D" uid="uid://ddlynm63fe8nf" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/scope_Hexagon_VX25_OnWeapon.png" id="4_t1oe2"]
+[ext_resource type="Resource" uid="uid://c81ye2fo7ai7f" path="res://Resources/AR_Weapons/akp_103/akp_103.tres" id="5_weapon"]
+
+[resource]
+script = ExtResource("1_cqig2")
+auto_place_into_equipment_on_pickup = false
+item_name = "Глушитель(akp_103)"
+world_icon = ExtResource("4_cxdhw")
+inventory_icon = ExtResource("2_t1oe2")
+can_be_held_in_left_hand = true
+is_weapon_attachment = true
+attachment_slot = 2
+mounted_scope_texture = ExtResource("4_t1oe2")
+mounted_handle_texture = ExtResource("4_j0phk")
+mounted_silencer_texture = ExtResource("3_nln0y")
+allowed_scope_weapons = Array[ExtResource("1_cqig2")]([ExtResource("5_weapon")])
+attachment_spread_multiplier = 0.9
+attachment_shot_loudness_multiplier = 0.65

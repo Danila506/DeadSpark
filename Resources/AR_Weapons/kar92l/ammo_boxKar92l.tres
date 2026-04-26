@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dnjgaxwwlen64"]
+
+[ext_resource type="Texture2D" uid="uid://bchssg1341jjr" path="res://Assets/itemAssets/inventory_icon/bullets/ammoKar92lInv.png" id="1_inventory"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_script"]
+[ext_resource type="Texture2D" uid="uid://bnrwkatgdu2sa" path="res://Assets/itemAssets/on_world_icon/bullets/ammoKar92lWrd.png" id="3_world"]
+
+[resource]
+script = ExtResource("2_script")
+item_name = "Патроны Kar92l"
+world_icon = ExtResource("3_world")
+inventory_icon = ExtResource("1_inventory")
+inventory_icon_scale = 0.52
+stack_count = 20
+max_stack_size = 20
+show_stack_count_in_inventory = true
+is_ammo_item = true
+ammo_type = "kar92l"

@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://bossup1v1qydg"]
+
+[ext_resource type="Script" uid="uid://bbctmdforhuyx" path="res://World/medicine_kit.gd" id="1_medicine_kit_script"]
+[ext_resource type="Texture2D" uid="uid://bjeh1i8p5b857" path="res://Assets/itemAssets/on_world_icon/Medicine/medicalKit.png" id="2_medicine_kit_texture"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_interact"]
+size = Vector2(37, 32)
+
+[node name="MedicineKit" type="Node2D" unique_id=797117503]
+script = ExtResource("1_medicine_kit_script")
+
+[node name="Sprite" type="Sprite2D" parent="." unique_id=438508977]
+texture = ExtResource("2_medicine_kit_texture")
+
+[node name="InteractArea" type="Area2D" parent="." unique_id=1237943612]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractArea" unique_id=757650964]
+position = Vector2(-0.5, -4)
+shape = SubResource("RectangleShape2D_interact")
+
+[node name="InteractLabel" type="Label" parent="." unique_id=1884531686]
+offset_left = -33.999992
+offset_top = -28.000002
+offset_right = 55.000008
+offset_bottom = -8.000002
+scale = Vector2(0.82, 0.82)
+theme_override_font_sizes/font_size = 14
+text = "[E] - открыть"
+horizontal_alignment = 1

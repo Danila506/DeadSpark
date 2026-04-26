@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://3b5g2ocir7pf"]
+
+[ext_resource type="Texture2D" uid="uid://bv2erdfrr3kin" path="res://Assets/World/Biom1/bush.png" id="1_ey618"]
+[ext_resource type="Texture2D" uid="uid://m0jtn66e4h3i" path="res://Assets/World/Biom1/bushOutline.png" id="2_sb3w5"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_vya3d"]
+radius = 22.857143
+height = 60.952385
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_17i62"]
+size = Vector2(26.229506, 28.390793)
+
+[node name="Bush" type="Node2D" unique_id=1867721668]
+
+[node name="NormalSprite" type="Sprite2D" parent="." unique_id=610814933]
+position = Vector2(0, -16)
+texture = ExtResource("1_ey618")
+
+[node name="OutlineSprite" type="Sprite2D" parent="." unique_id=1433153774]
+visible = false
+position = Vector2(0, -16)
+texture = ExtResource("2_sb3w5")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=1475169516]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1048450934]
+position = Vector2(-2, -16)
+scale = Vector2(1.05, 0.85)
+shape = SubResource("CapsuleShape2D_vya3d")
+
+[node name="InteractLabel" type="Label" parent="." unique_id=1126676067]
+visible = false
+offset_left = -52.0
+offset_top = -84.0
+offset_right = 56.0
+offset_bottom = -61.0
+theme_override_font_sizes/font_size = 16
+text = "[F] - срубить"
+horizontal_alignment = 1
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=595507234]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=1813908074]
+position = Vector2(-2, -9)
+scale = Vector2(1, 0.5)
+shape = SubResource("RectangleShape2D_17i62")

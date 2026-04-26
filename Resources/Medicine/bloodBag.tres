@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bsb84vtiv6bww"]
+
+[ext_resource type="Texture2D" uid="uid://boleheu8k0ey2" path="res://Assets/itemAssets/inventory_icon/Medicine/bloodBagInv.png" id="1_tdm8p"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_ro806"]
+[ext_resource type="Texture2D" uid="uid://colf8n4qi7t66" path="res://Assets/itemAssets/on_world_icon/Medicine/bloodBagWrd.png" id="3_qli2q"]
+
+[resource]
+script = ExtResource("2_ro806")
+storage_category = 4
+item_name = "Пакет с кровью"
+world_icon = ExtResource("3_qli2q")
+inventory_icon = ExtResource("1_tdm8p")
+inventory_icon_scale = 0.8
+medical_use_time_sec = 10.0
+medical_health_restore = 50.0
