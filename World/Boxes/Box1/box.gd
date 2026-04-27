@@ -30,6 +30,8 @@ func _ready() -> void:
 	interact_area.body_entered.connect(_on_interact_area_body_entered)
 	interact_area.body_exited.connect(_on_interact_area_body_exited)
 	_update_box_visual()
+	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
+		GameSaveManager.register_persistent_node(self)
 
 
 func handle_primary_interaction(interactor: Node) -> bool:
@@ -150,3 +152,48 @@ func _ensure_loot() -> void:
 
 		var item_instance: ItemData = template_item.create_instance(1)
 		loot_slots[slot_index] = item_instance
+
+
+func get_save_key() -> String:
+	return "box:%s" % [str(global_position)]
+
+
+func get_save_data() -> Dictionary:
+	return {
+		"loot_initialized": loot_initialized,
+		"loot_slots": _serialize_item_array(loot_slots)
+	}
+
+
+func apply_save_data(save_data: Dictionary) -> void:
+	box_opened = false
+	loot_initialized = bool(save_data.get("loot_initialized", false))
+	loot_slots = _deserialize_item_array(save_data.get("loot_slots", []))
+	_set_loot_panel_state(false)
+	_update_box_visual()
+
+
+func _serialize_item_array(items: Array) -> Array:
+	var out: Array = []
+	for item in items:
+		if item == null:
+			out.append(null)
+		elif GameSaveManager != null and GameSaveManager.has_method("serialize_item"):
+			out.append(GameSaveManager.serialize_item(item))
+		else:
+			out.append({})
+	return out
+
+
+func _deserialize_item_array(raw_items: Variant) -> Array[ItemData]:
+	var out: Array[ItemData] = []
+	if not (raw_items is Array):
+		return out
+	for raw_item in raw_items:
+		if raw_item == null:
+			out.append(null)
+		elif GameSaveManager != null and GameSaveManager.has_method("deserialize_item"):
+			out.append(GameSaveManager.deserialize_item(raw_item))
+		else:
+			out.append(null)
+	return out

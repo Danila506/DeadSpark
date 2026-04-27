@@ -21,6 +21,11 @@ func _on_new_game_pressed() -> void:
 
 
 func _on_continue_pressed() -> void:
+	if GameSaveManager != null and GameSaveManager.has_method("load_game"):
+		var load_result: int = int(GameSaveManager.load_game())
+		if load_result == OK:
+			return
+
 	var save_data: Dictionary = _read_save()
 	if save_data.is_empty():
 		_update_continue_button_state()

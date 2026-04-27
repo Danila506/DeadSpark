@@ -13,6 +13,7 @@ var prompt_label: Label = null
 
 
 func _ready() -> void:
+	add_to_group("world_pickup")
 	_apply_render_order()
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)

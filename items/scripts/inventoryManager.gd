@@ -12,6 +12,9 @@ var endurance_loss_remainder_by_item_id: Dictionary = {}
 const ATTACHMENT_SLOT_SCOPE: int = ItemData.AttachmentSlot.SCOPE
 const ATTACHMENT_SLOT_HANDLE: int = ItemData.AttachmentSlot.HANDLE
 const ATTACHMENT_SLOT_SILENCER: int = ItemData.AttachmentSlot.SILENCER
+const ITEM_INSTANCE_SCRIPT = preload("res://items/scripts/item_instance.gd")
+const DRAFT_SAVE_SCHEMA_VERSION: int = 1
+const DRAFT_SAVE_PATH: String = "user://dead_spark_inventory_draft.json"
 
 
 func get_equipped(slot_type: int) -> ItemData:
@@ -136,6 +139,75 @@ func reset_state() -> void:
 	weapon_runtime_state.clear()
 	active_weapon_slot = ItemData.ItemType.AR_Weapon
 	endurance_loss_remainder_by_item_id.clear()
+
+
+func get_save_data() -> Dictionary:
+	var save_payload: Dictionary = {
+		"schema_version": DRAFT_SAVE_SCHEMA_VERSION,
+		"active_weapon_slot": int(active_weapon_slot),
+		"equipped": {}
+	}
+
+	var equipped_payload: Dictionary = {}
+	for slot_type in equipped.keys():
+		var item: ItemData = equipped.get(slot_type, null)
+		equipped_payload[str(slot_type)] = _serialize_item_for_save(item) if item != null else null
+	save_payload["equipped"] = equipped_payload
+	return save_payload
+
+
+func apply_save_data(save_payload: Dictionary) -> int:
+	var schema_version: int = int(save_payload.get("schema_version", 0))
+	if schema_version != DRAFT_SAVE_SCHEMA_VERSION:
+		return ERR_FILE_UNRECOGNIZED
+
+	reset_state()
+	var equipped_payload: Dictionary = save_payload.get("equipped", {})
+	for slot_key in equipped_payload.keys():
+		var slot_type: int = int(slot_key)
+		var raw_item: Variant = equipped_payload.get(slot_key, null)
+		var restored_item: ItemData = _deserialize_item_from_save(raw_item)
+		equipped[slot_type] = restored_item
+
+	var desired_active_slot: int = int(save_payload.get("active_weapon_slot", ItemData.ItemType.AR_Weapon))
+	if _is_switchable_weapon_slot(desired_active_slot) and get_equipped(desired_active_slot) != null:
+		active_weapon_slot = desired_active_slot
+	else:
+		_sync_active_weapon_slot(desired_active_slot)
+
+	for slot_type in equipped.keys():
+		equipment_changed.emit(int(slot_type), equipped[slot_type])
+
+	return OK
+
+
+func save_draft(path: String = DRAFT_SAVE_PATH) -> int:
+	var save_payload: Dictionary = get_save_data()
+	save_payload["saved_at_unix"] = int(Time.get_unix_time_from_system())
+
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+
+	file.store_string(JSON.stringify(save_payload, "\t"))
+	file.flush()
+	return OK
+
+
+func load_draft(path: String = DRAFT_SAVE_PATH) -> int:
+	if not FileAccess.file_exists(path):
+		return ERR_FILE_NOT_FOUND
+
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return FileAccess.get_open_error()
+
+	var raw_json: String = file.get_as_text()
+	var parsed: Variant = JSON.parse_string(raw_json)
+	if not (parsed is Dictionary):
+		return ERR_PARSE_ERROR
+
+	return apply_save_data(parsed as Dictionary)
 
 
 func copy_runtime_state(from_item: ItemData, to_item: ItemData) -> void:
@@ -507,6 +579,41 @@ func _clone_runtime_item(item: ItemData) -> ItemData:
 	if item.has_method("create_runtime_copy"):
 		return item.create_runtime_copy()
 	return item.duplicate(true)
+
+
+func _serialize_item_for_save(item: ItemData) -> Dictionary:
+	if item == null:
+		return {}
+	if item.has_method("to_save_dict"):
+		return item.to_save_dict()
+
+	var instance: ItemData = item.create_instance(item.stack_count, item.endurance) if item.has_method("create_instance") else null
+	if instance != null:
+		instance.runtime_storage_items.clear()
+		for stored_item in item.runtime_storage_items:
+			if stored_item == null:
+				instance.runtime_storage_items.append(null)
+			else:
+				instance.runtime_storage_items.append(_clone_runtime_item(stored_item))
+
+		copy_runtime_state(item, instance)
+		if instance.has_method("to_save_dict"):
+			return instance.to_save_dict()
+
+	return {
+		"runtime_id": str(item.get_instance_id()),
+		"definition_path": item.resource_path,
+		"stack_count": int(item.stack_count),
+		"endurance": int(item.endurance),
+		"runtime_storage_items": [],
+		"weapon_runtime_state": {}
+	}
+
+
+func _deserialize_item_from_save(raw_item: Variant) -> ItemData:
+	if not (raw_item is Dictionary):
+		return null
+	return ITEM_INSTANCE_SCRIPT.from_save_dict(raw_item as Dictionary)
 
 
 func _count_ammo_in_item(item: ItemData, ammo_type: String = "") -> int:

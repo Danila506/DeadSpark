@@ -34,6 +34,8 @@ func _ready() -> void:
 	if InventoryManager != null and InventoryManager.has_signal("equipment_changed") and not InventoryManager.equipment_changed.is_connected(_on_equipment_changed):
 		InventoryManager.equipment_changed.connect(_on_equipment_changed)
 	_update_visual_state()
+	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
+		GameSaveManager.register_persistent_node(self)
 
 
 func _process(_delta: float) -> void:
@@ -175,3 +177,34 @@ func _drop_wood() -> void:
 				randf_range(-wood_drop_spread_radius, wood_drop_spread_radius)
 			)
 			(pickup as Node2D).global_position = global_position + drop_offset
+
+
+func get_save_key() -> String:
+	return "tree:%s" % [str(global_position)]
+
+
+func get_save_data() -> Dictionary:
+	return {
+		"chop_hits": chop_hits,
+		"is_felled": is_felled
+	}
+
+
+func apply_save_data(save_data: Dictionary) -> void:
+	chop_hits = max(int(save_data.get("chop_hits", 0)), 0)
+	var should_be_felled: bool = bool(save_data.get("is_felled", false))
+	if should_be_felled:
+		_set_felled_state()
+		return
+	is_felled = false
+	player_in_range = false
+	if normal_sprite != null:
+		normal_sprite.visible = true
+	if felled_sprite != null:
+		felled_sprite.visible = false
+	if interact_area != null:
+		interact_area.monitoring = true
+		interact_area.monitorable = true
+	if trunk_body != null:
+		trunk_body.process_mode = Node.PROCESS_MODE_INHERIT
+	_update_visual_state()

@@ -165,6 +165,8 @@ func _ready() -> void:
 	_force_refresh_animation()
 	_hide_action_bar()
 	_ensure_status_hint_label()
+	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
+		GameSaveManager.register_persistent_node(self)
 
 
 func _resolve_walk_snow_sfx() -> AudioStreamPlayer:
@@ -202,6 +204,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			if _trigger_secondary_interaction():
 				get_viewport().set_input_as_handled()
 				return
+
+		if key_event.physical_keycode == KEY_F5:
+			if GameSaveManager != null and GameSaveManager.has_method("save_game"):
+				GameSaveManager.save_game()
+			get_viewport().set_input_as_handled()
+			return
+
+		if key_event.physical_keycode == KEY_F9:
+			if GameSaveManager != null and GameSaveManager.has_method("load_game"):
+				GameSaveManager.load_game()
+			get_viewport().set_input_as_handled()
+			return
 
 	if event is InputEventMouseButton and event.pressed:
 		var mouse_event: InputEventMouseButton = event as InputEventMouseButton
@@ -851,3 +865,57 @@ func _trigger_primary_interaction() -> bool:
 func _update_bleeding_trail(delta: float) -> void:
 	if blood_effects_controller != null:
 		blood_effects_controller.update_bleeding_trail(delta)
+
+
+func get_save_key() -> String:
+	return "player:main"
+
+
+func get_save_data() -> Dictionary:
+	return {
+		"global_position": {"x": global_position.x, "y": global_position.y},
+		"health": health,
+		"water": water,
+		"food": food,
+		"stamina": stamina,
+		"radiation": radiation,
+		"is_bleeding": is_bleeding,
+		"is_fractured": is_fractured,
+		"is_diseased": is_diseased,
+		"disease_time_left": disease_time_left,
+		"water_timer": water_timer,
+		"food_timer": food_timer,
+		"bleeding_timer": bleeding_timer,
+		"disease_tick_timer": disease_tick_timer
+	}
+
+
+func apply_save_data(save_data: Dictionary) -> void:
+	var position_data: Dictionary = save_data.get("global_position", {})
+	if not position_data.is_empty():
+		global_position = Vector2(
+			float(position_data.get("x", global_position.x)),
+			float(position_data.get("y", global_position.y))
+		)
+
+	health = clamp(float(save_data.get("health", health)), 0.0, max_health)
+	water = clamp(float(save_data.get("water", water)), 0.0, max_water)
+	food = clamp(float(save_data.get("food", food)), 0.0, max_food)
+	stamina = clamp(float(save_data.get("stamina", stamina)), 0.0, max_stamina)
+	radiation = max(float(save_data.get("radiation", radiation)), 0.0)
+
+	is_bleeding = bool(save_data.get("is_bleeding", is_bleeding))
+	is_fractured = bool(save_data.get("is_fractured", is_fractured))
+	is_diseased = bool(save_data.get("is_diseased", is_diseased))
+	disease_time_left = max(float(save_data.get("disease_time_left", disease_time_left)), 0.0)
+
+	water_timer = max(float(save_data.get("water_timer", water_timer)), 0.0)
+	food_timer = max(float(save_data.get("food_timer", food_timer)), 0.0)
+	bleeding_timer = max(float(save_data.get("bleeding_timer", bleeding_timer)), 0.0)
+	disease_tick_timer = max(float(save_data.get("disease_tick_timer", disease_tick_timer)), 0.0)
+
+	if not is_bleeding:
+		bleeding_trail_timer = 0.0
+
+	stats_changed.emit()
+	status_effects_changed.emit()

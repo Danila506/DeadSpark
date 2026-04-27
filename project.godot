@@ -19,6 +19,7 @@ config/icon="uid://ckj6wcs50m3g3"
 
 InventoryManager="*uid://d80a6pjs65fi"
 NearbyItemsManager="*uid://c56gshp3tcryp"
+GameSaveManager="*res://Autoloads/GameSaveManager.gd"
 
 [display]
 
