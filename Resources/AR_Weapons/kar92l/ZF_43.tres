@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://de78r2udd1nj0"]
 
 [ext_resource type="Texture2D" uid="uid://blvvwnepwdntt" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/kar92l/Scope_ZF_43Inv.png" id="1_vbn30"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_lsc5t"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_lsc5t"]
 [ext_resource type="Texture2D" uid="uid://22tg02ef4oyh" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/kar92l/scope_ZF_43OnWeapon.png" id="2_vtpqf"]
 [ext_resource type="Texture2D" uid="uid://q0y0af87khda" path="res://Assets/itemAssets/on_world_icon/AR_Weapon/kar92l/Scope_ZF-43Wrd.png" id="4_u3sjw"]
 

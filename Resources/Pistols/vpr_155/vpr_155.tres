@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://du5fvgk2o6lne"]
+
+[ext_resource type="Script" path="res://items/scripts/item_data.gd" id="1_script"]
+[ext_resource type="SpriteFrames" path="res://Resources/Pistols/vpr_155/vpr_155_frames.tres" id="2_frames"]
+[ext_resource type="Texture2D" path="res://Assets/itemAssets/inventory_icon/Pistols/VPR_155Inv.png" id="3_inv"]
+[ext_resource type="Texture2D" path="res://Assets/itemAssets/on_world_icon/Pistols/VPR_155Wrd.png" id="4_world"]
+[ext_resource type="Texture2D" path="res://Assets/Sights/sight.png" id="5_sight"]
+[ext_resource type="Texture2D" path="res://Assets/Sights/cursorLowSpread.png" id="6_low"]
+[ext_resource type="Texture2D" path="res://Assets/Sights/cursorMediumSpread.png" id="7_mid"]
+[ext_resource type="Texture2D" path="res://Assets/Sights/cursorHighSpread.png" id="8_high"]
+[ext_resource type="PackedScene" path="res://Projectile/projectile.tscn" id="9_bullet"]
+[ext_resource type="AudioStream" path="res://Assets/AudioWaw/WeaponSounds/loud-clear-short-shot-sound.wav" id="10_shot"]
+[ext_resource type="AudioStream" path="res://Assets/AudioWaw/WeaponSounds/the-click-of-an-automatic-iron-trigger.wav" id="11_reload"]
+
+[resource]
+script = ExtResource("1_script")
+storage_category = 1
+can_be_stored_in_clothing = false
+item_name = "VPR-155"
+world_icon = ExtResource("4_world")
+inventory_icon = ExtResource("3_inv")
+item_type = 1
+equipped_frames = ExtResource("2_frames")
+aim_cursor = ExtResource("5_sight")
+aim_cursor_low_spread = ExtResource("6_low")
+aim_cursor_medium_spread = ExtResource("7_mid")
+aim_cursor_high_spread = ExtResource("8_high")
+bullet_scene = ExtResource("9_bullet")
+shot_sound = ExtResource("10_shot")
+reload_sound = ExtResource("11_reload")
+shot_sound_volume_db = -6.0
+reload_sound_volume_db = -11.0
+fire_delay = 0.55
+bullet_speed = 760.0
+bullet_max_distance = 210.0
+bullet_min_distance = 40.0
+damage = 12.0
+magazine_size = 5
+reserve_ammo = 25
+reload_time_sec = 2.6
+min_spread_degrees = 4.0
+max_spread_degrees = 16.0
+spread_increase_per_shot = 5.0
+spread_recovery_per_sec = 4.0
+running_spread_multiplier = 1.7
+pellets_per_shot = 4
+pellet_spread_degrees = 11.0
+pellet_distance_jitter_ratio = 0.2
+aim_distance_min = 45.0
+aim_distance_max = 150.0

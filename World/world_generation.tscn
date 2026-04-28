@@ -1,0 +1,71 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://World/chunk_world_generator.gd" id="1"]
+[ext_resource type="Script" path="res://World/chunk_tree_spawner.gd" id="2"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/chunk_snow_layer.tres" id="3"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/chunk_biom1_layer.tres" id="4"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/chunk_biom2_layer.tres" id="5"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/chunk_road_layer.tres" id="6"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/chunk_lake_layer.tres" id="13"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom1_trees.tres" id="7"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom1_bushes.tres" id="8"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_trees.tres" id="9"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_stones.tres" id="10"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_puddles.tres" id="11"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_bandit_bases.tres" id="12"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_deadwood_trees.tres" id="14"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_berry_bushes.tres" id="15"]
+
+[node name="WorldGeneration" type="Node"]
+
+[node name="ChunkWorldGenerator" type="Node" parent="."]
+script = ExtResource("1")
+config = ExtResource("3")
+
+[node name="ChunkLayerGenerator_Secondary" type="Node" parent="."]
+script = ExtResource("1")
+config = ExtResource("4")
+
+[node name="ChunkLayerGenerator_Biom2" type="Node" parent="."]
+script = ExtResource("1")
+config = ExtResource("5")
+
+[node name="ChunkLayerGenerator_Lake" type="Node" parent="."]
+script = ExtResource("1")
+config = ExtResource("13")
+
+[node name="ChunkLayerGenerator_Road" type="Node" parent="."]
+script = ExtResource("1")
+config = ExtResource("6")
+
+[node name="ChunkTreeSpawner" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("7")
+
+[node name="ChunkBushSpawner_Biom1" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("8")
+
+[node name="ChunkTreeSpawner_Biom2" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("9")
+
+[node name="ChunkStoneSpawner_Biom2" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("10")
+
+[node name="ChunkPuddleSpawner_Biom2" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("11")
+
+[node name="ChunkDeadWoodSpawner_Biom2" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("14")
+
+[node name="ChunkBerryBushSpawner_Biom2" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("15")
+
+[node name="ChunkBanditBaseSpawner" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("12")

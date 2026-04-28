@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dy2kaiwsfvgkl"]
+[gd_resource type="Resource" format=3 uid="uid://dy2kaiwsfvgkl"]
 
 [ext_resource type="Texture2D" uid="uid://dgxuvyo2yrtga" path="res://Assets/itemAssets/inventory_icon/Misc/drovaInv.png" id="1_h16ii"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_script"]
 [ext_resource type="Texture2D" uid="uid://durc3d8gpayok" path="res://Assets/itemAssets/on_world_icon/Misc/woodWrd.png" id="3_world"]
 
 [resource]

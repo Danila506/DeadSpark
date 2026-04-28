@@ -64,9 +64,8 @@ func shoot() -> void:
 		controller.current_weapon.weapon_endurance_loss_percent_per_shot
 	)
 	if weapon_broken:
-		controller.is_reloading = false
-		controller.reload_timer = 0.0
-		controller.reload_uses_action_bar = false
+		if controller.has_method("_cancel_reload"):
+			controller._cancel_reload()
 		return
 	emit_player_shot_noise()
 
@@ -162,11 +161,16 @@ func spawn_projectiles(spawn_pos: Vector2) -> void:
 	var bullet_scene: PackedScene = controller.current_weapon.bullet_scene
 	if bullet_scene == null:
 		return
+	var spawn_root: Node = controller.get_tree().current_scene
+	if spawn_root == null:
+		spawn_root = controller.player
+	if spawn_root == null:
+		return
 
 	var pellets: int = max(controller.current_weapon.pellets_per_shot, 1)
 	for _i in range(pellets):
 		var bullet: Node = bullet_scene.instantiate()
-		controller.get_tree().current_scene.add_child(bullet)
+		spawn_root.add_child(bullet)
 
 		var shoot_dir: Vector2 = get_pellet_direction(controller._get_direction_to_aim_target(spawn_pos))
 		var bullet_distance: float = get_pellet_distance()

@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="ChunkWorldGeneratorConfig" format=3 uid="uid://deqcdcdf70u75"]
+
+[ext_resource type="Script" uid="uid://d1c7ejdr71m56" path="res://World/chunk_world_generator_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tile_map_path = NodePath("../../RoadLayer")
+player_path = NodePath("../../Y-Sort_Objects/Player2")
+load_radius_chunks = 2
+preserve_editor_tiles = true
+randomize_seed_on_start = true
+fill_probability = 0.08
+source_id = 0
+tile_options_atlas = Array[Vector2i]([Vector2i(20, 1)])
+use_terrain_connect = true
+terrain_ignore_empty = false
+road_corner_atlas = Vector2i(27, 0)
+road_corner_alt_up_right = 1
+road_corner_alt_down_left = 2
+road_corner_alt_down_right = 3
+road_t_atlas = Vector2i(14, 0)
+road_t_alt_missing_up = 0
+road_t_alt_missing_down = 1
+road_t_alt_missing_left = 2
+road_t_alt_missing_right = 3
+road_cross_atlas = Vector2i(7, 0)
+road_min_straight_before_turn = 6
+road_turn_jitter_chance = 14
+road_side_jog_chance = 6
+road_branch_density = 0.38
+road_continue_direction_chance = 74
+road_trunk_period_chunks = 6
+road_min_branch_spacing_tiles = 6
+blocked_node_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/ForesterHouse"), NodePath("../../Y-Sort_Objects/MedicineKit"), NodePath("../../Y-Sort_Objects/BanditBase")])
+blocked_node_radius_px = 60.0
+avoid_layer_path = NodePath("../../Y-Sort_Objects/LakeLayer")
+avoid_layer_radius_tiles = 2
+debug_log = false

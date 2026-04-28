@@ -1,4 +1,4 @@
-extends "res://items/scripts/itemData.gd"
+extends "res://items/scripts/item_data.gd"
 class_name ItemInstance
 
 @export var definition: ItemData

@@ -2,7 +2,7 @@
 
 [ext_resource type="Texture2D" uid="uid://ccsghy5qcpqig" path="res://Assets/itemAssets/animation_sprites/clothes/bagSprites.png" id="0_bag_anim"]
 [ext_resource type="Texture2D" uid="uid://bm775pl4na2yl" path="res://Assets/itemAssets/inventory_icon/Clothes/bagInv.png" id="1_1oh1e"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_cjuqj"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="2_cjuqj"]
 [ext_resource type="Texture2D" uid="uid://ckdihtypodk1u" path="res://Assets/itemAssets/on_world_icon/Clothes/bagWrd.png" id="3_2f3hc"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_ev65a"]

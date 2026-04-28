@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://brhx7jeqn1s68"]
+[gd_resource type="Resource" format=3 uid="uid://brhx7jeqn1s68"]
 
 [ext_resource type="Texture2D" uid="uid://jgwbo3h4r28f" path="res://Assets/itemAssets/inventory_icon/Food/appleInv.png" id="1_cp2k1"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_script"]
 [ext_resource type="Texture2D" uid="uid://bc2hvwfe07h7n" path="res://Assets/itemAssets/on_world_icon/Food/appleWrd.png" id="3_38y6y"]
 
 [resource]

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://c2p2crymdxt63" path="res://Player/player.gd" id="1_onrkg"]
 [ext_resource type="Texture2D" uid="uid://7yde4hpk8pw5" path="res://Assets/personazh_ispravlenny.png" id="2_btcbx"]
-[ext_resource type="Texture2D" uid="uid://djqwapfqxftjk" path="res://Assets/itemAssets/animation_sprites/weapon/beg_s_akp_52.png" id="3_fhl08"]
+[ext_resource type="Texture2D" uid="uid://djqwapfqxftjk" path="res://Assets/itemAssets/animation_sprites/weapon/AR_Weapon/beg_s_akp_52.png" id="3_fhl08"]
 [ext_resource type="Texture2D" uid="uid://bwh5prqxtdm3q" path="res://Assets/itemAssets/animation_sprites/clothes/futbolka_ispravl.png" id="3_gwnis"]
 [ext_resource type="Script" uid="uid://bny5sjhpr0l8s" path="res://Player/weapon_controller.gd" id="3_vtle1"]
 [ext_resource type="SpriteFrames" uid="uid://7bc7lsd2cotr" path="res://Resources/Effects/Bloody.tres" id="4_7emwf"]
@@ -12,7 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://b1kplc7tsp8o2" path="res://Assets/itemAssets/animation_sprites/clothes/maBoyJacket.png" id="7_dkpta"]
 [ext_resource type="Texture2D" uid="uid://ch4csymaq7k02" path="res://Assets/itemAssets/animation_sprites/clothes/dzhinsy.png" id="7_od3ui"]
 [ext_resource type="Texture2D" uid="uid://h1ua6g5c0fyw" path="res://Assets/itemAssets/animation_sprites/clothes/bulletproof.png" id="8_00tjw"]
-[ext_resource type="Texture2D" uid="uid://mljtt5xruus6" path="res://Assets/itemAssets/animation_sprites/weapon/runAxe.png" id="9_5htga"]
+[ext_resource type="Texture2D" uid="uid://mljtt5xruus6" path="res://Assets/itemAssets/animation_sprites/weapon/Meele/runAxe.png" id="9_5htga"]
 [ext_resource type="Texture2D" uid="uid://ccsghy5qcpqig" path="res://Assets/itemAssets/animation_sprites/clothes/bagSprites.png" id="9_x3vf3"]
 [ext_resource type="Texture2D" uid="uid://bc5sbr8qt25cg" path="res://Assets/itemAssets/animation_sprites/clothes/ushanka_cap.png" id="10_apopc"]
 [ext_resource type="Texture2D" uid="uid://dajmhnecqolt0" path="res://Player/ActionBar/outlineActionBar.png" id="13_gu6f8"]
@@ -2492,13 +2492,13 @@ passive_regen_per_sec = 3.0
 passive_regen_threshold_ratio = 5.0
 bleeding_damage_amount = 3.0
 bleeding_damage_interval = 3.0
+speed = 300.0
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2077669749]
-zoom = Vector2(2, 2)
 
 [node name="BodySprite" type="AnimatedSprite2D" parent="." unique_id=175970804]
 sprite_frames = SubResource("SpriteFrames_1jxqw")
-animation = &"Down"
+animation = &"Using"
 offset = Vector2(0, -15.105)
 metadata/_aseprite_wizard_interface_config_ = {
 "animation_section": true,

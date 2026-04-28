@@ -2,6 +2,7 @@ extends Node2D
 
 const SAVE_FILE_PATH: String = "user://savegame.json"
 const DEFAULT_LEVEL_PATH: String = "res://level.tscn"
+const DONATE_URL: String = "https://boosty.to/deadspark/donate"
 
 @onready var continue_button: Button = $CenterContainer/MenuPanel/VBox/Continue
 @onready var soundtrack_player: AudioStreamPlayer = $SoundTrack
@@ -43,6 +44,10 @@ func _on_continue_pressed() -> void:
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
+
+
+func _on_donate_pressed() -> void:
+	OS.shell_open(DONATE_URL)
 
 
 func _disable_soundtrack_for_headless() -> void:

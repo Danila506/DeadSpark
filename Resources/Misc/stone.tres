@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bqajukabmd3tf"]
 
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="1_o4olq"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="1_o4olq"]
 [ext_resource type="Texture2D" uid="uid://cykb8v556krxg" path="res://World/Assets/Biom2/stoneInv.png" id="2_fffmo"]
 [ext_resource type="Texture2D" uid="uid://braeqhsh0kyja" path="res://World/Assets/Biom2/stoneWrd.png" id="3_0vdk4"]
 

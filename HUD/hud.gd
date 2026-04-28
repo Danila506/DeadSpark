@@ -1,7 +1,7 @@
 extends CanvasLayer
 
 @export var player_path: NodePath
-@onready var player = get_node("../Player2")
+var player: Node = null
 
 @onready var health_bar: TextureProgressBar = $HealthBar
 @onready var water_bar: TextureProgressBar = $WaterBar
@@ -19,6 +19,11 @@ var fracture_blink_visible: bool = false
 
 
 func _ready() -> void:
+	player = _resolve_player_node()
+	if player == null:
+		push_error("HUD: player not found (player_path/group 'player').")
+		set_process(false)
+		return
 	player.stats_changed.connect(update_stats)
 	if player.has_signal("status_effects_changed"):
 		player.status_effects_changed.connect(update_status_effects)
@@ -103,3 +108,11 @@ func _update_fracture_blink(delta: float) -> void:
 		fracture_blink_visible = not fracture_blink_visible
 
 	fracture_icon.visible = fracture_blink_visible
+
+
+func _resolve_player_node() -> Node:
+	if player_path != NodePath(""):
+		var by_path: Node = get_node_or_null(player_path)
+		if by_path != null:
+			return by_path
+	return get_tree().get_first_node_in_group("player")

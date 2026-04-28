@@ -2,7 +2,7 @@
 
 [ext_resource type="Texture2D" uid="uid://h1ua6g5c0fyw" path="res://Assets/itemAssets/animation_sprites/clothes/bulletproof.png" id="1_1bq4u"]
 [ext_resource type="Texture2D" uid="uid://drdahe2j8n6lt" path="res://Assets/itemAssets/inventory_icon/Clothes/bulletproofInv.png" id="1_8yq8i"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="1_157le"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="1_157le"]
 [ext_resource type="Texture2D" uid="uid://bwssaeesjbfta" path="res://Assets/itemAssets/on_world_icon/Clothes/bulletproofWrd.png" id="3_1bq4u"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_6pogt"]

@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ChunkWorldGeneratorConfig" format=3 uid="uid://bsfdaqtjo45m0"]
+
+[ext_resource type="Script" uid="uid://d1c7ejdr71m56" path="res://World/chunk_world_generator_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tile_map_path = NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer")
+player_path = NodePath("../../Y-Sort_Objects/Player2")
+load_radius_chunks = 2
+fill_probability = 0.04
+ensure_non_empty_chunk = true
+biome_half_split_enabled = true
+biome_half_split_upper_or_left = false
+source_id = 0
+tile_options_atlas = Array[Vector2i]([Vector2i(1, 1), Vector2i(5, 1), Vector2i(1, 7), Vector2i(6, 7), Vector2i(9, 4), Vector2i(11, 10), Vector2i(19, 10), Vector2i(19, 7), Vector2i(19, 4), Vector2i(26, 4), Vector2i(25, 6), Vector2i(30, 6), Vector2i(32, 6), Vector2i(35, 6), Vector2i(30, 9), Vector2i(35, 9), Vector2i(35, 12), Vector2i(30, 16), Vector2i(17, 16), Vector2i(43, 6), Vector2i(47, 6), Vector2i(44, 9), Vector2i(47, 9), Vector2i(42, 12), Vector2i(45, 12), Vector2i(49, 12), Vector2i(23, 11), Vector2i(2, 16), Vector2i(5, 16), Vector2i(8, 16), Vector2i(2, 18), Vector2i(5, 18), Vector2i(8, 18), Vector2i(2, 20), Vector2i(2, 23), Vector2i(5, 20)])
+tile_option_weights = Array[float]([12.0, 12.0, 9.0, 9.0, 10.0, 8.0, 7.0, 7.0, 7.0, 7.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 5.0, 3.0, 3.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.0, 2.0, 2.0, 1.5, 1.5, 2.0])
+blocked_node_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/ForesterHouse"), NodePath("../../Y-Sort_Objects/MedicineKit"), NodePath("../../Y-Sort_Objects/BanditBase")])
+blocked_node_radius_px = 140.0
+avoid_layer_path = NodePath("../../RoadLayer")
+avoid_layer_radius_tiles = 1
+avoid_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/LakeLayer")])
+prefer_layer_path = NodePath("../../RoadLayer")
+prefer_layer_radius_tiles = 3
+prefer_layer_fill_bonus = 0.08

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ChunkWorldGeneratorConfig" format=3 uid="uid://ecl7f6xdvl5h"]
+
+[ext_resource type="Script" uid="uid://d1c7ejdr71m56" path="res://World/chunk_world_generator_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tile_map_path = NodePath("../../Y-Sort_Objects/LakeLayer")
+player_path = NodePath("../../Y-Sort_Objects/Player2")
+load_radius_chunks = 2
+randomize_seed_on_start = true
+fill_probability = 0.16
+source_id = 0
+use_terrain_connect = true
+terrain_ignore_empty = false
+terrain_blob_mode = true
+blocked_node_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/ForesterHouse"), NodePath("../../Y-Sort_Objects/ForesterHouse2"), NodePath("../../Y-Sort_Objects/MedicineKit"), NodePath("../../Y-Sort_Objects/BanditBase")])
+blocked_node_radius_px = 90.0
+avoid_layer_path = NodePath("../../RoadLayer")
+avoid_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/Biom1/Biom1Layer"), NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer")])
+overlap_clear_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/Biom1/Biom1Layer"), NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer")])

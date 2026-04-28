@@ -631,6 +631,20 @@ func pickup_first_nearby_item() -> bool:
 	return _pickup_world_item(world_item)
 
 
+func try_store_item_or_drop(item: ItemData) -> bool:
+	if item == null:
+		return false
+	var runtime_item: ItemData = _clone_item_data(item)
+	if runtime_item == null:
+		return false
+	if _try_store_picked_item(runtime_item):
+		refresh_ui()
+		return true
+	_spawn_world_item(runtime_item)
+	refresh_ui()
+	return false
+
+
 func _clear_clothing_storage() -> void:
 	_clear_storage_provider(ItemData.ItemType.Jacket, jacket_storage_panel)
 	_clear_storage_provider(ItemData.ItemType.HeavyArmour, heavy_armour_storage_panel)
@@ -1469,11 +1483,7 @@ func _can_install_scope(scope_item: ItemData) -> bool:
 	if not (scope_item.is_scope_attachment or scope_item.is_weapon_attachment):
 		return false
 
-	var weapon_item: ItemData = InventoryManager.get_equipped(ItemData.ItemType.AR_Weapon)
-	if weapon_item == null:
-		return false
-
-	return InventoryManager.can_attach_attachment_to_weapon(scope_item, weapon_item)
+	return _resolve_attachment_target_weapon(scope_item) != null
 
 
 func _install_selected_scope() -> void:
@@ -1486,7 +1496,7 @@ func _install_selected_scope() -> void:
 	var selected_slot_type: int = selected_slot.slot_type
 	var selected_container_index: int = selected_slot.container_index
 	var scope_item: ItemData = selected_slot.item_data
-	var target_weapon: ItemData = InventoryManager.get_equipped(ItemData.ItemType.AR_Weapon)
+	var target_weapon: ItemData = _resolve_attachment_target_weapon(scope_item)
 	if target_weapon == null:
 		_hide_action_buttons()
 		return
@@ -1507,6 +1517,24 @@ func _install_selected_scope() -> void:
 
 	_hide_action_buttons()
 	refresh_ui()
+
+
+func _resolve_attachment_target_weapon(attachment_item: ItemData) -> ItemData:
+	if attachment_item == null:
+		return null
+
+	var active_slot: int = InventoryManager.get_active_weapon_slot()
+	if active_slot in [ItemData.ItemType.AR_Weapon, ItemData.ItemType.Pistols]:
+		var active_weapon: ItemData = InventoryManager.get_equipped(active_slot)
+		if active_weapon != null and InventoryManager.can_attach_attachment_to_weapon(attachment_item, active_weapon):
+			return active_weapon
+
+	for slot_type in [ItemData.ItemType.AR_Weapon, ItemData.ItemType.Pistols]:
+		var weapon_item: ItemData = InventoryManager.get_equipped(slot_type)
+		if weapon_item != null and InventoryManager.can_attach_attachment_to_weapon(attachment_item, weapon_item):
+			return weapon_item
+
+	return null
 
 
 func _remove_scope_from_selected_weapon() -> void:

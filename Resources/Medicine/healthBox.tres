@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://diuk0looy07hv"]
+[gd_resource type="Resource" format=3 uid="uid://diuk0looy07hv"]
 
 [ext_resource type="Texture2D" uid="uid://ch6jcn403yi2i" path="res://Assets/itemAssets/inventory_icon/Medicine/HealthBoxInv.png" id="1_v68af"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_uio8b"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_uio8b"]
 [ext_resource type="Texture2D" uid="uid://db6k5lwpdib6p" path="res://Assets/itemAssets/on_world_icon/Medicine/HealthBoxWrd.png" id="3_7l4h1"]
 
 [resource]

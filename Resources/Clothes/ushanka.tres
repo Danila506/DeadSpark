@@ -2,7 +2,7 @@
 
 [ext_resource type="Texture2D" uid="uid://bc5sbr8qt25cg" path="res://Assets/itemAssets/animation_sprites/clothes/ushanka_cap.png" id="1_cap_anim"]
 [ext_resource type="Texture2D" uid="uid://csageopo2qri4" path="res://Assets/itemAssets/inventory_icon/Clothes/ushankaInv.png" id="2_cap_inv"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="3_item_data"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="3_item_data"]
 [ext_resource type="Texture2D" uid="uid://c87sui7n5a3xw" path="res://Assets/itemAssets/on_world_icon/Clothes/ushankaWrd.png" id="4_cap_world"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_fm5nm"]

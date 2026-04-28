@@ -17,25 +17,29 @@ func update_needs(delta: float) -> void:
 	player.water_timer += delta
 	player.food_timer += delta
 
-	if player.water_timer >= player.water_drain_interval:
-		player.water_timer = 0.0
+	var water_interval: float = max(player.water_drain_interval, 0.01)
+	while player.water_timer >= water_interval:
+		player.water_timer -= water_interval
 		player.water = clamp(player.water - player.water_drain_amount, 0.0, player.max_water)
 
 		if player.water <= 0.0:
 			player.health = clamp(player.health - 5.0, 0.0, player.max_health)
 			if player.health <= 0.0:
 				player.die()
+				break
 
 		player.stats_changed.emit()
 
-	if player.food_timer >= player.food_drain_interval:
-		player.food_timer = 0.0
+	var food_interval: float = max(player.food_drain_interval, 0.01)
+	while player.food_timer >= food_interval:
+		player.food_timer -= food_interval
 		player.food = clamp(player.food - player.food_drain_amount, 0.0, player.max_food)
 
 		if player.food <= 0.0:
 			player.health = clamp(player.health - 5.0, 0.0, player.max_health)
 			if player.health <= 0.0:
 				player.die()
+				break
 
 		player.stats_changed.emit()
 

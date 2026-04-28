@@ -4,6 +4,7 @@ extends Node
 @export var enabled: bool = true
 @export var tile_map_path: NodePath
 @export var player_path: NodePath
+@export var config: ChunkWorldGeneratorConfig
 
 @export_category("Chunk Settings")
 @export_range(4, 256, 1) var chunk_size_tiles: int = 16
@@ -37,6 +38,7 @@ extends Node
 @export var terrain_set_id: int = 0
 @export var terrain_id: int = 0
 @export var terrain_ignore_empty: bool = true
+@export var terrain_blob_mode: bool = false
 @export var road_corner_atlas: Vector2i = Vector2i(-1, -1)
 @export var road_corner_alt_up_left: int = 0
 @export var road_corner_alt_up_right: int = -1
@@ -66,15 +68,20 @@ extends Node
 @export var blocked_node_radius_px: float = 120.0
 @export var avoid_layer_path: NodePath
 @export_range(0, 8, 1) var avoid_layer_radius_tiles: int = 0
+@export var avoid_layer_paths: Array[NodePath] = []
+@export var overlap_clear_layer_paths: Array[NodePath] = []
+@export_range(0, 8, 1) var overlap_clear_radius_tiles: int = 0
 @export var prefer_layer_path: NodePath
 @export_range(0, 8, 1) var prefer_layer_radius_tiles: int = 0
 @export_range(0.0, 1.0, 0.01) var prefer_layer_fill_bonus: float = 0.0
 
 @export_category("Debug")
-@export var debug_log: bool = true
+@export var debug_log: bool = false
 
 var _tile_map: TileMapLayer
 var _avoid_layer: TileMapLayer
+var _avoid_layers: Array = []
+var _overlap_clear_layers: Array = []
 var _prefer_layer: TileMapLayer
 var _player: Node2D
 var _loaded_chunks := {}
@@ -87,23 +94,41 @@ var _protected_cells := {}
 
 
 func _ready() -> void:
+	if config != null:
+		_apply_config(config)
+
 	if not enabled:
 		set_process(false)
 		return
 
 	_tile_map = get_node_or_null(tile_map_path) as TileMapLayer
 	_avoid_layer = null
+	_avoid_layers.clear()
+	_overlap_clear_layers.clear()
 	if avoid_layer_path != NodePath(""):
 		_avoid_layer = get_node_or_null(avoid_layer_path) as TileMapLayer
+		if _avoid_layer != null:
+			_avoid_layers.append(_avoid_layer)
+	for p in avoid_layer_paths:
+		if p == NodePath(""):
+			continue
+		var avoid_candidate := get_node_or_null(p) as TileMapLayer
+		if avoid_candidate != null and not _avoid_layers.has(avoid_candidate):
+			_avoid_layers.append(avoid_candidate)
+	for p in overlap_clear_layer_paths:
+		if p == NodePath(""):
+			continue
+		var clear_layer_candidate := get_node_or_null(p) as TileMapLayer
+		if clear_layer_candidate != null and clear_layer_candidate != _tile_map and not _overlap_clear_layers.has(clear_layer_candidate):
+			_overlap_clear_layers.append(clear_layer_candidate)
 	_prefer_layer = null
 	if prefer_layer_path != NodePath(""):
 		_prefer_layer = get_node_or_null(prefer_layer_path) as TileMapLayer
 	_player = get_node_or_null(player_path) as Node2D
 
-	# Fallback for scenes where the explicit path is outdated,
-	# but a dedicated road layer exists.
+	# Fallback for scenes where explicit path was changed in editor.
 	if _tile_map == null and use_terrain_connect:
-		_tile_map = get_tree().current_scene.find_child("RoadLayer", true, false) as TileMapLayer
+		_tile_map = _resolve_fallback_tile_map()
 
 	if _tile_map == null:
 		push_error("ChunkWorldGenerator: TileMapLayer not found by tile_map_path")
@@ -127,6 +152,9 @@ func _ready() -> void:
 		push_error("ChunkWorldGenerator: tile_options_atlas is empty")
 		set_process(false)
 		return
+	if use_terrain_connect and not _ensure_valid_terrain_target():
+		set_process(false)
+		return
 
 	_collect_blocked_positions()
 	_init_world_bounds()
@@ -135,6 +163,72 @@ func _ready() -> void:
 		_clear_existing_cells()
 
 	_update_visible_chunks(true)
+
+
+func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
+	enabled = cfg.enabled
+	tile_map_path = cfg.tile_map_path
+	player_path = cfg.player_path
+	chunk_size_tiles = cfg.chunk_size_tiles
+	load_radius_chunks = cfg.load_radius_chunks
+	world_chunks_x = cfg.world_chunks_x
+	world_chunks_y = cfg.world_chunks_y
+	clear_existing_on_start = cfg.clear_existing_on_start
+	preserve_editor_tiles = cfg.preserve_editor_tiles
+	update_interval_sec = cfg.update_interval_sec
+	world_seed = cfg.world_seed
+	randomize_seed_on_start = cfg.randomize_seed_on_start
+	fill_probability = cfg.fill_probability
+	ensure_non_empty_chunk = cfg.ensure_non_empty_chunk
+	biome_partition_enabled = cfg.biome_partition_enabled
+	biome_partition_count = cfg.biome_partition_count
+	biome_partition_index = cfg.biome_partition_index
+	biome_partition_period_chunks = cfg.biome_partition_period_chunks
+	biome_half_split_enabled = cfg.biome_half_split_enabled
+	biome_half_split_vertical = cfg.biome_half_split_vertical
+	biome_half_split_upper_or_left = cfg.biome_half_split_upper_or_left
+	source_id = cfg.source_id
+	tile_options_atlas = cfg.tile_options_atlas.duplicate()
+	tile_option_weights = cfg.tile_option_weights.duplicate()
+	use_terrain_connect = cfg.use_terrain_connect
+	terrain_set_id = cfg.terrain_set_id
+	terrain_id = cfg.terrain_id
+	terrain_ignore_empty = cfg.terrain_ignore_empty
+	terrain_blob_mode = cfg.terrain_blob_mode
+	road_corner_atlas = cfg.road_corner_atlas
+	road_corner_alt_up_left = cfg.road_corner_alt_up_left
+	road_corner_alt_up_right = cfg.road_corner_alt_up_right
+	road_corner_alt_down_left = cfg.road_corner_alt_down_left
+	road_corner_alt_down_right = cfg.road_corner_alt_down_right
+	road_t_atlas = cfg.road_t_atlas
+	road_t_alt_missing_up = cfg.road_t_alt_missing_up
+	road_t_alt_missing_down = cfg.road_t_alt_missing_down
+	road_t_alt_missing_left = cfg.road_t_alt_missing_left
+	road_t_alt_missing_right = cfg.road_t_alt_missing_right
+	road_cross_atlas = cfg.road_cross_atlas
+	road_cross_alternative = cfg.road_cross_alternative
+	road_min_straight_before_turn = cfg.road_min_straight_before_turn
+	road_turn_jitter_chance = cfg.road_turn_jitter_chance
+	road_side_jog_chance = cfg.road_side_jog_chance
+	road_branch_density = cfg.road_branch_density
+	road_max_branches_per_chunk = cfg.road_max_branches_per_chunk
+	road_continue_direction_chance = cfg.road_continue_direction_chance
+	road_trim_dead_end_max_len = cfg.road_trim_dead_end_max_len
+	road_force_center_connector = cfg.road_force_center_connector
+	road_trunk_period_chunks = cfg.road_trunk_period_chunks
+	road_min_branch_spacing_tiles = cfg.road_min_branch_spacing_tiles
+	road_enable_service_pocket = cfg.road_enable_service_pocket
+	blocked_node_paths = cfg.blocked_node_paths.duplicate()
+	blocked_node_radius_px = cfg.blocked_node_radius_px
+	avoid_layer_path = cfg.avoid_layer_path
+	avoid_layer_radius_tiles = cfg.avoid_layer_radius_tiles
+	avoid_layer_paths = cfg.avoid_layer_paths.duplicate()
+	overlap_clear_layer_paths = cfg.overlap_clear_layer_paths.duplicate()
+	overlap_clear_radius_tiles = cfg.overlap_clear_radius_tiles
+	prefer_layer_path = cfg.prefer_layer_path
+	prefer_layer_radius_tiles = cfg.prefer_layer_radius_tiles
+	prefer_layer_fill_bonus = cfg.prefer_layer_fill_bonus
+	debug_log = cfg.debug_log
 
 
 func _process(delta: float) -> void:
@@ -212,7 +306,10 @@ func _generate_chunk(chunk: Vector2i) -> void:
 	var terrain_cells: Array[Vector2i] = []
 
 	if use_terrain_connect:
-		terrain_cells = _collect_connected_terrain_cells(chunk, origin, occupied)
+		if terrain_blob_mode:
+			terrain_cells = _collect_blob_terrain_cells(chunk, origin, occupied)
+		else:
+			terrain_cells = _collect_connected_terrain_cells(chunk, origin, occupied)
 		placed_count = terrain_cells.size()
 		if ensure_non_empty_chunk and fill_probability > 0.0 and placed_count == 0:
 			var fallback_cell := _pick_fallback_cell(origin)
@@ -223,9 +320,12 @@ func _generate_chunk(chunk: Vector2i) -> void:
 
 		if not terrain_cells.is_empty():
 			_tile_map.set_cells_terrain_connect(terrain_cells, terrain_set_id, terrain_id, terrain_ignore_empty)
-			_apply_corner_alternatives(terrain_cells)
+			_clear_overlapping_layers(terrain_cells)
+			if not terrain_blob_mode:
+				_apply_corner_alternatives(terrain_cells)
 		return
 
+	var placed_cells: Array[Vector2i] = []
 	for local_y in range(chunk_size_tiles):
 		for local_x in range(chunk_size_tiles):
 			var cell := origin + Vector2i(local_x, local_y)
@@ -245,6 +345,7 @@ func _generate_chunk(chunk: Vector2i) -> void:
 				continue
 			if _try_place_tile(chunk, origin, local_cell, cell, atlas, occupied):
 				placed_count += 1
+				placed_cells.append(cell)
 			else:
 				if not _is_protected_cell(cell):
 					_tile_map.erase_cell(cell)
@@ -254,6 +355,8 @@ func _generate_chunk(chunk: Vector2i) -> void:
 		var fallback_local := fallback_cell - origin
 		var fallback_atlas := _pick_tile(fallback_cell)
 		_try_place_tile(chunk, origin, fallback_local, fallback_cell, fallback_atlas, occupied)
+		placed_cells.append(fallback_cell)
+	_clear_overlapping_layers(placed_cells)
 
 
 func _unload_chunk(chunk: Vector2i) -> void:
@@ -421,6 +524,76 @@ func _collect_connected_terrain_cells(chunk: Vector2i, origin: Vector2i, occupie
 	result = _remove_isolated_cells(result)
 
 	return result
+
+
+func _collect_blob_terrain_cells(chunk: Vector2i, origin: Vector2i, occupied: Dictionary) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var target_count := maxi(0, int(round(float(chunk_size_tiles * chunk_size_tiles) * fill_probability)))
+	if target_count <= 0:
+		return result
+
+	var side_min := 2
+	var side_max := maxi(2, chunk_size_tiles - 1)
+	var area_min := side_min * side_min
+	var area_max := side_max * side_max
+	var target_area := clampi(target_count, area_min, area_max)
+
+	var candidates: Array[Vector2i] = []
+	var side_base := clampi(int(round(sqrt(float(target_area)))), side_min, side_max)
+	candidates.append(Vector2i(side_base, side_base))
+	candidates.append(Vector2i(clampi(side_base + 1, side_min, side_max), side_base))
+	candidates.append(Vector2i(side_base, clampi(side_base + 1, side_min, side_max)))
+	candidates.append(Vector2i(clampi(side_base + 2, side_min, side_max), side_base))
+	candidates.append(Vector2i(side_base, clampi(side_base + 2, side_min, side_max)))
+	candidates.append(Vector2i(clampi(side_base + 1, side_min, side_max), clampi(side_base + 1, side_min, side_max)))
+
+	for i in range(candidates.size()):
+		var size := candidates[i] as Vector2i
+		if size.x <= 0 or size.y <= 0:
+			continue
+		if size.x > chunk_size_tiles or size.y > chunk_size_tiles:
+			continue
+
+		var max_x := chunk_size_tiles - size.x
+		var max_y := chunk_size_tiles - size.y
+		var h := _hash_cell(chunk.x * 733 + i * 17, chunk.y * 977 - i * 23, world_seed + 12341)
+		var x0 := 0 if max_x <= 0 else (h % (max_x + 1))
+		var y0 := 0 if max_y <= 0 else ((int(h / 97)) % (max_y + 1))
+		var local_origin := Vector2i(x0, y0)
+
+		if not _can_place_lake_rect(chunk, origin, local_origin, size, occupied):
+			continue
+
+		var used_world: Dictionary = {}
+		for ly in range(size.y):
+			for lx in range(size.x):
+				var local_cell := local_origin + Vector2i(lx, ly)
+				_try_add_terrain_local(chunk, origin, local_cell, result, used_world, occupied)
+		return result
+
+	return result
+
+
+func _can_place_lake_rect(
+	chunk: Vector2i,
+	origin: Vector2i,
+	local_origin: Vector2i,
+	size: Vector2i,
+	occupied: Dictionary
+) -> bool:
+	for ly in range(size.y):
+		for lx in range(size.x):
+			var local_cell := local_origin + Vector2i(lx, ly)
+			var world_cell := origin + local_cell
+			if not _can_place(chunk, local_cell, Vector2i.ONE, occupied):
+				return false
+			if _is_protected_cell(world_cell):
+				return false
+			if _is_blocked_by_avoid_layer(world_cell):
+				return false
+			if _overlaps_blocked_nodes(world_cell, Vector2i.ONE):
+				return false
+	return true
 
 
 func _get_chunk_road_anchors(chunk: Vector2i) -> Array[Vector2i]:
@@ -655,6 +828,8 @@ func _try_add_terrain_local(
 		return
 	if _is_protected_cell(world_cell):
 		return
+	if _is_blocked_by_avoid_layer(world_cell):
+		return
 	if not _can_place(chunk, local_cell, Vector2i.ONE, occupied):
 		return
 	if _overlaps_blocked_nodes(world_cell, Vector2i.ONE):
@@ -877,14 +1052,31 @@ func _is_corner_cell(world_cell: Vector2i, world_set: Dictionary) -> bool:
 
 
 func _is_blocked_by_avoid_layer(world_cell: Vector2i) -> bool:
-	if _avoid_layer == null or avoid_layer_radius_tiles <= 0:
+	if _avoid_layers.is_empty() or avoid_layer_radius_tiles < 0:
 		return false
 	for oy in range(-avoid_layer_radius_tiles, avoid_layer_radius_tiles + 1):
 		for ox in range(-avoid_layer_radius_tiles, avoid_layer_radius_tiles + 1):
 			var c := world_cell + Vector2i(ox, oy)
-			if _avoid_layer.get_cell_source_id(c) != -1:
-				return true
+			for layer_item in _avoid_layers:
+				var avoid := layer_item as TileMapLayer
+				if avoid != null and avoid.get_cell_source_id(c) != -1:
+					return true
 	return false
+
+
+func _clear_overlapping_layers(cells: Array[Vector2i]) -> void:
+	if _overlap_clear_layers.is_empty() or cells.is_empty():
+		return
+	var radius: int = maxi(0, overlap_clear_radius_tiles)
+	for cell in cells:
+		for oy in range(-radius, radius + 1):
+			for ox in range(-radius, radius + 1):
+				var target_cell := cell + Vector2i(ox, oy)
+				for layer_item in _overlap_clear_layers:
+					var layer := layer_item as TileMapLayer
+					if layer == null:
+						continue
+					layer.erase_cell(target_cell)
 
 
 func _is_near_prefer_layer(world_cell: Vector2i) -> bool:
@@ -991,7 +1183,7 @@ func _apply_corner_alternatives(terrain_cells: Array[Vector2i]) -> void:
 				_tile_map.set_cell(c, source_id, road_corner_atlas, alternative_id)
 				replaced_count += 1
 	if debug_log and replaced_count == 0:
-		print("ChunkWorldGenerator: no road alternatives applied. Check road_corner/road_t/road_cross settings and alternative ids.")
+		push_warning("ChunkWorldGenerator: no road alternatives applied. Check road_corner/road_t/road_cross settings and alternative ids.")
 
 
 func _remove_isolated_cells(cells: Array[Vector2i]) -> Array[Vector2i]:
@@ -1006,6 +1198,58 @@ func _remove_isolated_cells(cells: Array[Vector2i]) -> Array[Vector2i]:
 			continue
 		filtered.append(w)
 	return filtered
+
+
+func _keep_largest_components(cells: Array[Vector2i], max_components: int, min_component_size: int) -> Array[Vector2i]:
+	if cells.size() <= 1 or max_components <= 0:
+		return cells
+
+	var world_set: Dictionary = {}
+	for w in cells:
+		world_set[w] = true
+
+	var visited: Dictionary = {}
+	var components: Array = []
+	for w in cells:
+		if visited.has(w):
+			continue
+		var comp: Array[Vector2i] = []
+		var stack: Array[Vector2i] = [w]
+		visited[w] = true
+		while not stack.is_empty():
+			var cur: Vector2i = stack.pop_back() as Vector2i
+			comp.append(cur)
+			for n in _world_neighbors(cur):
+				if not world_set.has(n):
+					continue
+				if visited.has(n):
+					continue
+				visited[n] = true
+				stack.append(n)
+		if comp.size() >= maxi(min_component_size, 1):
+			components.append(comp)
+
+	if components.is_empty():
+		return []
+
+	for i in range(components.size()):
+		var best := i
+		for j in range(i + 1, components.size()):
+			var comp_j: Array[Vector2i] = components[j] as Array[Vector2i]
+			var comp_best: Array[Vector2i] = components[best] as Array[Vector2i]
+			if comp_j.size() > comp_best.size():
+				best = j
+		if best != i:
+			var temp = components[i]
+			components[i] = components[best]
+			components[best] = temp
+
+	var out: Array[Vector2i] = []
+	for i in range(mini(max_components, components.size())):
+		var comp: Array[Vector2i] = components[i] as Array[Vector2i]
+		for c in comp:
+			out.append(c)
+	return out
 
 
 func _try_place_tile(chunk: Vector2i, _chunk_origin: Vector2i, local_cell: Vector2i, world_cell: Vector2i, atlas: Vector2i, occupied: Dictionary) -> bool:
@@ -1160,3 +1404,75 @@ func get_world_bounds_rect() -> Rect2:
 	var min_world := _tile_map.to_global(_tile_map.map_to_local(min_cell) - half_tile)
 	var max_world := _tile_map.to_global(_tile_map.map_to_local(max_cell_exclusive) - half_tile)
 	return Rect2(min_world, max_world - min_world)
+
+
+func _resolve_fallback_tile_map() -> TileMapLayer:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return null
+
+	var path_text := String(tile_map_path)
+	if not path_text.is_empty():
+		var requested_name := path_text.get_file()
+		if not requested_name.is_empty():
+			var by_path_name := scene.find_child(requested_name, true, false) as TileMapLayer
+			if by_path_name != null:
+				return by_path_name
+
+	var lower_path := path_text.to_lower()
+	var road_layer := scene.find_child("RoadLayer", true, false) as TileMapLayer
+	var lake_layer := scene.find_child("LakeLayer", true, false) as TileMapLayer
+	if lower_path.contains("road"):
+		if road_layer != null:
+			return road_layer
+		if lake_layer != null:
+			return lake_layer
+	else:
+		if lake_layer != null:
+			return lake_layer
+		if road_layer != null:
+			return road_layer
+
+	return null
+
+
+func _ensure_valid_terrain_target() -> bool:
+	if _tile_map == null:
+		push_error("ChunkWorldGenerator: terrain target tilemap is null")
+		return false
+	if _tile_map.tile_set == null:
+		push_error("ChunkWorldGenerator: TileMapLayer has no TileSet for terrain placement")
+		return false
+
+	var ts: TileSet = _tile_map.tile_set
+	var terrain_sets := ts.get_terrain_sets_count()
+	if terrain_sets <= 0:
+		push_error("ChunkWorldGenerator: TileSet has no terrain sets")
+		return false
+
+	var chosen_set := terrain_set_id
+	if chosen_set < 0 or chosen_set >= terrain_sets or ts.get_terrains_count(chosen_set) <= 0:
+		chosen_set = -1
+		for i in range(terrain_sets):
+			if ts.get_terrains_count(i) > 0:
+				chosen_set = i
+				break
+		if chosen_set < 0:
+			push_error("ChunkWorldGenerator: TileSet has terrain sets but no terrains")
+			return false
+		if debug_log:
+			print("ChunkWorldGenerator: terrain_set_id adjusted from %d to %d" % [terrain_set_id, chosen_set])
+		terrain_set_id = chosen_set
+
+	var terrain_count := ts.get_terrains_count(terrain_set_id)
+	if terrain_count <= 0:
+		push_error("ChunkWorldGenerator: selected terrain set has no terrains")
+		return false
+
+	var chosen_terrain := terrain_id
+	if chosen_terrain < 0 or chosen_terrain >= terrain_count:
+		if debug_log:
+			print("ChunkWorldGenerator: terrain_id adjusted from %d to 0" % terrain_id)
+		chosen_terrain = 0
+	terrain_id = chosen_terrain
+	return true

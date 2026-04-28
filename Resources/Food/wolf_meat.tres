@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://beg6txsseh2d7"]
 
 [ext_resource type="Texture2D" uid="uid://cd2t08nueov66" path="res://Assets/itemAssets/inventory_icon/Food/wolfMeetInv.png" id="1_vleku"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_script"]
 [ext_resource type="Texture2D" uid="uid://ce3o2pt7t2311" path="res://Assets/itemAssets/on_world_icon/Food/wolfMeetWrd.png" id="3_y8vwv"]
 
 [resource]

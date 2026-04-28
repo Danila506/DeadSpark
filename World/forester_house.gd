@@ -32,6 +32,7 @@ const INSIDE_HOUSE_ANCHOR_META: StringName = &"inside_house_anchor"
 	preload("res://Resources/Food/pepper.tres"),
 	preload("res://Resources/Food/eggplant.tres")
 ]
+@export var persistent_id: String = ""
 
 var player_in_house: bool = false
 var player_in_shadow_zone: bool = false
@@ -265,7 +266,22 @@ func _ensure_wardrobe_loot() -> void:
 
 
 func get_save_key() -> String:
-	return "forester_house:%s" % [str(global_position)]
+	return "forester_house:%s" % [_get_persistent_identity()]
+
+
+func get_legacy_save_keys() -> Array[String]:
+	return ["forester_house:%s" % [str(global_position)]]
+
+
+func _get_persistent_identity() -> String:
+	if not persistent_id.strip_edges().is_empty():
+		return persistent_id.strip_edges()
+	var scene_path: String = ""
+	var scene_root: Node = get_tree().current_scene
+	if scene_root != null:
+		scene_path = scene_root.scene_file_path
+	var local_path: String = str(get_path())
+	return "%s|%s" % [scene_path, local_path]
 
 
 func get_save_data() -> Dictionary:

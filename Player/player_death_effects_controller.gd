@@ -31,7 +31,7 @@ func clear_menu_continue_save() -> void:
 func play_death_screen_and_go_to_menu() -> void:
 	ensure_death_overlay()
 	if player.death_overlay_layer == null or player.death_overlay_rect == null or player.death_overlay_label == null:
-		player._go_to_menu()
+		player._go_to_menu(false)
 		return
 
 	player.death_overlay_layer.visible = true
@@ -52,7 +52,7 @@ func play_death_screen_and_go_to_menu() -> void:
 	fade_out_tween.parallel().tween_property(player.death_overlay_label, "modulate:a", 0.0, DEATH_FADE_OUT_SEC * 0.8)
 	await fade_out_tween.finished
 
-	player._go_to_menu()
+	player._go_to_menu(false)
 
 
 func ensure_death_overlay() -> void:

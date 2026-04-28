@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://bfidev1jl62yq"]
+[gd_scene load_steps=11 format=3 uid="uid://bfidev1jl62yq"]
 
 [ext_resource type="Script" uid="uid://j4unv5lcyjeo" path="res://Menu/menu.gd" id="1_jf1j2"]
 [ext_resource type="AudioStream" path="res://Assets/AudioWaw/SoundTracks/DeadSparkMainTheme.wav" id="2_3vop8"]
@@ -47,6 +47,20 @@ corner_radius_bottom_left = 14
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_w3orb"]
 bg_color = Color(0.219608, 0.219608, 0.282353, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ohmor"]
+bg_color = Color(0.129412, 0.133333, 0.184314, 0.9)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xofl4"]
+bg_color = Color(0.180392, 0.188235, 0.258824, 0.95)
 corner_radius_top_left = 14
 corner_radius_top_right = 14
 corner_radius_bottom_right = 14
@@ -125,6 +139,20 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_w3orb")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_i4uhh")
 text = "Выход"
 
+[node name="DonatePadTop" type="Control" parent="CenterContainer/MenuPanel/VBox"]
+custom_minimum_size = Vector2(0, 6)
+
+[node name="Donate" type="Button" parent="CenterContainer/MenuPanel/VBox"]
+custom_minimum_size = Vector2(0, 64)
+theme_override_colors/font_color = Color(0.768627, 0.803922, 0.890196, 0.95)
+theme_override_colors/font_hover_color = Color(0.843137, 0.878431, 0.94902, 1)
+theme_override_colors/font_pressed_color = Color(0.717647, 0.752941, 0.839216, 0.92)
+theme_override_font_sizes/font_size = 34
+theme_override_styles/normal = SubResource("StyleBoxFlat_ohmor")
+theme_override_styles/hover = SubResource("StyleBoxFlat_xofl4")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohmor")
+text = "Поддержать проект"
+
 [node name="BottomSpace" type="Control" parent="CenterContainer/MenuPanel/VBox"]
 custom_minimum_size = Vector2(0, 22)
 
@@ -135,4 +163,5 @@ autoplay = true
 
 [connection signal="pressed" from="CenterContainer/MenuPanel/VBox/NewGame" to="." method="_on_new_game_pressed"]
 [connection signal="pressed" from="CenterContainer/MenuPanel/VBox/Continue" to="." method="_on_continue_pressed"]
+[connection signal="pressed" from="CenterContainer/MenuPanel/VBox/Donate" to="." method="_on_donate_pressed"]
 [connection signal="pressed" from="CenterContainer/MenuPanel/VBox/Quit" to="." method="_on_quit_pressed"]

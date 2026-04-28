@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://ptyu0aotb4ea"]
+
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="1_script"]
+[ext_resource type="SpriteFrames" uid="uid://cdyg107y2n4bw" path="res://Resources/Pistols/fn-s/fn-s_frames.tres" id="2_frames"]
+[ext_resource type="Texture2D" uid="uid://c7hku6n373f1a" path="res://Assets/itemAssets/inventory_icon/Pistols/fn-s/fn-sInv.png" id="3_inv"]
+[ext_resource type="Texture2D" uid="uid://fe6vywg712h8" path="res://Assets/itemAssets/on_world_icon/Pistols/fn-s/fn-sWrd.png" id="4_world"]
+[ext_resource type="Texture2D" uid="uid://dhj3hwv0qr13g" path="res://Assets/Sights/sight.png" id="5_sight"]
+[ext_resource type="Texture2D" uid="uid://jlqlub1oao7h" path="res://Assets/Sights/cursorLowSpread.png" id="6_low"]
+[ext_resource type="Texture2D" uid="uid://by0iwuio78qtd" path="res://Assets/Sights/cursorMediumSpread.png" id="7_mid"]
+[ext_resource type="Texture2D" uid="uid://brvu3jo4col46" path="res://Assets/Sights/cursorHighSpread.png" id="8_high"]
+[ext_resource type="PackedScene" uid="uid://e3uqauak7fap" path="res://Projectile/projectile.tscn" id="9_bullet"]
+[ext_resource type="AudioStream" uid="uid://4tckn07gtrat" path="res://Assets/AudioWaw/WeaponSounds/loud-clear-short-shot-sound.wav" id="10_shot"]
+[ext_resource type="AudioStream" uid="uid://bxsmnafa53dh1" path="res://Assets/AudioWaw/WeaponSounds/the-click-of-an-automatic-iron-trigger.wav" id="11_reload"]
+
+[resource]
+script = ExtResource("1_script")
+storage_category = 1
+can_be_stored_in_clothing = false
+item_name = "FN-S"
+world_icon = ExtResource("4_world")
+inventory_icon = ExtResource("3_inv")
+inventory_icon_scale = 0.5
+item_type = 1
+equipped_frames = ExtResource("2_frames")
+can_receive_weapon_attachments = true
+silencer_inventory_offset = Vector2(33, -12)
+aim_cursor = ExtResource("5_sight")
+aim_cursor_low_spread = ExtResource("6_low")
+aim_cursor_medium_spread = ExtResource("7_mid")
+aim_cursor_high_spread = ExtResource("8_high")
+bullet_scene = ExtResource("9_bullet")
+shot_sound = ExtResource("10_shot")
+reload_sound = ExtResource("11_reload")
+shot_sound_volume_db = -7.0
+reload_sound_volume_db = -12.0
+fire_delay = 0.4
+bullet_speed = 880.0
+bullet_max_distance = 320.0
+bullet_min_distance = 110.0
+damage = 24.0
+magazine_size = 15
+reserve_ammo = 45
+reload_time_sec = 1.7
+min_spread_degrees = 1.2
+max_spread_degrees = 10.0
+spread_increase_per_shot = 2.2
+running_spread_multiplier = 1.35
+aim_distance_min = 70.0
+aim_distance_max = 240.0

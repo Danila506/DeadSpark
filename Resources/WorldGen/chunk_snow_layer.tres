@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ChunkWorldGeneratorConfig" format=3]
+
+[ext_resource type="Script" path="res://World/chunk_world_generator_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tile_map_path = NodePath("../../SnowLayer")
+player_path = NodePath("../../Y-Sort_Objects/Player2")
+load_radius_chunks = 2
+world_chunks_x = 8
+world_chunks_y = 8
+randomize_seed_on_start = true
+fill_probability = 1.0
+

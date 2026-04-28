@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://f0gkxkps7v63"]
 
 [ext_resource type="Script" uid="uid://gignf07gid70" path="res://gui/scripts/inventory_root.gd" id="1_dhe1o"]
-[ext_resource type="PackedScene" uid="uid://b5nh6hduiqccf" path="res://pickup_item.tscn" id="2_wh5l6"]
+[ext_resource type="PackedScene" uid="uid://b5nh6hduiqccf" path="res://items/scenes/pickup_item.tscn" id="2_wh5l6"]
 [ext_resource type="Texture2D" uid="uid://b6b4ktl61k7gt" path="res://gui/slots/slotAssets/UIStock.png" id="3_76ltx"]
 [ext_resource type="Script" uid="uid://dqetkmtxbiy8r" path="res://gui/InvNavigation/tabs_controller.gd" id="3_r58ew"]
 [ext_resource type="PackedScene" uid="uid://nu6461h6fo73" path="res://gui/slots/InventorySlot.tscn" id="3_xtoeb"]

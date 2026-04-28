@@ -3,8 +3,9 @@ extends Node
 const SAVE_FILE_PATH: String = "user://savegame.json"
 const SAVE_SCHEMA_VERSION: int = 2
 const FALLBACK_LEVEL_PATH: String = "res://level.tscn"
+const MENU_SCENE_PATH: String = "res://Menu/Menu.tscn"
 const ITEM_INSTANCE_SCRIPT = preload("res://items/scripts/item_instance.gd")
-const PICKUP_ITEM_SCENE: PackedScene = preload("res://pickup_item.tscn")
+const PICKUP_ITEM_SCENE: PackedScene = preload("res://items/scenes/pickup_item.tscn")
 
 var _has_pending_load: bool = false
 var _pending_world_nodes: Dictionary = {}
@@ -14,6 +15,11 @@ var _pending_world_pickups: Array = []
 func _ready() -> void:
 	if not get_tree().scene_changed.is_connected(_on_scene_changed):
 		get_tree().scene_changed.connect(_on_scene_changed)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		save_game_if_possible()
 
 
 func save_game(path: String = SAVE_FILE_PATH) -> int:
@@ -35,6 +41,12 @@ func save_game(path: String = SAVE_FILE_PATH) -> int:
 	}
 
 	return _write_json_file(path, save_payload)
+
+
+func save_game_if_possible(path: String = SAVE_FILE_PATH) -> int:
+	if not _is_gameplay_context():
+		return ERR_UNCONFIGURED
+	return save_game(path)
 
 
 func load_game(path: String = SAVE_FILE_PATH) -> int:
@@ -115,7 +127,7 @@ func _queue_runtime_state(save_payload: Dictionary) -> void:
 		InventoryManager.apply_save_data(inventory_payload)
 
 
-func _on_scene_changed(_new_scene: Node) -> void:
+func _on_scene_changed() -> void:
 	if not _has_pending_load:
 		return
 	call_deferred("_apply_pending_runtime_state")
@@ -150,13 +162,25 @@ func _apply_state_to_node(node: Node) -> void:
 	var save_key: String = String(node.call("get_save_key"))
 	if save_key.is_empty():
 		return
-	if not _pending_world_nodes.has(save_key):
-		return
+	var matched_key: String = save_key
+	if not _pending_world_nodes.has(matched_key):
+		if node.has_method("get_legacy_save_keys"):
+			var legacy_keys: Variant = node.call("get_legacy_save_keys")
+			if legacy_keys is Array:
+				for legacy_key_variant in legacy_keys:
+					var legacy_key: String = String(legacy_key_variant)
+					if legacy_key.is_empty():
+						continue
+					if _pending_world_nodes.has(legacy_key):
+						matched_key = legacy_key
+						break
+		if not _pending_world_nodes.has(matched_key):
+			return
 
-	var save_data: Variant = _pending_world_nodes.get(save_key, {})
+	var save_data: Variant = _pending_world_nodes.get(matched_key, {})
 	if save_data is Dictionary:
 		node.call("apply_save_data", save_data as Dictionary)
-	_pending_world_nodes.erase(save_key)
+	_pending_world_nodes.erase(matched_key)
 
 
 func _collect_world_nodes_save_data(scene_root: Node) -> Dictionary:
@@ -280,3 +304,12 @@ func _read_json_file(path: String) -> Variant:
 	if parsed is Dictionary:
 		return parsed
 	return ERR_PARSE_ERROR
+
+
+func _is_gameplay_context() -> bool:
+	var scene_root: Node = get_tree().current_scene
+	if scene_root == null:
+		return false
+	if scene_root.scene_file_path == MENU_SCENE_PATH:
+		return false
+	return get_tree().get_first_node_in_group("player") != null

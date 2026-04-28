@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://67dv6v3jp5dv"]
+[gd_resource type="Resource" format=3 uid="uid://67dv6v3jp5dv"]
 
 [ext_resource type="Texture2D" uid="uid://dhacdp1lp4egt" path="res://Assets/itemAssets/inventory_icon/Food/eggplantInv.png" id="1_hyb8r"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_script"]
 [ext_resource type="Texture2D" uid="uid://beyqrc0ylyxhy" path="res://Assets/itemAssets/on_world_icon/Food/eggplantWrd.png" id="3_qg7v2"]
 
 [resource]

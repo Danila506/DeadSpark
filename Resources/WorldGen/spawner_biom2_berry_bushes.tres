@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ChunkTreeSpawnerConfig" format=3 uid="uid://b4e8mq7e6shyh"]
+
+[ext_resource type="Script" uid="uid://bnccupyunmtyw" path="res://World/chunk_tree_spawner_config.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://catwc0jijoqkl" path="res://World/Assets/Bush/BerryBush.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+player_path = NodePath("../../Y-Sort_Objects/Player2")
+spawn_parent_path = NodePath("../../Y-Sort_Objects/Biom2/BerryBushes")
+tree_scene = ExtResource("2")
+world_seed = 5197
+tree_probability = 0.045
+min_trees_per_chunk = 2
+min_spawn_distance_px = 90.0
+biome_half_split_enabled = true
+biome_half_split_upper_or_left = false
+forbidden_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/LakeLayer")])
+forbidden_layer_radius_tiles = 1

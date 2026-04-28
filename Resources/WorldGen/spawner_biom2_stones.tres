@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ChunkTreeSpawnerConfig" format=3 uid="uid://hi0h4gld73uq"]
+
+[ext_resource type="Script" uid="uid://bnccupyunmtyw" path="res://World/chunk_tree_spawner_config.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://bqmxhlbanf42d" path="res://World/Assets/Biom2/Stone.tscn" id="2_lurai"]
+
+[resource]
+script = ExtResource("1")
+player_path = NodePath("../../Y-Sort_Objects/Player2")
+spawn_parent_path = NodePath("../../Y-Sort_Objects/Biom2/Stones")
+tree_scene = ExtResource("2_lurai")
+world_seed = 3521
+tree_probability = 0.2
+min_spawn_distance_px = 90.0
+biome_half_split_enabled = true
+biome_half_split_upper_or_left = false
+spawn_only_on_layer_path = NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer")
+forbidden_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/LakeLayer")])
+forbidden_layer_radius_tiles = 1

@@ -1,0 +1,47 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://cymkyukuhg3u7"]
+
+[ext_resource type="Script" path="res://items/scripts/item_data.gd" id="1_script"]
+[ext_resource type="SpriteFrames" path="res://Resources/Pistols/magnum_50/magnum_50_frames.tres" id="2_frames"]
+[ext_resource type="Texture2D" path="res://Assets/itemAssets/inventory_icon/Pistols/Magnum_50Inv.png" id="3_inv"]
+[ext_resource type="Texture2D" path="res://Assets/itemAssets/on_world_icon/Pistols/Magnum_50Wrd.png" id="4_world"]
+[ext_resource type="Texture2D" path="res://Assets/Sights/sight.png" id="5_sight"]
+[ext_resource type="Texture2D" path="res://Assets/Sights/cursorLowSpread.png" id="6_low"]
+[ext_resource type="Texture2D" path="res://Assets/Sights/cursorMediumSpread.png" id="7_mid"]
+[ext_resource type="Texture2D" path="res://Assets/Sights/cursorHighSpread.png" id="8_high"]
+[ext_resource type="PackedScene" path="res://Projectile/projectile.tscn" id="9_bullet"]
+[ext_resource type="AudioStream" path="res://Assets/AudioWaw/WeaponSounds/loud-clear-short-shot-sound.wav" id="10_shot"]
+[ext_resource type="AudioStream" path="res://Assets/AudioWaw/WeaponSounds/the-click-of-an-automatic-iron-trigger.wav" id="11_reload"]
+
+[resource]
+script = ExtResource("1_script")
+storage_category = 1
+can_be_stored_in_clothing = false
+item_name = "Magnum 55"
+world_icon = ExtResource("4_world")
+inventory_icon = ExtResource("3_inv")
+item_type = 1
+equipped_frames = ExtResource("2_frames")
+aim_cursor = ExtResource("5_sight")
+aim_cursor_low_spread = ExtResource("6_low")
+aim_cursor_medium_spread = ExtResource("7_mid")
+aim_cursor_high_spread = ExtResource("8_high")
+bullet_scene = ExtResource("9_bullet")
+shot_sound = ExtResource("10_shot")
+reload_sound = ExtResource("11_reload")
+shot_sound_volume_db = -5.0
+reload_sound_volume_db = -11.0
+fire_delay = 0.4
+bullet_speed = 940.0
+bullet_max_distance = 470.0
+bullet_min_distance = 170.0
+damage = 46.0
+magazine_size = 6
+reserve_ammo = 24
+reload_time_sec = 2.9
+min_spread_degrees = 2.5
+max_spread_degrees = 14.0
+spread_increase_per_shot = 4.0
+spread_recovery_per_sec = 3.5
+running_spread_multiplier = 1.6
+aim_distance_min = 80.0
+aim_distance_max = 280.0

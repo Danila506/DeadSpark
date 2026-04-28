@@ -16,7 +16,8 @@ func _init(owner) -> void:
 
 
 func try_melee_attack() -> void:
-	if not controller.auto_melee_attack_enabled:
+	var manual_attack_pressed: bool = Input.is_action_just_pressed("shoot") or Input.is_action_just_pressed("melee_attack")
+	if not controller.auto_melee_attack_enabled and not manual_attack_pressed:
 		return
 
 	var is_unarmed_attack: bool = can_use_unarmed_melee()

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://emq8u2plc5lj"]
+
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://bsf5o2d3loj18" path="res://Assets/itemAssets/inventory_icon/Pistols/fn-s/fn-s_OnWeaponSilencer.png" id="2_inv"]
+[ext_resource type="Texture2D" uid="uid://dsxm7fakwmh3x" path="res://Assets/itemAssets/on_world_icon/Pistols/fn-s/fn-s_silencerWrd.png" id="3_world"]
+[ext_resource type="Resource" uid="uid://ptyu0aotb4ea" path="res://Resources/Pistols/fn-s/fn-s.tres" id="4_weapon"]
+
+[resource]
+script = ExtResource("1_script")
+auto_place_into_equipment_on_pickup = false
+item_name = "Глушитель (FN-S)"
+world_icon = ExtResource("3_world")
+inventory_icon = ExtResource("2_inv")
+can_be_held_in_left_hand = true
+is_weapon_attachment = true
+attachment_slot = 2
+mounted_silencer_texture = ExtResource("2_inv")
+mounted_scope_scale = Vector2(0.75, 0.75)
+allowed_scope_weapon_types = Array[int]([1])
+allowed_scope_weapons = Array[ExtResource("1_script")]([ExtResource("4_weapon")])
+attachment_spread_multiplier = 0.95
+attachment_shot_loudness_multiplier = 0.7

@@ -556,7 +556,9 @@ func _stop_walk_snow_sfx() -> void:
 		walk_snow_sfx.stop()
 
 
-func _go_to_menu() -> void:
+func _go_to_menu(save_before_exit: bool = true) -> void:
+	if save_before_exit and GameSaveManager != null and GameSaveManager.has_method("save_game"):
+		GameSaveManager.save_game()
 	get_tree().change_scene_to_file("res://Menu/Menu.tscn")
 
 

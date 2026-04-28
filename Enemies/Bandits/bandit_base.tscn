@@ -6,6 +6,7 @@
 texture = ExtResource("1_cpjxf")
 1:1/size_in_atlas = Vector2i(6, 4)
 1:1/0 = 0
+1:1/0/y_sort_origin = 26
 1:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-36.64873, 6.180664, 28.98819, 3.9173226, 15.582241, 21.153545, -41.87183, 19.238409)
 1:7/size_in_atlas = Vector2i(5, 2)
 1:7/0 = 0
@@ -30,16 +31,22 @@ texture = ExtResource("1_cpjxf")
 27:9/0 = 0
 34:1/size_in_atlas = Vector2i(4, 8)
 34:1/0 = 0
+34:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(0.9575653, 44.13517, 6.5288696, 49.88058, 5.484253, 54.05906, -8.444008, 54.233162, -11.403763, 51.44751, -7.2252846, 44.135174)
 42:1/size_in_atlas = Vector2i(4, 8)
 42:1/0 = 0
+42:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(7.2252846, 38.737972, 12.274277, 44.309277, 7.9216957, 48.313652, -1.1316719, 47.61724, -5.484255, 46.22441, -0.43526077, 38.912075)
 48:3/size_in_atlas = Vector2i(3, 2)
 48:3/0 = 0
+48:3/0/physics_layer_0/polygon_0/points = PackedVector2Array(7, -9.5, 1.5, -8, -9, -14.5, -14.537621, -5.484252, -18.019686, 9.662731, -16, 12, -13.144794, 12.796591, 3.5691185, 12.796591, 10.359142, 11.22966, 11.055557, 8.618111, 10.359142, 4.9619427, 12.448383, 0.43525887, 9.5, -8.5)
 48:6/size_in_atlas = Vector2i(3, 2)
 48:6/0 = 0
+48:6/0/physics_layer_0/polygon_0/points = PackedVector2Array(6, -5, -1.5, -8, -5, -3.5, -10, -6.5, -13.5, -4, -17, 1.5, -15, 11.5, -13.5, 14, -9.5, 13.5, 3.5, 14, 9, 13, 10, 10, 12, 6.5, 12.5, 3, 8, 1)
 52:6/size_in_atlas = Vector2i(3, 2)
 52:6/0 = 0
+52:6/0/physics_layer_0/polygon_0/points = PackedVector2Array(8, -6.5, 3.5, -8, -1.5, -8, -2.5, -5.5, -6, -6.5, -9.5, -6, -13.5, -4, -15, 1, -13.5, 7, -13.5, 14, -9.5, 13.5, 3.5, 14, 11.5, 12.5, 12.5, 10, 14, 7, 14.5, 3, 8, 0.5, 10, -2.5)
 52:3/size_in_atlas = Vector2i(3, 2)
 52:3/0 = 0
+52:3/0/physics_layer_0/polygon_0/points = PackedVector2Array(7, -9.5, 1.5, -8, -4.5, -13.5, -8, -8, -11.5, -4, -13, 2, -14.5, 11, -9.5, 13.5, 3.5691185, 12.796591, 14, 13, 15.5, 9.5, 14, 5, 16.5, 1.5, 12, -9.5)
 48:10/size_in_atlas = Vector2i(3, 2)
 48:10/0 = 0
 52:10/size_in_atlas = Vector2i(4, 2)
@@ -52,8 +59,10 @@ physics_layer_0/collision_layer = 1
 sources/0 = SubResource("TileSetAtlasSource_d2o0l")
 
 [node name="BanditBase" type="Node2D" unique_id=515154822]
+z_index = 6
 
 [node name="BanditBaseLayer" type="TileMapLayer" parent="." unique_id=1651870417]
 rotation = -0.0007949845
+z_index = 6
 tile_map_data = PackedByteArray("AAAAAPn/AAAIAAEAAAD4////AAAYAAMAAAD5//v/AAABAAEAAAD+//3/AAAWAAkAAAADAP//AAABAAcAAAD3/wMAAAAbAAkAAAD6/wIAAAA0AA0AAAD7/wEAAAA0AA0AAAAKAP7/AAAwAAoAAAAIAP//AAA0AA0AAAAHAAIAAAANAAYAAAACAAMAAAAIAAgAAAAEAPf/AAAwAAMAAAAHAPn/AAAiAAEAAAADAAgAAAAqAAEAAAD9/wYAAAANAAEAAAD//woAAAAwAAMAAAAHAAcAAAAwAAoAAAAIAAcAAAAwAAoAAAAJAAgAAAAwAAoAAAD5//j/AAAwAAoAAAA=")
 tile_set = SubResource("TileSet_xs5b2")

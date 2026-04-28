@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://byaac7wamrfgu"]
+[gd_resource type="Resource" format=3 uid="uid://byaac7wamrfgu"]
 
 [ext_resource type="Texture2D" uid="uid://o6t5hr8cdvfo" path="res://Assets/itemAssets/inventory_icon/Food/malinaInv.png" id="1_x1eqm"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_y5hvo"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_y5hvo"]
 [ext_resource type="Texture2D" uid="uid://d3s6f8yukusdc" path="res://Assets/itemAssets/on_world_icon/Food/malinaWrd.png" id="3_ie6uh"]
 
 [resource]

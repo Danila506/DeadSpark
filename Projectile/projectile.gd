@@ -7,7 +7,7 @@ const DamageZones = preload("res://Enemies/AI/damage_zones.gd")
 @export var damage: float = 15.0
 @export var collision_mask_override: int = 1
 @export var collision_layer_override: int = 2
-@export var pass_through_tilemap_layers: bool = true
+@export var pass_through_tilemap_layers: bool = false
 
 var _direction: Vector2 = Vector2.RIGHT
 var _start_position: Vector2 = Vector2.ZERO
@@ -24,7 +24,13 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	global_position += _direction * speed * delta
+	var from_pos: Vector2 = global_position
+	var to_pos: Vector2 = from_pos + _direction * speed * delta
+	var hit: Dictionary = _raycast_to_position(from_pos, to_pos)
+	if not hit.is_empty():
+		if _handle_raycast_hit(hit):
+			return
+	global_position = to_pos
 
 	if _max_distance > 0.0 and _start_position.distance_to(global_position) >= _max_distance:
 		queue_free()
@@ -203,3 +209,41 @@ func _node_looks_like_bush(node: Node) -> bool:
 
 	var name_lower: String = node.name.to_lower()
 	return name_lower.contains("bush") or name_lower.contains("куст")
+
+
+func _raycast_to_position(from_pos: Vector2, to_pos: Vector2) -> Dictionary:
+	var world := get_world_2d()
+	if world == null:
+		return {}
+	var query := PhysicsRayQueryParameters2D.create(from_pos, to_pos, collision_mask)
+	query.collide_with_bodies = true
+	query.collide_with_areas = true
+	var exclude: Array[RID] = [get_rid()]
+	if _shooter is CollisionObject2D:
+		exclude.append((_shooter as CollisionObject2D).get_rid())
+	query.exclude = exclude
+	return world.direct_space_state.intersect_ray(query)
+
+
+func _handle_raycast_hit(hit: Dictionary) -> bool:
+	var collider: Variant = hit.get("collider")
+	if not (collider is Node):
+		queue_free()
+		return true
+	var target_node: Node = collider as Node
+	global_position = hit.get("position", global_position)
+	if _should_ignore_collision(target_node):
+		return false
+	if target_node == _shooter:
+		return false
+	if target_node is Area2D and _is_damage_hitbox_area(target_node as Area2D):
+		var target: Node = _resolve_damage_target_from_area(target_node as Area2D)
+		if target != null and target != _shooter and not _should_ignore_collision(target):
+			var hit_context: Dictionary = _build_hit_context_for_area_hit(target_node as Area2D)
+			_apply_damage_to_target(target, hit_context)
+		queue_free()
+		return true
+	var body_context: Dictionary = _build_hit_context_for_body_hit()
+	_apply_damage_to_target(target_node, body_context)
+	queue_free()
+	return true

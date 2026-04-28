@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bsb84vtiv6bww"]
+[gd_resource type="Resource" format=3 uid="uid://bsb84vtiv6bww"]
 
 [ext_resource type="Texture2D" uid="uid://boleheu8k0ey2" path="res://Assets/itemAssets/inventory_icon/Medicine/bloodBagInv.png" id="1_tdm8p"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_ro806"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_ro806"]
 [ext_resource type="Texture2D" uid="uid://colf8n4qi7t66" path="res://Assets/itemAssets/on_world_icon/Medicine/bloodBagWrd.png" id="3_qli2q"]
 
 [resource]

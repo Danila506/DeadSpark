@@ -4,14 +4,33 @@ extends Node2D
 @export var possible_items: Array[ItemData]
 @export var spawn_count: int = 3
 @export var force_include_ts39_scope: bool = true
+@export var force_include_weapon_pack: bool = true
 
 const TS_39_SCOPE_RESOURCE: ItemData = preload("res://Resources/AR_Weapons/akp_52/TS_39.tres")
+const FN_S_RESOURCE: ItemData = preload("res://Resources/Pistols/fn-s/fn-s.tres")
+const FN_S_SILENCER_RESOURCE: ItemData = preload("res://Resources/Pistols/fn-s/fn-s_silencer.tres")
+const PV_RESOURCE: ItemData = preload("res://Resources/Pistols/pv/pv.tres")
+const VPR_155_RESOURCE: ItemData = preload("res://Resources/Pistols/vpr_155/vpr_155.tres")
+const MAGNUM_50_RESOURCE: ItemData = preload("res://Resources/Pistols/magnum_50/magnum_50.tres")
+const ASS_RESOURCE: ItemData = preload("res://Resources/AR_Weapons/vss/vss.tres")
+const SVT_50_RESOURCE: ItemData = preload("res://Resources/AR_Weapons/svt_50/svt_50.tres")
+
+const FORCED_WEAPON_PACK: Array[ItemData] = [
+	FN_S_RESOURCE,
+	FN_S_SILENCER_RESOURCE,
+	PV_RESOURCE,
+	VPR_155_RESOURCE,
+	MAGNUM_50_RESOURCE,
+	ASS_RESOURCE,
+	SVT_50_RESOURCE
+]
 
 var rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	rng.randomize()
 	_ensure_special_scope_items()
+	_ensure_weapon_pack_items()
 	spawn_items()
 
 
@@ -21,13 +40,28 @@ func _ensure_special_scope_items() -> void:
 	if TS_39_SCOPE_RESOURCE == null:
 		return
 
+	_append_if_missing(TS_39_SCOPE_RESOURCE)
+
+
+func _ensure_weapon_pack_items() -> void:
+	if not force_include_weapon_pack:
+		return
+
+	for weapon_item in FORCED_WEAPON_PACK:
+		_append_if_missing(weapon_item)
+
+
+func _append_if_missing(item: ItemData) -> void:
+	if item == null:
+		return
+
 	for existing_item in possible_items:
 		if existing_item == null:
 			continue
-		if existing_item.resource_path == TS_39_SCOPE_RESOURCE.resource_path:
+		if existing_item.resource_path == item.resource_path:
 			return
 
-	possible_items.append(TS_39_SCOPE_RESOURCE)
+	possible_items.append(item)
 	
 func spawn_items() -> void:
 	if pickup_scene == null:

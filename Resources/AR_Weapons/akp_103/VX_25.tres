@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dx65g0m8pb2h7"]
+[gd_resource type="Resource" format=3 uid="uid://dx65g0m8pb2h7"]
 
 [ext_resource type="Texture2D" uid="uid://cnc1hynmxh241" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/scope_Hexagon_VX25_Inv.png" id="1_11xcv"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_11xcv"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_11xcv"]
 [ext_resource type="Texture2D" uid="uid://ddlynm63fe8nf" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/scope_Hexagon_VX25_OnWeapon.png" id="2_hr0a0"]
 [ext_resource type="Texture2D" uid="uid://u4m6pic5hllc" path="res://Assets/itemAssets/on_world_icon/AR_Weapon/akp_103/scope_Hexagon_VX25_Wrd.png" id="3_hr0a0"]
 [ext_resource type="Texture2D" uid="uid://b3e877amj8wcv" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/Handle_akp_103OnWeapon.png" id="4_ehto8"]

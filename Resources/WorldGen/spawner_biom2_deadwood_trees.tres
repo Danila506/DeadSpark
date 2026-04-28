@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ChunkTreeSpawnerConfig" format=3 uid="uid://h231m3gqvbri"]
+
+[ext_resource type="Script" uid="uid://bnccupyunmtyw" path="res://World/chunk_tree_spawner_config.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://e30sxv5je1ec" path="res://World/Assets/Biom2/DeadWoodTree/DeadWoodTree.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+player_path = NodePath("../../Y-Sort_Objects/Player2")
+spawn_parent_path = NodePath("../../Y-Sort_Objects/Biom2/DeadWoodTrees")
+tree_scene = ExtResource("2")
+world_seed = 2871
+tree_probability = 0.055
+min_trees_per_chunk = 2
+min_spawn_distance_px = 70.0
+biome_half_split_enabled = true
+biome_half_split_upper_or_left = false
+spawn_only_on_layer_path = NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer")
+forbidden_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/LakeLayer")])
+forbidden_layer_radius_tiles = 1

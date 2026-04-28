@@ -5,6 +5,7 @@ extends Node2D
 @export var player_path: NodePath
 @export var spawn_parent_path: NodePath
 @export var tree_scene: PackedScene
+@export var config: ChunkTreeSpawnerConfig
 
 @export_category("Chunk Settings")
 @export_range(4, 256, 1) var chunk_size_tiles: int = 16
@@ -31,9 +32,11 @@ extends Node2D
 @export_category("Placement Rules")
 @export var blocked_node_paths: Array[NodePath] = []
 @export var blocked_node_radius_px: float = 120.0
+@export var spawn_clearance_radius_px: float = 18.0
 @export var spawn_only_on_layer_path: NodePath
 @export var forbidden_layer_path: NodePath
 @export var forbidden_layer_paths: Array[NodePath] = []
+@export_range(0, 8, 1) var forbidden_layer_radius_tiles: int = 0
 
 @export_category("Debug")
 @export var debug_log: bool = false
@@ -41,6 +44,7 @@ extends Node2D
 var _player: Node2D
 var _spawn_parent: Node2D
 var _spawn_only_layer: TileMapLayer
+var _lake_layer: TileMapLayer
 var _forbidden_layers: Array = []
 var _loaded_chunks := {}
 var _spawned_trees_by_chunk := {}
@@ -53,6 +57,9 @@ var _spawn_positions_by_chunk := {}
 
 
 func _ready() -> void:
+	if config != null:
+		_apply_config(config)
+
 	if not enabled:
 		set_process(false)
 		return
@@ -62,6 +69,7 @@ func _ready() -> void:
 	_spawn_only_layer = null
 	if spawn_only_on_layer_path != NodePath(""):
 		_spawn_only_layer = get_node_or_null(spawn_only_on_layer_path) as TileMapLayer
+	_lake_layer = get_node_or_null("../../Y-Sort_Objects/LakeLayer") as TileMapLayer
 	_forbidden_layers.clear()
 	if forbidden_layer_path != NodePath(""):
 		var single_forbidden := get_node_or_null(forbidden_layer_path) as TileMapLayer
@@ -85,6 +93,38 @@ func _ready() -> void:
 	_collect_blocked_positions()
 	_init_world_bounds()
 	_update_visible_chunks(true)
+
+
+func _apply_config(cfg: ChunkTreeSpawnerConfig) -> void:
+	enabled = cfg.enabled
+	player_path = cfg.player_path
+	spawn_parent_path = cfg.spawn_parent_path
+	tree_scene = cfg.tree_scene
+	chunk_size_tiles = cfg.chunk_size_tiles
+	tile_size_px = cfg.tile_size_px
+	load_radius_chunks = cfg.load_radius_chunks
+	world_chunks_x = cfg.world_chunks_x
+	world_chunks_y = cfg.world_chunks_y
+	update_interval_sec = cfg.update_interval_sec
+	world_seed = cfg.world_seed
+	randomize_seed_on_start = cfg.randomize_seed_on_start
+	tree_probability = cfg.tree_probability
+	min_trees_per_chunk = cfg.min_trees_per_chunk
+	min_spawn_distance_px = cfg.min_spawn_distance_px
+	biome_partition_enabled = cfg.biome_partition_enabled
+	biome_partition_count = cfg.biome_partition_count
+	biome_partition_index = cfg.biome_partition_index
+	biome_partition_period_chunks = cfg.biome_partition_period_chunks
+	biome_half_split_enabled = cfg.biome_half_split_enabled
+	biome_half_split_vertical = cfg.biome_half_split_vertical
+	biome_half_split_upper_or_left = cfg.biome_half_split_upper_or_left
+	blocked_node_paths = cfg.blocked_node_paths.duplicate()
+	blocked_node_radius_px = cfg.blocked_node_radius_px
+	spawn_only_on_layer_path = cfg.spawn_only_on_layer_path
+	forbidden_layer_path = cfg.forbidden_layer_path
+	forbidden_layer_paths = cfg.forbidden_layer_paths.duplicate()
+	forbidden_layer_radius_tiles = cfg.forbidden_layer_radius_tiles
+	debug_log = cfg.debug_log
 
 
 func _process(delta: float) -> void:
@@ -178,6 +218,9 @@ func _spawn_tree_at_cell(cell: Vector2i) -> Node2D:
 	if _overlaps_blocked(world_pos):
 		node.queue_free()
 		return null
+	if _overlaps_world_collision(world_pos):
+		node.queue_free()
+		return null
 	if _too_close_to_other_spawns(world_pos):
 		node.queue_free()
 		return null
@@ -263,19 +306,51 @@ func _too_close_to_other_spawns(world_pos: Vector2) -> bool:
 
 
 func _is_allowed_by_biome_layers(world_pos: Vector2) -> bool:
+	if _lake_layer != null and _layer_has_tile_at_world(_lake_layer, world_pos):
+		return false
 	if _spawn_only_layer != null and not _layer_has_tile_at_world(_spawn_only_layer, world_pos):
 		return false
 	for layer in _forbidden_layers:
 		var forbidden_layer := layer as TileMapLayer
-		if forbidden_layer != null and _layer_has_tile_at_world(forbidden_layer, world_pos):
+		if forbidden_layer != null and _layer_has_tile_near_world(forbidden_layer, world_pos, forbidden_layer_radius_tiles):
 			return false
 	return true
+
+
+func _overlaps_world_collision(world_pos: Vector2) -> bool:
+	var radius: float = maxf(spawn_clearance_radius_px, 0.0)
+	if radius <= 0.0:
+		return false
+	var world := get_world_2d()
+	if world == null:
+		return false
+	var shape := CircleShape2D.new()
+	shape.radius = radius
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = shape
+	query.transform = Transform2D(0.0, world_pos)
+	query.collide_with_bodies = true
+	query.collide_with_areas = true
+	query.collision_mask = 0x7fffffff
+	var hits: Array = world.direct_space_state.intersect_shape(query, 8)
+	return not hits.is_empty()
 
 
 func _layer_has_tile_at_world(layer: TileMapLayer, world_pos: Vector2) -> bool:
 	var local_pos := layer.to_local(world_pos)
 	var cell := layer.local_to_map(local_pos)
 	return layer.get_cell_source_id(cell) != -1
+
+
+func _layer_has_tile_near_world(layer: TileMapLayer, world_pos: Vector2, radius_tiles: int) -> bool:
+	var local_pos := layer.to_local(world_pos)
+	var center := layer.local_to_map(local_pos)
+	var r := maxi(0, radius_tiles)
+	for oy in range(-r, r + 1):
+		for ox in range(-r, r + 1):
+			if layer.get_cell_source_id(center + Vector2i(ox, oy)) != -1:
+				return true
+	return false
 
 
 func _is_chunk_allowed_for_biome(chunk: Vector2i) -> bool:

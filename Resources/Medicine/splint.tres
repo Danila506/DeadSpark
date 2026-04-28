@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://3qy057u0b4wg"]
+[gd_resource type="Resource" format=3 uid="uid://3qy057u0b4wg"]
 
 [ext_resource type="Texture2D" uid="uid://b58ih74ohm4pq" path="res://Assets/itemAssets/inventory_icon/Medicine/splintInv.png" id="1_qrclg"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_3fdjg"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_3fdjg"]
 [ext_resource type="Texture2D" uid="uid://ktasrrnr1v1j" path="res://Assets/itemAssets/on_world_icon/Medicine/splintWrd.png" id="3_u437a"]
 
 [resource]

@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dvquglkn8pwxm"]
+[gd_resource type="Resource" format=3 uid="uid://dvquglkn8pwxm"]
 
 [ext_resource type="Texture2D" uid="uid://d1m7my8dfq1p4" path="res://Assets/itemAssets/inventory_icon/Medicine/bandageInv.png" id="1_dtrjp"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_lmu1k"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_lmu1k"]
 [ext_resource type="Texture2D" uid="uid://dc68w4i58rqv5" path="res://Assets/itemAssets/on_world_icon/Medicine/bandageWrd.png" id="3_3f4mj"]
 
 [resource]

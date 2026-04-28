@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bm6ii6ibhiafm"]
+[gd_resource type="Resource" format=3 uid="uid://bm6ii6ibhiafm"]
 
 [ext_resource type="Texture2D" uid="uid://b23hbjnntj5md" path="res://Assets/itemAssets/inventory_icon/Medicine/antidoteInv.png" id="1_ay06o"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="2_oaa2l"]
+[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="2_oaa2l"]
 [ext_resource type="Texture2D" uid="uid://ddewklnuyp1dm" path="res://Assets/itemAssets/on_world_icon/Medicine/antidoteWrd.png" id="3_g66iu"]
 
 [resource]

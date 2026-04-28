@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ChunkTreeSpawnerConfig" format=3 uid="uid://cr51v2taoqo8b"]
+
+[ext_resource type="Script" uid="uid://bnccupyunmtyw" path="res://World/chunk_tree_spawner_config.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://bvnyn0y44u1iq" path="res://World/Assets/Biom1/Tree.tscn" id="2_x8wxw"]
+
+[resource]
+script = ExtResource("1")
+player_path = NodePath("../../Y-Sort_Objects/Player2")
+spawn_parent_path = NodePath("../../Y-Sort_Objects/Biom1/Trees")
+tree_scene = ExtResource("2_x8wxw")
+tree_probability = 0.2
+min_trees_per_chunk = 8
+biome_half_split_enabled = true
+forbidden_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/LakeLayer")])
+forbidden_layer_radius_tiles = 1
+debug_log = true

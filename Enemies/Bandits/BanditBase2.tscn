@@ -53,7 +53,9 @@ texture = ExtResource("1_x3tfn")
 sources/0 = SubResource("TileSetAtlasSource_wk83u")
 
 [node name="BanditBase2" type="Node2D" unique_id=1635600201]
+z_index = 6
 
 [node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=2131089792]
+z_index = 6
 tile_map_data = PackedByteArray("AAD///j/AAAjAAEAAAAJAAAAAAAdAAUAAAD0//v/AAAdAA4AAAABAAgAAAAHABAAAAAHAAUAAAAXAAkAAAD5//7/AAAOAAkAAADy/wMAAAALAAQAAAAHAPv/AAAGAAsAAAA=")
 tile_set = SubResource("TileSet_7cgkd")

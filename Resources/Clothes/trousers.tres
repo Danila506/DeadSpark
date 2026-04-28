@@ -2,7 +2,7 @@
 
 [ext_resource type="Texture2D" uid="uid://ch4csymaq7k02" path="res://Assets/itemAssets/animation_sprites/clothes/dzhinsy.png" id="1_jeans_anim"]
 [ext_resource type="Texture2D" uid="uid://cugqfhaki46kj" path="res://Assets/itemAssets/inventory_icon/Clothes/dzhinsyInv.png" id="2_jeans_inv"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/itemData.gd" id="3_item_data"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="3_item_data"]
 [ext_resource type="Texture2D" uid="uid://c1ua657r5braj" path="res://Assets/itemAssets/on_world_icon/Clothes/dzhinsyWrd.png" id="4_jeans_world"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_pnkso"]

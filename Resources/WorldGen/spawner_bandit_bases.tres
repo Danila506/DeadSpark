@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ChunkTreeSpawnerConfig" format=3 uid="uid://b3o0m08ocyrc1"]
+
+[ext_resource type="Script" uid="uid://bnccupyunmtyw" path="res://World/chunk_tree_spawner_config.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://b6rsdynib7tli" path="res://Enemies/Bandits/bandit_base.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+player_path = NodePath("../../Y-Sort_Objects/Player2")
+spawn_parent_path = NodePath("../../Y-Sort_Objects/GeneratedBanditBases")
+tree_scene = ExtResource("2")
+randomize_seed_on_start = true
+tree_probability = 0.00015
+min_trees_per_chunk = 0
+min_spawn_distance_px = 900.0
+blocked_node_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/ForesterHouse"), NodePath("../../Y-Sort_Objects/ForesterHouse2"), NodePath("../../Y-Sort_Objects/MedicineKit"), NodePath("../../Y-Sort_Objects/BanditBase")])
+blocked_node_radius_px = 220.0
+forbidden_layer_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/LakeLayer")])
+forbidden_layer_radius_tiles = 1

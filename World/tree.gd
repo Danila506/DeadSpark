@@ -9,11 +9,12 @@ extends Node2D
 
 @export var hits_to_chop: int = 3
 @export var chop_duration: float = 1.4
-@export var pickup_scene: PackedScene = preload("res://pickup_item.tscn")
+@export var pickup_scene: PackedScene = preload("res://items/scenes/pickup_item.tscn")
 @export var wood_item_data: ItemData = preload("res://Resources/Misc/wood.tres")
 @export var wood_drop_count: int = 1
 @export var wood_drop_spread_radius: float = 12.0
 @export var interaction_radius_px: float = 86.0
+@export var persistent_id: String = ""
 
 var player_in_range: bool = false
 var chop_hits: int = 0
@@ -180,7 +181,22 @@ func _drop_wood() -> void:
 
 
 func get_save_key() -> String:
-	return "tree:%s" % [str(global_position)]
+	return "tree:%s" % [_get_persistent_identity()]
+
+
+func get_legacy_save_keys() -> Array[String]:
+	return ["tree:%s" % [str(global_position)]]
+
+
+func _get_persistent_identity() -> String:
+	if not persistent_id.strip_edges().is_empty():
+		return persistent_id.strip_edges()
+	var scene_path: String = ""
+	var scene_root: Node = get_tree().current_scene
+	if scene_root != null:
+		scene_path = scene_root.scene_file_path
+	var local_path: String = str(get_path())
+	return "%s|%s" % [scene_path, local_path]
 
 
 func get_save_data() -> Dictionary:

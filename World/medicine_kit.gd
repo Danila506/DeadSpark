@@ -19,6 +19,7 @@ extends Node2D
 	preload("res://Resources/Medicine/saline.tres"),
 	preload("res://Resources/Medicine/splint.tres")
 ]
+@export var persistent_id: String = ""
 
 var player_near: bool = false
 var is_opened: bool = false
@@ -131,7 +132,22 @@ func _ensure_loot() -> void:
 
 
 func get_save_key() -> String:
-	return "medicine_kit:%s" % [str(global_position)]
+	return "medicine_kit:%s" % [_get_persistent_identity()]
+
+
+func get_legacy_save_keys() -> Array[String]:
+	return ["medicine_kit:%s" % [str(global_position)]]
+
+
+func _get_persistent_identity() -> String:
+	if not persistent_id.strip_edges().is_empty():
+		return persistent_id.strip_edges()
+	var scene_path: String = ""
+	var scene_root: Node = get_tree().current_scene
+	if scene_root != null:
+		scene_path = scene_root.scene_file_path
+	var local_path: String = str(get_path())
+	return "%s|%s" % [scene_path, local_path]
 
 
 func get_save_data() -> Dictionary:
