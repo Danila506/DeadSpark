@@ -20,8 +20,7 @@ position = Vector2(-2, -47.5)
 texture = ExtResource("1_4nadt")
 
 [node name="OutlineSprite" type="Sprite2D" parent="." unique_id=504005299]
-visible = false
-position = Vector2(0, -58)
+position = Vector2(-1, -48)
 texture = ExtResource("2_pxxe0")
 
 [node name="Area2D" type="Area2D" parent="." unique_id=2112013521]

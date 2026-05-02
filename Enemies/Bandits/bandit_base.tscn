@@ -1,6 +1,7 @@
 [gd_scene format=4 uid="uid://b6rsdynib7tli"]
 
 [ext_resource type="Texture2D" uid="uid://bx3jbhovgpl4f" path="res://Assets/World/Enemies/banditBaseLayer.png" id="1_cpjxf"]
+[ext_resource type="Script" path="res://Enemies/Bandits/bandit_base.gd" id="2_bandit_base_script"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_d2o0l"]
 texture = ExtResource("1_cpjxf")
@@ -60,6 +61,7 @@ sources/0 = SubResource("TileSetAtlasSource_d2o0l")
 
 [node name="BanditBase" type="Node2D" unique_id=515154822]
 z_index = 6
+script = ExtResource("2_bandit_base_script")
 
 [node name="BanditBaseLayer" type="TileMapLayer" parent="." unique_id=1651870417]
 rotation = -0.0007949845

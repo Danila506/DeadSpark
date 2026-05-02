@@ -94,6 +94,9 @@ var _move_target_position: Vector2 = Vector2.ZERO
 var _move_speed: float = 0.0
 var _facing_direction: Vector2 = Vector2.RIGHT
 var _path_retry_left: float = 0.0
+var _path_update_left: float = 0.0
+var _last_nav_target_position: Vector2 = Vector2.ZERO
+var _has_last_nav_target_position: bool = false
 var _move_stuck_anim_timer: float = 0.0
 var _moved_last_frame_distance: float = 0.0
 var _obstacle_bypass_target: Vector2 = Vector2.ZERO
@@ -108,6 +111,12 @@ var _invisible_accum: float = 0.0
 var _target_confirmed: bool = false
 var _is_dead: bool = false
 var _ally_alert_cooldown_left: float = 0.0
+var _attack_los_cache_left: float = 0.0
+var _attack_los_cache_target_position: Vector2 = Vector2.ZERO
+var _attack_los_cache_result: bool = false
+var _friendly_fire_cache_left: float = 0.0
+var _friendly_fire_cache_target_position: Vector2 = Vector2.ZERO
+var _friendly_fire_cache_result: bool = false
 
 var _patrol_points: Array[Vector2] = []
 var _patrol_index: int = 0
@@ -133,6 +142,10 @@ var _nearest_bandit_cache_point: Vector2 = Vector2.ZERO
 var _nearest_bandit_cache_result: bool = false
 var _last_lethal_hit_direction: StringName = DamageZones.DIR_DOWN
 const MOVE_TARGET_REPATH_FACTOR: float = 1.75
+const MELEE_STANDOFF_RATIO: float = 0.72
+const MELEE_STANDOFF_MIN_PX: float = 8.0
+const MELEE_TOO_CLOSE_RATIO: float = 0.52
+const MELEE_BACKSTEP_EXTRA_PX: float = 4.0
 
 
 func _ready() -> void:
@@ -182,8 +195,11 @@ func _tick_timers(delta: float) -> void:
 	_post_shot_move_timer = max(_post_shot_move_timer - delta, 0.0)
 	_post_shot_stand_timer = max(_post_shot_stand_timer - delta, 0.0)
 	_path_retry_left = max(_path_retry_left - delta, 0.0)
+	_path_update_left = max(_path_update_left - delta, 0.0)
 	_obstacle_bypass_time_left = max(_obstacle_bypass_time_left - delta, 0.0)
 	_ally_alert_cooldown_left = max(_ally_alert_cooldown_left - delta, 0.0)
+	_attack_los_cache_left = max(_attack_los_cache_left - delta, 0.0)
+	_friendly_fire_cache_left = max(_friendly_fire_cache_left - delta, 0.0)
 	_nearest_bandit_cache_left = max(_nearest_bandit_cache_left - delta, 0.0)
 
 
@@ -259,16 +275,22 @@ func _has_line_of_sight_to(target_position: Vector2, target_node: Node = null) -
 func _has_attack_line_of_sight() -> bool:
 	if current_target == null or not is_instance_valid(current_target):
 		return false
-	var origin: Vector2 = _resolve_projectile_origin() if is_ranged_enemy() else global_position
 	var target_position: Vector2 = current_target.global_position
+	var cache_move_epsilon: float = max(config.min_target_move_distance * 0.5, 4.0)
+	if _attack_los_cache_left > 0.0 and _attack_los_cache_target_position.distance_to(target_position) <= cache_move_epsilon:
+		return _attack_los_cache_result
+
+	var origin: Vector2 = _resolve_projectile_origin() if is_ranged_enemy() else global_position
 	var query := PhysicsRayQueryParameters2D.create(origin, target_position)
 	query.exclude = [self]
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
 	var hit: Dictionary = get_world_2d().direct_space_state.intersect_ray(query)
-	if hit.is_empty():
-		return true
-	return hit.get("collider", null) == current_target
+	var result: bool = hit.is_empty() or hit.get("collider", null) == current_target
+	_attack_los_cache_result = result
+	_attack_los_cache_target_position = target_position
+	_attack_los_cache_left = max(config.ai_update_interval_sec, 0.0)
+	return result
 
 
 func _would_ranged_attack_hit_ally() -> bool:
@@ -276,19 +298,33 @@ func _would_ranged_attack_hit_ally() -> bool:
 		return false
 	var origin: Vector2 = _resolve_projectile_origin()
 	var target_position: Vector2 = current_target.global_position
+	var cache_move_epsilon: float = max(config.min_target_move_distance * 0.5, 4.0)
+	if _friendly_fire_cache_left > 0.0 and _friendly_fire_cache_target_position.distance_to(target_position) <= cache_move_epsilon:
+		return _friendly_fire_cache_result
+
 	var query := PhysicsRayQueryParameters2D.create(origin, target_position)
 	query.exclude = [self]
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
 	var hit: Dictionary = get_world_2d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
+		_friendly_fire_cache_result = false
+		_friendly_fire_cache_target_position = target_position
+		_friendly_fire_cache_left = max(config.ai_update_interval_sec, 0.0)
 		return false
 	var collider: Object = hit.get("collider", null)
 	if collider == null or collider == current_target:
+		_friendly_fire_cache_result = false
+		_friendly_fire_cache_target_position = target_position
+		_friendly_fire_cache_left = max(config.ai_update_interval_sec, 0.0)
 		return false
 	if collider is Node:
-		return _is_ally_node(collider as Node)
-	return false
+		_friendly_fire_cache_result = _is_ally_node(collider as Node)
+	else:
+		_friendly_fire_cache_result = false
+	_friendly_fire_cache_target_position = target_position
+	_friendly_fire_cache_left = max(config.ai_update_interval_sec, 0.0)
+	return _friendly_fire_cache_result
 
 
 func _is_ally_node(node: Node) -> bool:
@@ -429,9 +465,21 @@ func move_to(world_position: Vector2, speed: float) -> void:
 	_move_target_position = world_position
 	_move_speed = max(speed, 0.0)
 	_obstacle_bypass_time_left = 0.0
-	var repath_distance: float = max(config.nav_path_desired_distance * MOVE_TARGET_REPATH_FACTOR, 2.0)
-	if navigation_agent.target_position.distance_to(world_position) >= repath_distance:
+	var repath_distance: float = max(
+		config.nav_path_desired_distance * MOVE_TARGET_REPATH_FACTOR,
+		config.min_target_move_distance,
+		2.0
+	)
+	var should_update_path: bool = not _has_last_nav_target_position
+	if not should_update_path and _last_nav_target_position.distance_to(world_position) >= repath_distance:
+		should_update_path = true
+	if not should_update_path and navigation_agent.is_navigation_finished():
+		should_update_path = true
+	if should_update_path and _path_update_left <= 0.0:
 		navigation_agent.target_position = world_position
+		_last_nav_target_position = world_position
+		_has_last_nav_target_position = true
+		_path_update_left = max(config.path_update_interval_sec, 0.0)
 
 
 func get_chase_destination() -> Vector2:
@@ -444,11 +492,47 @@ func get_chase_destination() -> Vector2:
 	if distance <= 0.001:
 		return global_position
 
-	var keep_distance: float = clamp(config.attack_range * 0.72, 8.0, max(config.attack_range - 1.0, 8.0))
+	var keep_distance: float = _get_melee_standoff_distance()
 	if distance <= keep_distance:
 		return global_position
 
 	return target - to_target.normalized() * keep_distance
+
+
+func _get_melee_standoff_distance() -> float:
+	if is_ranged_enemy():
+		return maxf(config.nav_target_desired_distance, 0.0)
+	var max_standoff: float = maxf(config.attack_range - 1.0, 0.0)
+	if max_standoff <= 0.0:
+		return 0.0
+	var desired: float = maxf(config.attack_range * MELEE_STANDOFF_RATIO, maxf(config.nav_target_desired_distance, MELEE_STANDOFF_MIN_PX))
+	return clampf(desired, 0.0, max_standoff)
+
+
+func enforce_melee_attack_spacing() -> bool:
+	if is_ranged_enemy() or not should_chase_target():
+		return false
+
+	var target_position: Vector2 = get_target_position()
+	var to_target: Vector2 = target_position - global_position
+	var distance: float = to_target.length()
+	var standoff: float = _get_melee_standoff_distance()
+	if standoff <= 0.0:
+		return false
+
+	var too_close_distance: float = maxf(standoff * MELEE_TOO_CLOSE_RATIO, 2.0)
+	if distance >= too_close_distance:
+		return false
+
+	var away: Vector2 = (global_position - target_position).normalized()
+	if away == Vector2.ZERO:
+		away = -get_facing_direction()
+
+	var retreat_distance: float = (too_close_distance - distance) + MELEE_BACKSTEP_EXTRA_PX
+	var retreat_target: Vector2 = global_position + away * maxf(retreat_distance, 2.0)
+	var retreat_speed: float = maxf(config.patrol_speed, config.chase_speed * 0.65)
+	move_to(retreat_target, retreat_speed)
+	return true
 
 
 func stop_move() -> void:
@@ -456,6 +540,9 @@ func stop_move() -> void:
 	_move_speed = 0.0
 	_obstacle_bypass_time_left = 0.0
 	navigation_agent.target_position = global_position
+	_last_nav_target_position = global_position
+	_has_last_nav_target_position = true
+	_path_update_left = 0.0
 	_post_shot_move_timer = 0.0
 	_post_shot_stand_timer = 0.0
 	_post_shot_move_direction = Vector2.ZERO
@@ -1371,17 +1458,17 @@ func _fire_ranged_projectile() -> void:
 		_apply_melee_damage_to_target()
 		return
 
-	var projectile: Node = config.projectile_scene.instantiate()
-	if projectile == null:
-		return
-
 	var root: Node = get_tree().current_scene
 	if root == null:
 		root = get_parent()
 	if root == null:
 		return
 
-	root.add_child(projectile)
+	var projectile: Node = ProjectilePool.acquire_projectile(config.projectile_scene, root) if get_node_or_null("/root/ProjectilePool") != null else config.projectile_scene.instantiate()
+	if projectile == null:
+		return
+	if projectile.get_parent() == null:
+		root.add_child(projectile)
 
 	var origin: Vector2 = _resolve_projectile_origin()
 	var target_pos: Vector2 = current_target.global_position
@@ -1521,7 +1608,9 @@ func _spawn_hit_blood(source: Node) -> void:
 	if away_direction == Vector2.ZERO:
 		away_direction = Vector2.RIGHT
 
-	var blood_sprite: AnimatedSprite2D = AnimatedSprite2D.new()
+	var blood_sprite: AnimatedSprite2D = EffectPool.acquire_animated_sprite(fx_root) if get_node_or_null("/root/EffectPool") != null else AnimatedSprite2D.new()
+	if blood_sprite == null:
+		return
 	blood_sprite.top_level = true
 	blood_sprite.sprite_frames = hit_blood_frames
 	blood_sprite.animation = animation_name
@@ -1530,7 +1619,8 @@ func _spawn_hit_blood(source: Node) -> void:
 	blood_sprite.z_index = hit_blood_z_index
 	blood_sprite.flip_h = away_direction.x < 0.0
 	blood_sprite.flip_v = abs(away_direction.y) > abs(away_direction.x) and away_direction.y < 0.0
-	fx_root.add_child(blood_sprite)
+	if blood_sprite.get_parent() == null:
+		fx_root.add_child(blood_sprite)
 
 	hit_blood_frames.set_animation_loop(animation_name, false)
 	hit_blood_frames.set_animation_speed(animation_name, max(hit_blood_anim_fps, 1.0))
@@ -1545,10 +1635,13 @@ func _spawn_hit_blood(source: Node) -> void:
 		max(hit_blood_fly_duration_sec, 0.05)
 	)
 
-	blood_sprite.animation_finished.connect(func() -> void:
+	var release_blood_sprite := func() -> void:
 		if is_instance_valid(blood_sprite):
-			blood_sprite.queue_free()
-	)
+			if get_node_or_null("/root/EffectPool") != null:
+				EffectPool.release_animated_sprite(blood_sprite)
+			else:
+				blood_sprite.queue_free()
+	blood_sprite.animation_finished.connect(release_blood_sprite, CONNECT_ONE_SHOT)
 
 
 func _resolve_hit_blood_animation_name() -> String:

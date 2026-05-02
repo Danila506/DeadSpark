@@ -4,12 +4,48 @@ const SLOT_SCENE = preload("res://gui/slots/InventorySlot.tscn")
 const LOOT_PROVIDER_SLOT_TYPE: int = 999
 const LOOT_CONTEXT_WARDROBE: StringName = &"wardrobe"
 const LOOT_CONTEXT_BANDIT: StringName = &"bandit"
+const WOOD_ITEM: ItemData = preload("res://Resources/Misc/wood.tres")
+const STONE_ITEM: ItemData = preload("res://Resources/Misc/stone.tres")
+const BANDAGE_ITEM: ItemData = preload("res://Resources/Medicine/bandage.tres")
+const IMPROVISED_SPLINT_ITEM: ItemData = preload("res://Resources/Medicine/improvised_splint.tres")
+const MEDICAL_SPLINT_ITEM: ItemData = preload("res://Resources/Medicine/splint.tres")
+const AXE_ITEM: ItemData = preload("res://Resources/Melee/axe.tres")
+const CLEAVER_ITEM: ItemData = preload("res://Resources/Melee/cleaver.tres")
+const HEMOSTAT_ITEM: ItemData = preload("res://Resources/Medicine/hemostat.tres")
+const SALINE_ITEM: ItemData = preload("res://Resources/Medicine/saline.tres")
+const HEALTH_BOX_ITEM: ItemData = preload("res://Resources/Medicine/healthBox.tres")
+const BLOOD_BAG_ITEM: ItemData = preload("res://Resources/Medicine/bloodBag.tres")
+const ANTIDOTE_ITEM: ItemData = preload("res://Resources/Medicine/antidote.tres")
+const RESTORER_ITEM: ItemData = preload("res://Resources/Medicine/restorer.tres")
+const POTASSIUM_IODIDE_ITEM: ItemData = preload("res://Resources/Medicine/potassium_iodide.tres")
+const APPLE_ITEM: ItemData = preload("res://Resources/Food/apple.tres")
+const MALINA_ITEM: ItemData = preload("res://Resources/Food/malina.tres")
+const TOMATE_ITEM: ItemData = preload("res://Resources/Food/tomate.tres")
+const PEPPER_ITEM: ItemData = preload("res://Resources/Food/pepper.tres")
+const WOLF_MEAT_ITEM: ItemData = preload("res://Resources/Food/wolf_meat.tres")
+const MEDICAL_KIT_ITEM: ItemData = preload("res://Resources/Medicine/medicalKit.tres")
+const TWO_CRAFT_TEXTURE: Texture2D = preload("res://gui/Craft/twoCraft.png")
+const THREE_CRAFT_TEXTURE: Texture2D = preload("res://gui/Craft/threeCraft.png")
+const TWO_CRAFT_OUTLINE_TEXTURE: Texture2D = preload("res://gui/Craft/twoCraftOutline.png")
+const THREE_CRAFT_OUTLINE_TEXTURE: Texture2D = preload("res://gui/Craft/threeCraftoutline.png")
+const CRAFT_BUTTON_WIDTH: float = 28.0
+const CRAFT_CATEGORY_ALL: StringName = &"all"
+const CRAFT_CATEGORY_MEDICAL: StringName = &"medical"
+const CRAFT_CATEGORY_FOOD: StringName = &"food"
+const CRAFT_CATEGORY_TOOLS: StringName = &"tools"
+const CRAFT_CATEGORY_BUILD: StringName = &"build"
 
 @export var pickup_item_scene: PackedScene
 @export var remove_attachment_dropdown_offset: Vector2 = Vector2(0.0, 6.0)
 @export var remove_attachment_button_offset: Vector2 = Vector2(0.0, 40.0)
+@export var craft_recipe_list_position: Vector2 = Vector2(148, 120)
+@export var craft_recipe_list_size: Vector2 = Vector2(376, 414)
+@export var craft_scroll_texture_travel_distance: float = 350.0
 
 @onready var inventory_content: Control = $InventoryContent
+@onready var nav_inv: Control = $InventoryContent/NavInv
+@onready var nav_map: Control = $InventoryContent/NavMap
+@onready var nav_craft: Control = $InventoryContent/NavCraft
 @onready var inventory_grid: GridContainer = $InventoryContent/NavInv/NearbyPanel/InventoryGrid
 @onready var drag_anchor: Control = $InventoryContent/Anchor
 @onready var wardrobe_loot_panel: Control = $InventoryContent/Lut/Lut
@@ -20,6 +56,10 @@ const LOOT_CONTEXT_BANDIT: StringName = &"bandit"
 @onready var inv_btn: Control = $InventoryContent/NavBtns/InvBtn
 @onready var map_btn: Control = $InventoryContent/NavBtns/MapBtn
 @onready var craft_btn: Control = $InventoryContent/NavBtns/CraftBtn
+@onready var craft_scroll_texture: Control = $InventoryContent/NavCraft/ScrollTexture if has_node("InventoryContent/NavCraft/ScrollTexture") else $InventoryContent/NavCraft/TextureButton
+@onready var craft_right_panel: Control = $InventoryContent/NavCraft/RightPanel
+@onready var craft_right_panel_center: CenterContainer = $InventoryContent/NavCraft/RightPanel/CenterContainer
+@onready var craft_category_panel: Control = $InventoryContent/NavCraft/Categorypanel if has_node("InventoryContent/NavCraft/Categorypanel") else $InventoryContent/NavCraft/CategoryPanel
 
 @onready var jacket_storage_panel: Control = $InventoryContent/NavInv/Jacket/ClothingStoragePanel
 @onready var jacket_storage_grid: GridContainer = $InventoryContent/NavInv/Jacket/ClothingStoragePanel/ClothingStorageGrid
@@ -41,6 +81,7 @@ var loot_slots: Array[InventorySlot] = []
 var loot_provider: ItemData = null
 
 var equipment_slots: Array[InventorySlot] = []
+var nearby_slots: Array[InventorySlot] = []
 
 var storage_slots_by_type: Dictionary = {}
 var consume_button: Button = null
@@ -58,6 +99,25 @@ var install_scope_slot: InventorySlot = null
 var remove_scope_button: Button = null
 var remove_scope_slot: InventorySlot = null
 var remove_attachment_dropdown: OptionButton = null
+var craft_recipes: Array[Dictionary] = []
+var craft_row_buttons: Array[Button] = []
+var craft_row_recipe_indices: Array[int] = []
+var craft_scroll: ScrollContainer = null
+var craft_list: VBoxContainer = null
+var craft_row_controls: Array[Control] = []
+var craft_scroll_texture_start_y: float = 0.0
+var craft_scroll_texture_travel: float = 0.0
+var craft_scroll_texture_dragging: bool = false
+var craft_scroll_texture_drag_start_mouse_y: float = 0.0
+var craft_scroll_texture_drag_start_value: float = 0.0
+var craft_scroll_texture_hit_rect: Rect2 = Rect2()
+var selected_craft_recipe_index: int = -1
+var craft_detail_icon: TextureRect = null
+var craft_detail_title_label: Label = null
+var craft_detail_description_label: Label = null
+var craft_detail_button: Button = null
+var active_craft_category: StringName = CRAFT_CATEGORY_ALL
+var craft_category_buttons: Dictionary = {}
 
 
 func _ready() -> void:
@@ -85,6 +145,11 @@ func _ready() -> void:
 	_ensure_scope_buttons()
 
 	_setup_nav_buttons_z()
+	_setup_nav_pages()
+	_setup_craft_recipes()
+	_setup_craft_categories()
+	_setup_craft_rows()
+	_setup_craft_detail_panel()
 
 	_collect_equipment_slots()
 	_connect_equipment_slots()
@@ -101,6 +166,23 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if craft_scroll_texture_dragging:
+		if event is InputEventMouseMotion:
+			_drag_craft_scroll_texture((event as InputEventMouseMotion).global_position.y)
+			get_viewport().set_input_as_handled()
+			return
+		if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT and not (event as InputEventMouseButton).pressed:
+			craft_scroll_texture_dragging = false
+			get_viewport().set_input_as_handled()
+			return
+
+	if event is InputEventMouseButton:
+		var scroll_mouse_button: InputEventMouseButton = event as InputEventMouseButton
+		if scroll_mouse_button.button_index == MOUSE_BUTTON_LEFT and scroll_mouse_button.pressed and _is_mouse_over_craft_scroll_texture(scroll_mouse_button.global_position):
+			_start_craft_scroll_texture_drag(scroll_mouse_button.global_position.y)
+			get_viewport().set_input_as_handled()
+			return
+
 	if event.is_action_pressed("inventory_toggle"):
 		toggle_inventory()
 		get_viewport().set_input_as_handled()
@@ -176,8 +258,9 @@ func set_loot_context_active(active: bool, context: StringName = &"") -> void:
 	loot_context_active = active
 	if not context.is_empty():
 		active_loot_context = context
-	var show_wardrobe_loot: bool = loot_context_active and is_inventory_open and active_loot_context == LOOT_CONTEXT_WARDROBE
-	var show_bandit_loot: bool = loot_context_active and is_inventory_open and active_loot_context == LOOT_CONTEXT_BANDIT
+	var show_on_inventory_page: bool = nav_inv == null or nav_inv.visible
+	var show_wardrobe_loot: bool = loot_context_active and is_inventory_open and show_on_inventory_page and active_loot_context == LOOT_CONTEXT_WARDROBE
+	var show_bandit_loot: bool = loot_context_active and is_inventory_open and show_on_inventory_page and active_loot_context == LOOT_CONTEXT_BANDIT
 	if wardrobe_loot_panel != null:
 		wardrobe_loot_panel.visible = show_wardrobe_loot
 	if bandit_loot_panel != null:
@@ -199,14 +282,15 @@ func _open_loot_slots(slot_items: Array[ItemData], context: StringName) -> void:
 	if context != LOOT_CONTEXT_BANDIT:
 		active_bandit_loot_source_id = 0
 
-	set_loot_context_active(true, context)
 	loot_provider.runtime_storage_items = slot_items
 	_rebuild_loot_slots(loot_provider.runtime_storage_items.size())
 
 	if is_inventory_open:
-		refresh_ui()
+		_set_active_nav_button(inv_btn)
 	else:
 		open_inventory()
+	set_loot_context_active(true, context)
+	refresh_ui()
 
 
 func close_bandit_loot_for(source: Node = null) -> void:
@@ -227,6 +311,21 @@ func _setup_nav_buttons_z() -> void:
 			continue
 		button.z_as_relative = false
 		button.z_index = 0
+		if button.has_signal("pressed") and not button.pressed.is_connected(_on_nav_button_pressed.bind(button)):
+			button.pressed.connect(_on_nav_button_pressed.bind(button))
+
+
+func _setup_nav_pages() -> void:
+	if nav_inv != null:
+		nav_inv.visible = true
+	if nav_map != null:
+		nav_map.visible = false
+	if nav_craft != null:
+		nav_craft.visible = false
+
+
+func _on_nav_button_pressed(active_button: Control) -> void:
+	_set_active_nav_button(active_button)
 
 
 func _set_active_nav_button(active_button: Control) -> void:
@@ -239,6 +338,15 @@ func _set_active_nav_button(active_button: Control) -> void:
 
 	if active_button != null:
 		active_button.z_index = 1
+
+	if nav_inv != null:
+		nav_inv.visible = active_button == inv_btn
+	if nav_map != null:
+		nav_map.visible = active_button == map_btn
+	if nav_craft != null:
+		nav_craft.visible = active_button == craft_btn
+
+	set_loot_context_active(loot_context_active, active_loot_context)
 
 
 func _collect_equipment_slots() -> void:
@@ -294,13 +402,12 @@ func refresh_ui() -> void:
 	_refresh_clothing_storage_from_equipment()
 	_refresh_clothing_storage_ui()
 	_refresh_loot_ui()
+	_refresh_craft_ui()
 
 
 func _rebuild_nearby_slots() -> void:
-	for child in inventory_grid.get_children():
-		child.queue_free()
-
 	var nearby_items: Array = NearbyItemsManager.get_items()
+	var visible_slot_index: int = 0
 
 	for i in range(nearby_items.size()):
 		var world_item: Node = nearby_items[i]
@@ -311,14 +418,37 @@ func _rebuild_nearby_slots() -> void:
 		if world_item.item_data == null:
 			continue
 
-		var slot: InventorySlot = SLOT_SCENE.instantiate()
-		slot.name = "NearbySlot_%d" % i
-
-		_setup_nearby_slot(slot)
-		_connect_slot(slot)
-
-		inventory_grid.add_child(slot)
+		var slot: InventorySlot = _get_or_create_nearby_slot(visible_slot_index)
+		slot.visible = true
 		slot.set_nearby_item(world_item.item_data, world_item, i)
+		visible_slot_index += 1
+
+	for i in range(visible_slot_index, nearby_slots.size()):
+		var slot: InventorySlot = nearby_slots[i]
+		if not is_instance_valid(slot):
+			continue
+		slot.clear_slot()
+		slot.visible = false
+
+
+func _get_or_create_nearby_slot(slot_index: int) -> InventorySlot:
+	if slot_index < nearby_slots.size():
+		var existing_slot: InventorySlot = nearby_slots[slot_index]
+		if is_instance_valid(existing_slot):
+			return existing_slot
+
+	var slot: InventorySlot = SLOT_SCENE.instantiate()
+	slot.name = "NearbySlot_%d" % slot_index
+
+	_setup_nearby_slot(slot)
+	_connect_slot(slot)
+
+	inventory_grid.add_child(slot)
+	if slot_index < nearby_slots.size():
+		nearby_slots[slot_index] = slot
+	else:
+		nearby_slots.append(slot)
+	return slot
 
 
 func _setup_nearby_slot(slot: InventorySlot) -> void:
@@ -355,12 +485,704 @@ func _setup_container_slot(slot: InventorySlot, index: int) -> void:
 	]
 
 	slot.custom_minimum_size = Vector2(60, 60)
-	slot.icon_size = Vector2(120, 120)
+	slot.icon_size = Vector2(64, 64)
+	slot.icon_rotation_degrees = 0.0
+	slot.icon_h_align = InventorySlot.IconHAlign.CENTER
+	slot.icon_v_align = InventorySlot.IconVAlign.CENTER
+	slot.show_name = false
+	slot.show_endurance = false
+	slot.stretch_icon_to_slot = false
+	slot.icon_padding = 0.0
+
+
+func _setup_craft_recipes() -> void:
+	craft_recipes = [
+		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": WOOD_ITEM, "count": 1}, {"item": BANDAGE_ITEM, "count": 1}], "result": {"item": IMPROVISED_SPLINT_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": WOOD_ITEM, "count": 2}, {"item": STONE_ITEM, "count": 1}, {"item": BANDAGE_ITEM, "count": 1}], "result": {"item": MEDICAL_SPLINT_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": BANDAGE_ITEM, "count": 1}, {"item": HEMOSTAT_ITEM, "count": 1}], "result": {"item": HEALTH_BOX_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": SALINE_ITEM, "count": 1}, {"item": BANDAGE_ITEM, "count": 1}], "result": {"item": BLOOD_BAG_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_FOOD, "ingredients": [{"item": APPLE_ITEM, "count": 1}, {"item": MALINA_ITEM, "count": 1}], "result": {"item": RESTORER_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_FOOD, "ingredients": [{"item": TOMATE_ITEM, "count": 1}, {"item": PEPPER_ITEM, "count": 1}], "result": {"item": ANTIDOTE_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": WOOD_ITEM, "count": 2}, {"item": STONE_ITEM, "count": 2}], "result": {"item": AXE_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": AXE_ITEM, "count": 1}, {"item": WOOD_ITEM, "count": 1}], "result": {"item": CLEAVER_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": POTASSIUM_IODIDE_ITEM, "count": 1}, {"item": SALINE_ITEM, "count": 1}], "result": {"item": RESTORER_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_FOOD, "ingredients": [{"item": WOLF_MEAT_ITEM, "count": 1}, {"item": PEPPER_ITEM, "count": 1}, {"item": TOMATE_ITEM, "count": 1}], "result": {"item": MEDICAL_KIT_ITEM, "count": 1}}
+	]
+
+
+func _setup_craft_categories() -> void:
+	if craft_category_panel == null:
+		return
+
+	craft_category_buttons.clear()
+	_register_craft_category_button("EverythingCategory", CRAFT_CATEGORY_ALL)
+	_register_craft_category_button("BuildCategory", CRAFT_CATEGORY_BUILD)
+	_register_craft_category_button("WeaponCategory", CRAFT_CATEGORY_TOOLS)
+	_register_craft_category_button("MedicineCategory", CRAFT_CATEGORY_MEDICAL)
+
+	_refresh_craft_category_buttons()
+
+
+func _register_craft_category_button(button_name: StringName, category_id: StringName) -> void:
+	var button: BaseButton = craft_category_panel.get_node_or_null(NodePath(String(button_name))) as BaseButton
+	if button == null:
+		push_warning("InventoryRoot: craft category button '%s' was not found" % String(button_name))
+		return
+
+	button.toggle_mode = true
+	button.focus_mode = Control.FOCUS_NONE
+	if not button.pressed.is_connected(_set_active_craft_category.bind(category_id)):
+		button.pressed.connect(_set_active_craft_category.bind(category_id))
+	craft_category_buttons[category_id] = button
+
+
+func _set_active_craft_category(category_id: StringName) -> void:
+	active_craft_category = category_id
+	if selected_craft_recipe_index >= 0 and not _does_recipe_match_active_category(craft_recipes[selected_craft_recipe_index]):
+		selected_craft_recipe_index = -1
+		_clear_craft_detail_panel()
+	_setup_craft_rows()
+	_refresh_craft_category_buttons()
+	_refresh_craft_ui()
+
+
+func _refresh_craft_category_buttons() -> void:
+	for category_id in craft_category_buttons.keys():
+		var button: BaseButton = craft_category_buttons[category_id] as BaseButton
+		if button == null or not is_instance_valid(button):
+			continue
+		button.button_pressed = category_id == active_craft_category
+
+
+func _does_recipe_match_active_category(recipe: Dictionary) -> bool:
+	if active_craft_category == CRAFT_CATEGORY_ALL:
+		return true
+	return recipe.get("category", CRAFT_CATEGORY_ALL) == active_craft_category
+
+
+func _setup_craft_rows() -> void:
+	var two_craft_row: Node = get_node_or_null("InventoryContent/NavCraft/TwoCraft")
+	if two_craft_row is CanvasItem:
+		(two_craft_row as CanvasItem).visible = false
+	var three_craft_row: Node = get_node_or_null("InventoryContent/NavCraft/ThreeCraft")
+	if three_craft_row is CanvasItem:
+		(three_craft_row as CanvasItem).visible = false
+
+	_ensure_craft_scroll()
+	if craft_list != null:
+		for child in craft_list.get_children():
+			child.queue_free()
+	craft_row_buttons.clear()
+	craft_row_controls.clear()
+	craft_row_recipe_indices.clear()
+
+	for i in range(craft_recipes.size()):
+		if not _does_recipe_match_active_category(craft_recipes[i]):
+			continue
+		_create_craft_recipe_row(craft_recipes[i], i)
+
+	call_deferred("_update_craft_scroll_texture")
+
+
+func _setup_craft_detail_panel() -> void:
+	if craft_right_panel_center == null:
+		return
+
+	for child in craft_right_panel_center.get_children():
+		child.queue_free()
+
+	var detail_layout := VBoxContainer.new()
+	detail_layout.name = "CraftDetailLayout"
+	detail_layout.custom_minimum_size = Vector2(260, 440)
+	detail_layout.add_theme_constant_override("separation", 14)
+	craft_right_panel_center.add_child(detail_layout)
+
+	craft_detail_icon = TextureRect.new()
+	craft_detail_icon.name = "CraftDetailIcon"
+	craft_detail_icon.custom_minimum_size = Vector2(128, 128)
+	craft_detail_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	craft_detail_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	detail_layout.add_child(craft_detail_icon)
+
+	craft_detail_title_label = Label.new()
+	craft_detail_title_label.name = "CraftDetailTitle"
+	craft_detail_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	craft_detail_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	detail_layout.add_child(craft_detail_title_label)
+
+	craft_detail_description_label = Label.new()
+	craft_detail_description_label.name = "CraftDetailDescription"
+	craft_detail_description_label.custom_minimum_size = Vector2(240, 160)
+	craft_detail_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	detail_layout.add_child(craft_detail_description_label)
+
+	craft_detail_button = Button.new()
+	craft_detail_button.name = "CraftDetailButton"
+	craft_detail_button.text = "Скрафтить"
+	craft_detail_button.custom_minimum_size = Vector2(160, 40)
+	craft_detail_button.pressed.connect(_craft_selected_recipe)
+	detail_layout.add_child(craft_detail_button)
+
+	_clear_craft_detail_panel()
+
+
+func _ensure_craft_scroll() -> void:
+	if craft_scroll != null and is_instance_valid(craft_scroll):
+		return
+
+	craft_scroll = ScrollContainer.new()
+	craft_scroll.name = "CraftRecipeScroll"
+	craft_scroll.position = craft_recipe_list_position
+	craft_scroll.size = craft_recipe_list_size
+	craft_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	craft_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	craft_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	nav_craft.add_child(craft_scroll)
+	craft_scroll.clip_contents = true
+	craft_scroll.get_v_scroll_bar().modulate = Color(1, 1, 1, 0)
+	craft_scroll.get_v_scroll_bar().mouse_filter = Control.MOUSE_FILTER_IGNORE
+	craft_scroll.get_v_scroll_bar().value_changed.connect(_on_craft_scroll_changed)
+
+	craft_list = VBoxContainer.new()
+	craft_list.name = "CraftRecipeList"
+	craft_list.add_theme_constant_override("separation", 6)
+	craft_scroll.add_child(craft_list)
+
+	if craft_scroll_texture != null:
+		craft_scroll_texture_start_y = craft_scroll_texture.position.y
+		craft_scroll_texture_travel = craft_scroll_texture_travel_distance
+		craft_scroll_texture.z_index = 5
+		craft_scroll_texture.mouse_filter = Control.MOUSE_FILTER_STOP
+		nav_craft.move_child(craft_scroll_texture, nav_craft.get_child_count() - 1)
+		craft_scroll_texture_hit_rect = _get_craft_scroll_texture_hit_rect()
+		if craft_scroll_texture.has_signal("gui_input") and not craft_scroll_texture.gui_input.is_connected(_on_craft_scroll_texture_gui_input):
+			craft_scroll_texture.gui_input.connect(_on_craft_scroll_texture_gui_input)
+
+
+func _create_craft_recipe_row(recipe: Dictionary, recipe_index: int) -> void:
+	if craft_list == null:
+		return
+
+	var ingredients: Array = recipe.get("ingredients", [])
+	var row_texture: Texture2D = THREE_CRAFT_TEXTURE if ingredients.size() >= 3 else TWO_CRAFT_TEXTURE
+	var row_outline_texture: Texture2D = THREE_CRAFT_OUTLINE_TEXTURE if ingredients.size() >= 3 else TWO_CRAFT_OUTLINE_TEXTURE
+	if row_texture == null:
+		return
+
+	var row_size: Vector2 = row_texture.get_size() * 2.0
+	var row := Control.new()
+	row.name = "CraftRecipeRow_%d" % recipe_index
+	row.custom_minimum_size = row_size
+	row.size = row_size
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	craft_list.add_child(row)
+	craft_row_controls.append(row)
+	craft_row_recipe_indices.append(recipe_index)
+
+	var background := TextureRect.new()
+	background.texture = row_texture
+	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	background.stretch_mode = TextureRect.STRETCH_SCALE
+	background.size = row_size
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(background)
+
+	var slot_positions: Array[Vector2] = _get_craft_slot_positions(ingredients.size())
+	for i in range(min(ingredients.size(), slot_positions.size())):
+		var ingredient: Dictionary = ingredients[i]
+		_add_craft_preview_slot(row, slot_positions[i], ingredient.get("item", null), int(ingredient.get("count", 1)))
+
+	var result: Dictionary = recipe.get("result", {})
+	_add_craft_preview_slot(row, Vector2(223, 9), result.get("item", null), int(result.get("count", 1)))
+
+	var button := Button.new()
+	button.name = "CraftRecipeButton_%d" % recipe_index
+	button.flat = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.text = ""
+	button.tooltip_text = "Создать"
+	button.position = Vector2(max(row_size.x - CRAFT_BUTTON_WIDTH, 0.0), 0.0)
+	button.size = Vector2(CRAFT_BUTTON_WIDTH, row_size.y)
+	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	button.pressed.connect(_select_craft_recipe.bind(recipe_index))
+	button.mouse_entered.connect(_set_craft_row_outline.bind(background, row_outline_texture))
+	button.mouse_exited.connect(_restore_craft_row_texture.bind(background, row_texture, recipe_index))
+	button.gui_input.connect(_on_craft_recipe_button_gui_input.bind(background, row_outline_texture, row_texture, recipe_index))
+	row.add_child(button)
+	craft_row_buttons.append(button)
+
+
+func _set_craft_row_outline(background: TextureRect, texture: Texture2D) -> void:
+	if background == null or not is_instance_valid(background):
+		return
+	if texture == null:
+		return
+	background.texture = texture
+
+
+func _restore_craft_row_texture(background: TextureRect, texture: Texture2D, recipe_index: int) -> void:
+	if recipe_index == selected_craft_recipe_index:
+		return
+	_set_craft_row_outline(background, texture)
+
+
+func _on_craft_recipe_button_gui_input(event: InputEvent, background: TextureRect, outline_texture: Texture2D, normal_texture: Texture2D, recipe_index: int) -> void:
+	if event is InputEventMouseMotion:
+		_set_craft_row_outline(background, outline_texture)
+		return
+	if event is InputEventMouseButton:
+		var mouse_button: InputEventMouseButton = event as InputEventMouseButton
+		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mouse_button.pressed:
+			_set_craft_row_outline(background, outline_texture)
+		elif recipe_index != selected_craft_recipe_index:
+			_set_craft_row_outline(background, normal_texture)
+
+
+func _select_craft_recipe(recipe_index: int) -> void:
+	if recipe_index < 0 or recipe_index >= craft_recipes.size():
+		return
+
+	selected_craft_recipe_index = recipe_index
+	_refresh_craft_row_textures()
+	_refresh_craft_detail_panel()
+	_refresh_craft_ui()
+
+
+func _craft_selected_recipe() -> void:
+	if selected_craft_recipe_index < 0 or selected_craft_recipe_index >= craft_recipes.size():
+		return
+	_on_craft_recipe_pressed(selected_craft_recipe_index)
+	_refresh_craft_detail_panel()
+
+
+func _clear_craft_detail_panel() -> void:
+	if craft_detail_icon != null:
+		craft_detail_icon.texture = null
+	if craft_detail_title_label != null:
+		craft_detail_title_label.text = "Выберите рецепт"
+	if craft_detail_description_label != null:
+		craft_detail_description_label.text = ""
+	if craft_detail_button != null:
+		craft_detail_button.disabled = true
+
+
+func _refresh_craft_detail_panel() -> void:
+	if selected_craft_recipe_index < 0 or selected_craft_recipe_index >= craft_recipes.size():
+		_clear_craft_detail_panel()
+		return
+
+	var recipe: Dictionary = craft_recipes[selected_craft_recipe_index]
+	var result: Dictionary = recipe.get("result", {})
+	var result_item: ItemData = result.get("item", null)
+	var result_count: int = int(result.get("count", 1))
+	if result_item == null:
+		_clear_craft_detail_panel()
+		return
+
+	if craft_detail_icon != null:
+		craft_detail_icon.texture = result_item.inventory_icon
+	if craft_detail_title_label != null:
+		craft_detail_title_label.text = "%s x%d" % [result_item.item_name, max(result_count, 1)]
+	if craft_detail_description_label != null:
+		craft_detail_description_label.text = _get_craft_recipe_description(recipe)
+	if craft_detail_button != null:
+		craft_detail_button.disabled = not _can_craft_recipe(recipe)
+
+
+func _get_craft_recipe_description(recipe: Dictionary) -> String:
+	var lines: Array[String] = []
+	var result: Dictionary = recipe.get("result", {})
+	var result_item: ItemData = result.get("item", null)
+	if result_item != null and not result_item.description.strip_edges().is_empty():
+		lines.append(result_item.description.strip_edges())
+
+	lines.append("Требуется:")
+	for ingredient in recipe.get("ingredients", []):
+		var item: ItemData = ingredient.get("item", null)
+		if item == null:
+			continue
+		lines.append("%s x%d" % [item.item_name, int(ingredient.get("count", 1))])
+
+	return "\n".join(lines)
+
+
+func _refresh_craft_row_textures() -> void:
+	for i in range(craft_row_controls.size()):
+		var row: Control = craft_row_controls[i]
+		if row == null or not is_instance_valid(row):
+			continue
+
+		var background: TextureRect = null
+		for child in row.get_children():
+			if child is TextureRect:
+				background = child as TextureRect
+				break
+		if background == null:
+			continue
+
+		var recipe_index: int = craft_row_recipe_indices[i] if i < craft_row_recipe_indices.size() else -1
+		var recipe: Dictionary = craft_recipes[recipe_index] if recipe_index >= 0 and recipe_index < craft_recipes.size() else {}
+		var ingredients: Array = recipe.get("ingredients", [])
+		if recipe_index == selected_craft_recipe_index:
+			background.texture = THREE_CRAFT_OUTLINE_TEXTURE if ingredients.size() >= 3 else TWO_CRAFT_OUTLINE_TEXTURE
+		else:
+			background.texture = THREE_CRAFT_TEXTURE if ingredients.size() >= 3 else TWO_CRAFT_TEXTURE
+
+
+func _on_craft_scroll_changed(_value: float) -> void:
+	_update_craft_scroll_texture()
+
+
+func _on_craft_scroll_texture_gui_input(event: InputEvent) -> void:
+	if craft_scroll == null:
+		return
+
+	var scroll_bar: VScrollBar = craft_scroll.get_v_scroll_bar()
+	var max_scroll: float = max(scroll_bar.max_value - scroll_bar.page, 0.0)
+	if max_scroll <= 0.0:
+		return
+
+	if event is InputEventMouseButton:
+		var mouse_button: InputEventMouseButton = event as InputEventMouseButton
+		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
+			return
+
+		if mouse_button.pressed:
+			_start_craft_scroll_texture_drag(mouse_button.global_position.y)
+		else:
+			craft_scroll_texture_dragging = false
+		get_viewport().set_input_as_handled()
+		return
+
+	if event is InputEventMouseMotion and craft_scroll_texture_dragging:
+		var mouse_motion: InputEventMouseMotion = event as InputEventMouseMotion
+		_drag_craft_scroll_texture(mouse_motion.global_position.y)
+		get_viewport().set_input_as_handled()
+
+
+func _start_craft_scroll_texture_drag(mouse_global_y: float) -> void:
+	if craft_scroll == null:
+		return
+
+	craft_scroll_texture_dragging = true
+	craft_scroll_texture_drag_start_mouse_y = mouse_global_y
+	craft_scroll_texture_drag_start_value = craft_scroll.get_v_scroll_bar().value
+
+
+func _is_mouse_over_craft_scroll_texture(mouse_global_position: Vector2) -> bool:
+	if craft_scroll_texture == null or not is_instance_valid(craft_scroll_texture):
+		return false
+	if nav_craft == null or not nav_craft.visible:
+		return false
+	if not is_inventory_open:
+		return false
+
+	var rect: Rect2 = _get_craft_scroll_texture_hit_rect()
+	return craft_scroll_texture.visible and rect.has_point(mouse_global_position)
+
+
+func _get_craft_scroll_texture_hit_rect() -> Rect2:
+	if craft_scroll_texture == null or not is_instance_valid(craft_scroll_texture):
+		return Rect2()
+
+	if craft_scroll_texture is TextureButton:
+		var texture_button: TextureButton = craft_scroll_texture as TextureButton
+		var texture: Texture2D = texture_button.texture_normal
+		if texture != null:
+			return Rect2(texture_button.global_position, texture.get_size() * texture_button.scale.abs())
+
+	if craft_scroll_texture is TextureRect:
+		var texture_rect: TextureRect = craft_scroll_texture as TextureRect
+		if texture_rect.texture != null:
+			return Rect2(texture_rect.global_position, texture_rect.texture.get_size() * texture_rect.scale.abs())
+
+	var rect: Rect2 = craft_scroll_texture.get_global_rect()
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		rect = Rect2(craft_scroll_texture.global_position, Vector2(26, 58) * craft_scroll_texture.scale.abs())
+	return rect
+
+
+func _drag_craft_scroll_texture(mouse_global_y: float) -> void:
+	if craft_scroll == null:
+		return
+
+	var scroll_bar: VScrollBar = craft_scroll.get_v_scroll_bar()
+	var max_scroll: float = max(scroll_bar.max_value - scroll_bar.page, 0.0)
+	if max_scroll <= 0.0:
+		return
+
+	var drag_delta: float = mouse_global_y - craft_scroll_texture_drag_start_mouse_y
+	var scroll_delta: float = drag_delta / max(craft_scroll_texture_travel, 1.0) * max_scroll
+	scroll_bar.value = clamp(craft_scroll_texture_drag_start_value + scroll_delta, 0.0, max_scroll)
+
+
+func _update_craft_scroll_texture() -> void:
+	if craft_scroll_texture == null or craft_scroll == null:
+		return
+
+	var scroll_bar: VScrollBar = craft_scroll.get_v_scroll_bar()
+	var max_scroll: float = max(scroll_bar.max_value - scroll_bar.page, 0.0)
+	var scroll_ratio: float = 0.0 if max_scroll <= 0.0 else clamp(scroll_bar.value / max_scroll, 0.0, 1.0)
+	craft_scroll_texture.visible = true
+	craft_scroll_texture.position.y = craft_scroll_texture_start_y + craft_scroll_texture_travel * scroll_ratio
+	craft_scroll_texture_hit_rect = _get_craft_scroll_texture_hit_rect()
+
+
+func _get_craft_slot_positions(ingredient_count: int) -> Array[Vector2]:
+	if ingredient_count >= 3:
+		return [Vector2(8, 9), Vector2(70, 9), Vector2(132, 9)]
+	return [Vector2(38, 9), Vector2(100, 9)]
+
+
+func _add_craft_preview_slot(parent: Control, position: Vector2, item: ItemData, count: int) -> void:
+	var slot: InventorySlot = SLOT_SCENE.instantiate()
+	slot.slot_mode = InventorySlot.SlotMode.CONTAINER
+	slot.position = position
+	slot.custom_minimum_size = Vector2(30, 30)
+	slot.size = Vector2(60, 60)
+	slot.icon_size = Vector2(42, 42)
 	slot.icon_rotation_degrees = 0.0
 	slot.show_name = false
 	slot.show_endurance = false
 	slot.stretch_icon_to_slot = true
-	slot.icon_padding = 12.0
+	slot.icon_padding = 1.0
+	slot.show_background_in_container = false
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(slot)
+
+	if item == null:
+		slot.clear_slot()
+		return
+
+	var preview_item: ItemData = item.create_instance(count, item.endurance) if item.has_method("create_instance") else item.duplicate(true)
+	preview_item.stack_count = max(count, 1)
+	preview_item.show_stack_count_in_inventory = count > 1 or item.show_stack_count_in_inventory
+	slot.set_container_item(preview_item, -1)
+
+
+func _on_craft_recipe_pressed(recipe_index: int) -> void:
+	if recipe_index < 0 or recipe_index >= craft_recipes.size():
+		return
+
+	var recipe: Dictionary = craft_recipes[recipe_index]
+	if not _can_craft_recipe(recipe):
+		return
+
+	var result: Dictionary = recipe.get("result", {})
+	var result_item: ItemData = result.get("item", null)
+	var result_count: int = int(result.get("count", 1))
+	if result_item == null:
+		return
+
+	var crafted_item: ItemData = result_item.create_instance(result_count, result_item.endurance) if result_item.has_method("create_instance") else result_item.duplicate(true)
+	crafted_item.stack_count = max(result_count, 1)
+	if not _can_place_crafted_item(crafted_item):
+		return
+
+	if not _consume_craft_ingredients(recipe.get("ingredients", [])):
+		refresh_ui()
+		return
+
+	if not _try_store_crafted_item(crafted_item):
+		_spawn_world_item(crafted_item)
+
+	refresh_ui()
+
+
+func _refresh_craft_ui() -> void:
+	for i in range(craft_row_recipe_indices.size()):
+		var recipe_index: int = craft_row_recipe_indices[i]
+		if recipe_index < 0 or recipe_index >= craft_recipes.size():
+			continue
+		var recipe: Dictionary = craft_recipes[recipe_index]
+		var can_craft: bool = _can_craft_recipe(recipe)
+		var is_selected: bool = recipe_index == selected_craft_recipe_index
+		if i < craft_row_controls.size() and is_instance_valid(craft_row_controls[i]):
+			craft_row_controls[i].modulate = Color(1, 1, 1, 1) if can_craft or is_selected else Color(0.55, 0.55, 0.55, 0.85)
+		if i < craft_row_buttons.size() and is_instance_valid(craft_row_buttons[i]):
+			craft_row_buttons[i].disabled = false
+			craft_row_buttons[i].tooltip_text = "Показать рецепт" if can_craft else "Показать рецепт: не хватает ресурсов"
+	if selected_craft_recipe_index >= 0:
+		_refresh_craft_detail_panel()
+	_update_craft_scroll_texture()
+
+
+func _can_craft_recipe(recipe: Dictionary) -> bool:
+	var required_counts: Dictionary = _get_required_crafting_counts(recipe.get("ingredients", []))
+	if required_counts.is_empty():
+		return false
+
+	for item_key in required_counts.keys():
+		var requirement: Dictionary = required_counts[item_key]
+		var item: ItemData = requirement.get("item", null)
+		if item == null:
+			return false
+		if _get_available_crafting_count(item) < int(requirement.get("count", 0)):
+			return false
+	return true
+
+
+func _get_required_crafting_counts(ingredients: Array) -> Dictionary:
+	var required_counts: Dictionary = {}
+	for ingredient in ingredients:
+		var item: ItemData = ingredient.get("item", null)
+		var required_count: int = int(ingredient.get("count", 1))
+		if item == null or required_count <= 0:
+			return {}
+
+		var item_key: String = _get_crafting_item_key(item)
+		if item_key.is_empty():
+			return {}
+
+		var current: Dictionary = {}
+		if required_counts.has(item_key):
+			current = required_counts[item_key]
+		else:
+			current = {"item": item, "count": 0}
+		current["count"] = int(current.get("count", 0)) + required_count
+		required_counts[item_key] = current
+	return required_counts
+
+
+func _get_available_crafting_count(item: ItemData) -> int:
+	if item == null:
+		return 0
+
+	var total: int = 0
+	for slot_type in _get_crafting_equipped_slot_types():
+		var equipped_item: ItemData = InventoryManager.get_equipped(slot_type)
+		if _is_same_crafting_item(equipped_item, item):
+			total += max(equipped_item.stack_count, 1)
+
+	for provider in _get_crafting_storage_providers():
+		for stored_item in provider.runtime_storage_items:
+			if _is_same_crafting_item(stored_item, item):
+				total += max(stored_item.stack_count, 1)
+
+	for world_item in NearbyItemsManager.get_items():
+		if not is_instance_valid(world_item):
+			continue
+		var nearby_item: ItemData = world_item.get("item_data") as ItemData
+		if _is_same_crafting_item(nearby_item, item):
+			total += max(nearby_item.stack_count, 1)
+	return total
+
+
+func _consume_craft_ingredients(ingredients: Array) -> bool:
+	var required_counts: Dictionary = _get_required_crafting_counts(ingredients)
+	if required_counts.is_empty():
+		return false
+
+	for item_key in required_counts.keys():
+		var requirement: Dictionary = required_counts[item_key]
+		var consumed_count: int = _consume_crafting_item(requirement.get("item", null), int(requirement.get("count", 0)))
+		if consumed_count < int(requirement.get("count", 0)):
+			push_warning("Crafting failed to consume all ingredients for %s" % item_key)
+			return false
+	return true
+
+
+func _consume_crafting_item(item: ItemData, amount: int) -> int:
+	if item == null or amount <= 0:
+		return 0
+
+	var remaining: int = amount
+	for slot_type in _get_crafting_equipped_slot_types():
+		if remaining <= 0:
+			return amount - remaining
+
+		var equipped_item: ItemData = InventoryManager.get_equipped(slot_type)
+		if not _is_same_crafting_item(equipped_item, item):
+			continue
+
+		var equipped_available: int = max(equipped_item.stack_count, 1)
+		var equipped_taken: int = min(equipped_available, remaining)
+		equipped_item.stack_count -= equipped_taken
+		remaining -= equipped_taken
+		if equipped_item.stack_count <= 0:
+			InventoryManager.set_equipped(slot_type, null)
+
+	for provider in _get_crafting_storage_providers():
+		for i in range(provider.runtime_storage_items.size()):
+			if remaining <= 0:
+				return amount - remaining
+
+			var stored_item: ItemData = provider.runtime_storage_items[i]
+			if not _is_same_crafting_item(stored_item, item):
+				continue
+
+			var available: int = max(stored_item.stack_count, 1)
+			var taken: int = min(available, remaining)
+			stored_item.stack_count -= taken
+			remaining -= taken
+			if stored_item.stack_count <= 0:
+				provider.runtime_storage_items[i] = null
+
+	for world_item in NearbyItemsManager.get_items():
+		if remaining <= 0:
+			return amount - remaining
+		if not is_instance_valid(world_item):
+			continue
+
+		var nearby_item: ItemData = world_item.get("item_data") as ItemData
+		if not _is_same_crafting_item(nearby_item, item):
+			continue
+
+		var nearby_available: int = max(nearby_item.stack_count, 1)
+		var nearby_taken: int = min(nearby_available, remaining)
+		nearby_item.stack_count -= nearby_taken
+		remaining -= nearby_taken
+		if nearby_item.stack_count <= 0:
+			if world_item.has_method("remove_from_world"):
+				world_item.remove_from_world()
+			else:
+				world_item.queue_free()
+
+	return amount - remaining
+
+
+func _get_crafting_equipped_slot_types() -> Array[int]:
+	return [
+		ItemData.ItemType.AR_Weapon,
+		ItemData.ItemType.Pistols,
+		ItemData.ItemType.MeleeWeapon,
+		ItemData.ItemType.Lefthand
+	]
+
+
+func _get_crafting_storage_providers() -> Array[ItemData]:
+	var providers: Array[ItemData] = []
+	for slot_type in [ItemData.ItemType.Jacket, ItemData.ItemType.HeavyArmour, ItemData.ItemType.Trousers, ItemData.ItemType.Bag]:
+		var provider: ItemData = InventoryManager.get_equipped(slot_type)
+		if provider == null or not provider.can_store_items or provider.extra_storage_slots <= 0:
+			continue
+		_ensure_storage_provider_size(provider)
+		providers.append(provider)
+	return providers
+
+
+func _is_same_crafting_item(left_item: ItemData, right_item: ItemData) -> bool:
+	if left_item == null or right_item == null:
+		return false
+	var left_key: String = _get_crafting_item_key(left_item)
+	var right_key: String = _get_crafting_item_key(right_item)
+	if left_key.is_empty() or right_key.is_empty():
+		return false
+	return left_key == right_key
+
+
+func _get_crafting_item_key(item: ItemData) -> String:
+	if item == null:
+		return ""
+
+	var definition: ItemData = item.get_definition() if item.has_method("get_definition") else item
+	if definition != null and not definition.resource_path.is_empty():
+		return definition.resource_path
+	if not item.resource_path.is_empty():
+		return item.resource_path
+	return item.item_name.strip_edges().to_lower()
 
 
 func _on_slot_drop_requested(target_slot: InventorySlot, data: Dictionary) -> void:
@@ -716,15 +1538,15 @@ func _drop_dragged_item_to_world(data: Dictionary) -> void:
 			_spawn_world_item(stored_item)
 
 
-func _spawn_world_item(item: ItemData) -> void:
+func _spawn_world_item(item: ItemData) -> bool:
 	if pickup_item_scene == null:
 		push_warning("pickup_item_scene не назначена в inventory_root")
-		return
+		return false
 
 	var player: Node = get_tree().get_first_node_in_group("player")
 	if player == null:
 		push_warning("Игрок не найден в группе 'player'")
-		return
+		return false
 
 	var pickup: Node = pickup_item_scene.instantiate()
 	var item_copy: ItemData = _clone_item_data(item)
@@ -741,6 +1563,8 @@ func _spawn_world_item(item: ItemData) -> void:
 		var player_2d: Node2D = player as Node2D
 		var drop_offset: Vector2 = _get_drop_offset_for_player(player)
 		pickup_2d.global_position = player_2d.global_position + drop_offset
+
+	return true
 
 
 func _clone_item_data(item: ItemData) -> ItemData:
@@ -901,7 +1725,83 @@ func _try_store_picked_item(item: ItemData) -> bool:
 	return false
 
 
+func _can_place_crafted_item(item: ItemData) -> bool:
+	if item == null:
+		return false
+	if _can_store_item_in_first_free_container(item):
+		return true
+	if _can_place_item_in_empty_equipment(item):
+		return true
+	return _can_spawn_world_item()
+
+
+func _try_store_crafted_item(item: ItemData) -> bool:
+	if _try_store_item_in_first_free_container(item):
+		return true
+	return _try_place_item_in_empty_equipment(item)
+
+
+func _can_spawn_world_item() -> bool:
+	return pickup_item_scene != null and get_tree().get_first_node_in_group("player") != null
+
+
+func _can_place_item_in_empty_equipment(item: ItemData) -> bool:
+	if item == null:
+		return false
+
+	for slot in equipment_slots:
+		if slot == null or not is_instance_valid(slot):
+			continue
+		if InventoryManager.get_equipped(slot.slot_type) != null:
+			continue
+		if _can_item_fit_equipment_slot(item, slot):
+			return true
+	return false
+
+
+func _try_place_item_in_empty_equipment(item: ItemData) -> bool:
+	if item == null:
+		return false
+
+	for slot in equipment_slots:
+		if slot == null or not is_instance_valid(slot):
+			continue
+		if InventoryManager.get_equipped(slot.slot_type) != null:
+			continue
+		if not _can_item_fit_equipment_slot(item, slot):
+			continue
+
+		InventoryManager.set_equipped(slot.slot_type, item)
+		return true
+	return false
+
+
+func _can_store_item_in_first_free_container(item: ItemData) -> bool:
+	if item == null or not _can_item_fit_container_storage(item):
+		return false
+
+	var remaining: int = max(item.stack_count, 1)
+	for slot_type in [ItemData.ItemType.Jacket, ItemData.ItemType.HeavyArmour, ItemData.ItemType.Trousers, ItemData.ItemType.Bag]:
+		var provider: ItemData = InventoryManager.get_equipped(slot_type)
+		if provider == null or not provider.can_store_items:
+			continue
+
+		_ensure_storage_provider_size(provider)
+		for stored_item in provider.runtime_storage_items:
+			if _can_stack_more(stored_item, item):
+				remaining -= max(stored_item.max_stack_size - stored_item.stack_count, 0)
+				if remaining <= 0:
+					return true
+		for stored_item in provider.runtime_storage_items:
+			if stored_item == null:
+				return true
+	return false
+
+
 func _try_store_item_in_first_free_container(item: ItemData) -> bool:
+	if item == null or not _can_item_fit_container_storage(item):
+		return false
+
 	for slot_type in [ItemData.ItemType.Jacket, ItemData.ItemType.HeavyArmour, ItemData.ItemType.Trousers, ItemData.ItemType.Bag]:
 		var provider: ItemData = InventoryManager.get_equipped(slot_type)
 		if provider == null or not provider.can_store_items:
@@ -909,10 +1809,8 @@ func _try_store_item_in_first_free_container(item: ItemData) -> bool:
 
 		_ensure_storage_provider_size(provider)
 		for i in range(provider.runtime_storage_items.size()):
-			var moved_to_container: int = _stack_items(provider.runtime_storage_items[i], item)
+			_stack_items(provider.runtime_storage_items[i], item)
 			if item.stack_count <= 0:
-				return true
-			if moved_to_container > 0:
 				return true
 		for i in range(provider.runtime_storage_items.size()):
 			if provider.runtime_storage_items[i] == null:
@@ -920,6 +1818,32 @@ func _try_store_item_in_first_free_container(item: ItemData) -> bool:
 				return true
 
 	return false
+
+
+func _can_item_fit_container_storage(item: ItemData) -> bool:
+	if item == null:
+		return false
+	if not item.can_be_stored_in_clothing:
+		return false
+	return item.storage_category in [
+		ItemData.StorageCategory.FOOD,
+		ItemData.StorageCategory.MEDICAL,
+		ItemData.StorageCategory.MISC
+	]
+
+
+func _can_stack_more(target_item: ItemData, source_item: ItemData) -> bool:
+	if target_item == null or source_item == null:
+		return false
+	if target_item.item_name != source_item.item_name:
+		return false
+	if target_item.is_ammo_item != source_item.is_ammo_item:
+		return false
+	if target_item.is_ammo_item and target_item.ammo_type != source_item.ammo_type:
+		return false
+	if target_item.max_stack_size <= 1:
+		return false
+	return target_item.stack_count < target_item.max_stack_size
 
 
 func _get_equipment_slot_by_type(slot_type: int) -> InventorySlot:
@@ -1738,7 +2662,7 @@ func _is_drag_blocked_by_control(control: Control) -> bool:
 	while current != null:
 		if current == inv_btn or current == map_btn or current == craft_btn:
 			return true
-		if current is Button:
+		if current is BaseButton:
 			return true
 		if current is InventorySlot:
 			return true

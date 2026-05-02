@@ -40,6 +40,12 @@ var disease_time_left: float = 0.0
 @export var stamina_recovery_per_sec: float = 3.0
 @export var min_exhausted_speed_multiplier: float = 0.45
 @export var min_exhausted_animation_multiplier: float = 0.55
+@export var carry_weight_soft_limit: float = 25.0
+@export var carry_weight_hard_limit: float = 45.0
+@export_range(0.05, 1.0, 0.01) var overloaded_speed_multiplier: float = 0.55
+@export_range(1.0, 5.0, 0.05) var overloaded_stamina_drain_multiplier: float = 2.25
+@export_range(0.0, 1.0, 0.01) var overloaded_stamina_recovery_multiplier: float = 0.45
+@export_range(1.0, 5.0, 0.05) var overloaded_noise_multiplier: float = 1.6
 @export_range(0.0, 1.0, 0.01) var fracture_speed_multiplier: float = 0.5
 @export_range(0.0, 1.0, 0.01) var fracture_from_bandit_chance: float = 0.05
 @export var incoming_bullet_source_groups: Array[StringName] = [&"bandit"]
@@ -82,6 +88,8 @@ const WALK_SNOW_MIN_PLAY_SECONDS: float = 0.3
 
 var idle_dir: int = DOWN
 var equipment_visual_slots: Array[EquipmentVisualSlot] = []
+var _last_equipment_animation: String = ""
+var _last_equipment_active_weapon_slot: int = -1
 var action_in_progress: bool = false
 var action_blocks_movement: bool = true
 var action_duration: float = 0.0
@@ -104,6 +112,8 @@ var death_overlay_label: Label = null
 var bleeding_trail_timer: float = 0.0
 var is_stealth: bool = false
 var current_noise_level: float = 1.0
+var current_carry_weight: float = 0.0
+var current_encumbrance_ratio: float = 0.0
 
 @export var bleeding_effect_animation_name: String = "Bleeding"
 @export var bleeding_trail_interval_sec: float = 0.20
@@ -234,6 +244,7 @@ func _physics_process(_delta: float) -> void:
 	if is_dead:
 		return
 
+	_update_carry_weight_state()
 	_update_stealth_state()
 	movement_loop(_delta)
 
@@ -242,6 +253,7 @@ func _process(delta: float) -> void:
 	if is_dead:
 		return
 
+	_update_carry_weight_state()
 	_update_needs(delta)
 	_update_stamina(delta)
 	_update_timed_action(delta)
@@ -285,6 +297,8 @@ func _on_equipment_changed(_slot_type: int, _item: ItemData) -> void:
 
 func _refresh_equipment_visuals() -> void:
 	var active_weapon_slot: int = InventoryManager.get_active_weapon_slot()
+	_last_equipment_active_weapon_slot = active_weapon_slot
+	_last_equipment_animation = ""
 
 	for visual_slot in equipment_visual_slots:
 		var equipped_item: ItemData = InventoryManager.get_equipped(visual_slot.item_type)
@@ -308,6 +322,10 @@ func _refresh_equipment_visuals() -> void:
 func _sync_equipment_animation(animation_name: String) -> void:
 	var active_weapon_slot: int = InventoryManager.get_active_weapon_slot()
 	var melee_attack_active: bool = weapon_controller != null and weapon_controller.has_method("is_melee_attack_anim_active") and weapon_controller.is_melee_attack_anim_active()
+	var equipment_state_changed: bool = animation_name != _last_equipment_animation or active_weapon_slot != _last_equipment_active_weapon_slot
+	if equipment_state_changed:
+		_last_equipment_animation = animation_name
+		_last_equipment_active_weapon_slot = active_weapon_slot
 
 	for visual_slot in equipment_visual_slots:
 		if not visual_slot.visible:
@@ -322,10 +340,10 @@ func _sync_equipment_animation(animation_name: String) -> void:
 		if melee_attack_active and visual_slot.item_type == ItemData.ItemType.MeleeWeapon:
 			continue
 
-		_apply_equipment_animation(visual_slot, animation_name)
+		_apply_equipment_animation(visual_slot, animation_name, equipment_state_changed)
 
 
-func _apply_equipment_animation(visual_slot: EquipmentVisualSlot, requested_animation: String) -> void:
+func _apply_equipment_animation(visual_slot: EquipmentVisualSlot, requested_animation: String, force_sync: bool = true) -> void:
 	if visual_slot == null or visual_slot.sprite_frames == null:
 		return
 
@@ -334,11 +352,16 @@ func _apply_equipment_animation(visual_slot: EquipmentVisualSlot, requested_anim
 		visual_slot.stop()
 		return
 
+	var target_speed_scale: float = _get_current_animation_speed_scale()
+	if not force_sync and String(visual_slot.animation) == target_animation and visual_slot.is_playing():
+		visual_slot.speed_scale = target_speed_scale
+		return
+
 	visual_slot.play(target_animation)
 	var target_frame_count: int = visual_slot.sprite_frames.get_frame_count(target_animation)
 	if target_frame_count > 0:
 		visual_slot.frame = clamp(anim.frame, 0, target_frame_count - 1)
-	visual_slot.speed_scale = _get_current_animation_speed_scale()
+	visual_slot.speed_scale = target_speed_scale
 
 
 func _get_equipment_animation_name(frames: SpriteFrames, requested_animation: String) -> String:
@@ -787,14 +810,15 @@ func _get_stamina_ratio() -> float:
 func _get_current_speed_multiplier() -> float:
 	var stamina_multiplier: float = lerp(min_exhausted_speed_multiplier, 1.0, _get_stamina_ratio())
 	var stealth_multiplier: float = _get_stealth_movement_multiplier()
+	var carry_multiplier: float = _get_encumbrance_speed_multiplier()
 	if is_fractured:
-		return stamina_multiplier * stealth_multiplier * clamp(fracture_speed_multiplier, 0.0, 1.0)
-	return stamina_multiplier * stealth_multiplier
+		return stamina_multiplier * stealth_multiplier * carry_multiplier * clamp(fracture_speed_multiplier, 0.0, 1.0)
+	return stamina_multiplier * stealth_multiplier * carry_multiplier
 
 
 func _get_current_animation_speed_scale() -> float:
 	var stamina_animation: float = lerp(min_exhausted_animation_multiplier, 1.0, _get_stamina_ratio())
-	return base_animation_speed_scale * stamina_animation * _get_stealth_animation_multiplier()
+	return base_animation_speed_scale * stamina_animation * _get_stealth_animation_multiplier() * _get_encumbrance_animation_multiplier()
 
 
 func _get_idle_animation_speed_scale() -> float:
@@ -819,16 +843,53 @@ func _get_stealth_noise_multiplier() -> float:
 	return clamp(stealth_noise_multiplier, 0.05, 1.0)
 
 
+func _update_carry_weight_state() -> void:
+	if InventoryManager == null or not InventoryManager.has_method("get_total_carried_weight"):
+		current_carry_weight = 0.0
+		current_encumbrance_ratio = 0.0
+		return
+
+	current_carry_weight = max(float(InventoryManager.get_total_carried_weight()), 0.0)
+	var soft_limit: float = max(carry_weight_soft_limit, 0.0)
+	var hard_limit: float = max(carry_weight_hard_limit, soft_limit + 0.01)
+	current_encumbrance_ratio = clamp((current_carry_weight - soft_limit) / (hard_limit - soft_limit), 0.0, 1.0)
+
+
+func _get_encumbrance_speed_multiplier() -> float:
+	return lerp(1.0, clamp(overloaded_speed_multiplier, 0.05, 1.0), current_encumbrance_ratio)
+
+
+func _get_encumbrance_animation_multiplier() -> float:
+	return _get_encumbrance_speed_multiplier()
+
+
+func get_stamina_drain_multiplier() -> float:
+	return lerp(1.0, max(overloaded_stamina_drain_multiplier, 1.0), current_encumbrance_ratio)
+
+
+func get_stamina_recovery_multiplier() -> float:
+	return lerp(1.0, clamp(overloaded_stamina_recovery_multiplier, 0.0, 1.0), current_encumbrance_ratio)
+
+
+func get_encumbrance_noise_multiplier() -> float:
+	return lerp(1.0, max(overloaded_noise_multiplier, 1.0), current_encumbrance_ratio)
+
+
+func get_carry_weight_ratio() -> float:
+	var hard_limit: float = max(carry_weight_hard_limit, 0.01)
+	return clamp(current_carry_weight / hard_limit, 0.0, 1.0)
+
+
 func _update_stealth_state() -> void:
 	if movement_controller == null:
 		return
 	var stealth_state: Dictionary = movement_controller.update_stealth_state(stealth_action_name, base_noise_level, stealth_noise_multiplier)
 	is_stealth = bool(stealth_state.get("is_stealth", false))
-	current_noise_level = float(stealth_state.get("current_noise_level", base_noise_level))
+	current_noise_level = float(stealth_state.get("current_noise_level", base_noise_level)) * get_encumbrance_noise_multiplier()
 
 
 func get_noise_loudness_multiplier() -> float:
-	return _get_stealth_noise_multiplier()
+	return _get_stealth_noise_multiplier() * get_encumbrance_noise_multiplier()
 
 
 func is_in_stealth_mode() -> bool:

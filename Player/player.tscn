@@ -2489,12 +2489,11 @@ animations = [{
 y_sort_enabled = true
 script = ExtResource("1_onrkg")
 passive_regen_per_sec = 3.0
-passive_regen_threshold_ratio = 5.0
 bleeding_damage_amount = 3.0
 bleeding_damage_interval = 3.0
-speed = 300.0
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2077669749]
+zoom = Vector2(2, 2)
 
 [node name="BodySprite" type="AnimatedSprite2D" parent="." unique_id=175970804]
 sprite_frames = SubResource("SpriteFrames_1jxqw")
@@ -2528,7 +2527,6 @@ script = ExtResource("3_vtle1")
 melee_blood_sprite_frames = ExtResource("4_7emwf")
 
 [node name="T_ShirtSpite" type="AnimatedSprite2D" parent="." unique_id=1223326312]
-visible = false
 z_index = 1
 sprite_frames = SubResource("SpriteFrames_gpjlu")
 animation = &"Aim_up"
@@ -2537,7 +2535,6 @@ script = ExtResource("4_k53q1")
 item_type = 2
 
 [node name="Jacket" type="AnimatedSprite2D" parent="." unique_id=1207010038]
-visible = false
 sprite_frames = SubResource("SpriteFrames_gxi5p")
 animation = &"Aim_up"
 offset = Vector2(0, -15.105)
@@ -2545,14 +2542,12 @@ script = ExtResource("4_k53q1")
 item_type = 3
 
 [node name="MaBoyJacket" type="AnimatedSprite2D" parent="." unique_id=1018497102]
-visible = false
 sprite_frames = SubResource("SpriteFrames_w1ncv")
 animation = &"Up"
 offset = Vector2(0, -15.105)
 script = ExtResource("4_k53q1")
 
 [node name="Jeans" type="AnimatedSprite2D" parent="." unique_id=1554583126]
-visible = false
 sprite_frames = SubResource("SpriteFrames_vtle1")
 animation = &"Aim_right"
 offset = Vector2(0, -15.105)
@@ -2560,7 +2555,6 @@ script = ExtResource("4_k53q1")
 item_type = 5
 
 [node name="HeavyArmour" type="AnimatedSprite2D" parent="." unique_id=478312129]
-visible = false
 sprite_frames = SubResource("SpriteFrames_od3ui")
 animation = &"Aim_left"
 offset = Vector2(0, -15.105)
@@ -2568,7 +2562,6 @@ script = ExtResource("4_k53q1")
 item_type = 4
 
 [node name="UshankaCap" type="AnimatedSprite2D" parent="." unique_id=461361197]
-visible = false
 sprite_frames = SubResource("SpriteFrames_52eel")
 animation = &"Aim_down"
 offset = Vector2(0, -15.105)
@@ -2576,7 +2569,6 @@ script = ExtResource("4_k53q1")
 item_type = 8
 
 [node name="Bag" type="AnimatedSprite2D" parent="." unique_id=1768852499]
-visible = false
 sprite_frames = SubResource("SpriteFrames_00tjw")
 animation = &"Aim_right"
 offset = Vector2(0, -15.105)
@@ -2584,7 +2576,6 @@ script = ExtResource("4_k53q1")
 item_type = 6
 
 [node name="AxeTourSprite" type="AnimatedSprite2D" parent="." unique_id=1927334781]
-visible = false
 sprite_frames = SubResource("SpriteFrames_gwnis")
 animation = &"Down"
 offset = Vector2(0, -15.105)
@@ -2592,14 +2583,12 @@ script = ExtResource("4_k53q1")
 item_type = 7
 
 [node name="ARWeapon" type="AnimatedSprite2D" parent="." unique_id=987609525]
-visible = false
 sprite_frames = SubResource("SpriteFrames_hhxpw")
 animation = &"Idle_down"
 offset = Vector2(0, -15.105)
 script = ExtResource("4_k53q1")
 
 [node name="Kar92l" type="AnimatedSprite2D" parent="." unique_id=1114149427]
-visible = false
 sprite_frames = SubResource("SpriteFrames_lfmf2")
 animation = &"Right"
 offset = Vector2(0, -15.105)

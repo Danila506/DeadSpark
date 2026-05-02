@@ -267,7 +267,8 @@ func _is_scope_weapon_allowed(scope_item: ItemData, weapon_item: ItemData) -> bo
 	var allowed_by_specific_weapon: bool = false
 	if not scope_item.allowed_scope_weapons.is_empty():
 		for allowed_weapon in scope_item.allowed_scope_weapons:
-			if _is_same_weapon_resource(allowed_weapon, weapon_item):
+			var allowed_weapon_data: ItemData = allowed_weapon as ItemData
+			if _is_same_weapon_resource(allowed_weapon_data, weapon_item):
 				allowed_by_specific_weapon = true
 				break
 		if not allowed_by_specific_weapon:
@@ -426,6 +427,13 @@ func get_active_weapon_item() -> ItemData:
 	return get_equipped(active_weapon_slot)
 
 
+func get_total_carried_weight() -> float:
+	var total_weight: float = 0.0
+	for slot_type in equipped.keys():
+		total_weight += _get_item_total_weight(equipped[slot_type], true)
+	return total_weight
+
+
 func get_total_loose_ammo(ammo_type: String = "") -> int:
 	var total: int = 0
 	for slot_type in equipped.keys():
@@ -579,6 +587,23 @@ func _clone_runtime_item(item: ItemData) -> ItemData:
 	if item.has_method("create_runtime_copy"):
 		return item.create_runtime_copy()
 	return item.duplicate(true)
+
+
+func _get_item_total_weight(item: ItemData, include_weapon_attachments: bool = false) -> float:
+	if item == null:
+		return 0.0
+
+	var stack_size: int = max(item.stack_count, 1)
+	var total_weight: float = max(item.item_weight, 0.0) * float(stack_size)
+
+	for stored_item in item.runtime_storage_items:
+		total_weight += _get_item_total_weight(stored_item, true)
+
+	if include_weapon_attachments and item.storage_category == ItemData.StorageCategory.WEAPON:
+		for attached_item in get_attached_attachments(item):
+			total_weight += _get_item_total_weight(attached_item, false)
+
+	return total_weight
 
 
 func _serialize_item_for_save(item: ItemData) -> Dictionary:

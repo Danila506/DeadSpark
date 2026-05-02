@@ -5,12 +5,12 @@
 
 [resource]
 script = ExtResource("1")
+spawner_id = "biom1_bushes"
 player_path = NodePath("../../Y-Sort_Objects/Player2")
 spawn_parent_path = NodePath("../../Y-Sort_Objects/Biom1/Bushes")
 tree_scene = ExtResource("2")
 world_seed = 9721
-tree_probability = 0.028
+spawn_probability = 0.028
 min_spawn_distance_px = 80.0
-biome_half_split_enabled = true
-forbidden_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/LakeLayer")])
+forbidden_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/LakeLayer"), NodePath("../../Y-Sort_Objects/Biom1/Biom1Layer"), NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer"), NodePath("../../Y-Sort_Objects/xz")])
 forbidden_layer_radius_tiles = 1

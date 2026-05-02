@@ -1,13 +1,12 @@
-extends Node2D
+extends CanvasLayer
 
-@export var world_bounds_generator_path: NodePath = NodePath("../ChunkWorldGenerator")
+@export var enabled: bool = true
 @export var snowflake_textures: Array[Texture2D] = [
 	preload("res://World/Assets/snowflake.png"),
 	preload("res://World/Assets/snowflake2.png")
 ]
 @export var spawn_margin_px: float = 96.0
 @export_range(0.1, 1.0, 0.05) var performance_scale: float = 1.0
-@export var follow_camera_viewport: bool = true
 @export var viewport_spawn_overscan_px: float = 128.0
 @export var bounds_update_interval_sec: float = 0.15
 
@@ -53,15 +52,23 @@ var _bounds_update_elapsed: float = 0.0
 
 
 func _ready() -> void:
+	if not enabled:
+		_clear_gpu_snow()
+		visible = false
+		set_process(false)
+		return
+
 	_rng.randomize()
-	z_as_relative = false
-	z_index = 1500
+	visible = true
+	layer = 30
 	_world_rect = _resolve_world_rect()
 	_rebuild_gpu_snow()
 	_update_particle_bounds(true)
 
 
 func _process(delta: float) -> void:
+	if not enabled:
+		return
 	if _wind_material_entries.is_empty():
 		return
 
@@ -204,23 +211,12 @@ func _roll_angular_velocity_deg(is_near: bool) -> float:
 
 
 func _resolve_world_rect() -> Rect2:
-	var generator_node: Node = get_node_or_null(world_bounds_generator_path)
-	if generator_node != null and generator_node.has_method("get_world_bounds_rect"):
-		var rect: Variant = generator_node.call("get_world_bounds_rect")
-		if rect is Rect2:
-			var world_rect: Rect2 = rect as Rect2
-			if world_rect.size.x > 0.0 and world_rect.size.y > 0.0:
-				return world_rect
-
 	var viewport: Viewport = get_viewport()
 	if viewport != null:
 		var visible_rect: Rect2 = viewport.get_visible_rect()
-		return Rect2(
-			Vector2(-visible_rect.size.x * 0.5, -visible_rect.size.y * 0.5),
-			visible_rect.size * 3.0
-		)
+		return Rect2(Vector2.ZERO, visible_rect.size)
 
-	return Rect2(Vector2(-2000.0, -2000.0), Vector2(4000.0, 4000.0))
+	return Rect2(Vector2.ZERO, Vector2(1920.0, 1080.0))
 
 
 func _update_particle_bounds(force: bool) -> void:
@@ -241,15 +237,10 @@ func _update_particle_bounds(force: bool) -> void:
 
 
 func _resolve_active_emission_rect() -> Rect2:
-	if follow_camera_viewport:
-		var viewport: Viewport = get_viewport()
-		if viewport != null:
-			var visible_rect: Rect2 = viewport.get_visible_rect()
-			var camera: Camera2D = viewport.get_camera_2d()
-			var center: Vector2 = visible_rect.position + visible_rect.size * 0.5
-			if camera != null:
-				center = camera.global_position
-			return Rect2(center - visible_rect.size * 0.5, visible_rect.size).grow(max(viewport_spawn_overscan_px, 0.0))
+	var viewport: Viewport = get_viewport()
+	if viewport != null:
+		var visible_rect: Rect2 = viewport.get_visible_rect()
+		return Rect2(Vector2.ZERO, visible_rect.size).grow(max(viewport_spawn_overscan_px, 0.0))
 
 	return _world_rect.grow(max(spawn_margin_px, 0.0))
 

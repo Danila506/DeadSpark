@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://iu7tqvxq3fk5"
-path="res://.godot/imported/hudInjurieshud.png-5932e7e4a9ced449f7a9e6db82dcc728.ctex"
+uid="uid://btnhpcynpcsqh"
+path="res://.godot/imported/anchor.png-5f3625ec24cf1fa95ae6cc7bd8e19c80.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://HUD/assets/Injuries/hudInjurieshud.png"
-dest_files=["res://.godot/imported/hudInjurieshud.png-5932e7e4a9ced449f7a9e6db82dcc728.ctex"]
+source_file="res://gui/anchor.png"
+dest_files=["res://.godot/imported/anchor.png-5f3625ec24cf1fa95ae6cc7bd8e19c80.ctex"]
 
 [params]
 

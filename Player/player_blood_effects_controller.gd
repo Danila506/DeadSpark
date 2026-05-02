@@ -44,7 +44,9 @@ func spawn_bleeding_trail_mark() -> void:
 	if fx_root == null:
 		return
 
-	var blood_mark: Sprite2D = Sprite2D.new()
+	var blood_mark: Sprite2D = EffectPool.acquire_sprite(fx_root) if player.get_node_or_null("/root/EffectPool") != null else Sprite2D.new()
+	if blood_mark == null:
+		return
 	blood_mark.texture = frame_texture
 	blood_mark.top_level = true
 	blood_mark.scale = player.bleeding_trail_scale
@@ -56,13 +58,17 @@ func spawn_bleeding_trail_mark() -> void:
 	)
 	if player.bleeding_trail_random_rotation:
 		blood_mark.rotation = randf_range(-PI, PI)
-	fx_root.add_child(blood_mark)
+	if blood_mark.get_parent() == null:
+		fx_root.add_child(blood_mark)
 
 	var fade_tween: Tween = blood_mark.create_tween()
 	fade_tween.tween_property(blood_mark, "modulate:a", 0.0, max(player.bleeding_trail_lifetime_sec, 0.1))
 	fade_tween.finished.connect(func() -> void:
 		if is_instance_valid(blood_mark):
-			blood_mark.queue_free()
+			if player.get_node_or_null("/root/EffectPool") != null:
+				EffectPool.release_sprite(blood_mark)
+			else:
+				blood_mark.queue_free()
 	)
 
 
@@ -90,7 +96,9 @@ func spawn_hit_blood(source: Node, hit_context: Dictionary = {}) -> void:
 	if away_direction == Vector2.ZERO:
 		away_direction = Vector2.RIGHT
 
-	var blood_sprite: AnimatedSprite2D = AnimatedSprite2D.new()
+	var blood_sprite: AnimatedSprite2D = EffectPool.acquire_animated_sprite(fx_root) if player.get_node_or_null("/root/EffectPool") != null else AnimatedSprite2D.new()
+	if blood_sprite == null:
+		return
 	blood_sprite.top_level = true
 	blood_sprite.sprite_frames = BLEEDING_EFFECT_FRAMES
 	blood_sprite.animation = animation_name
@@ -99,7 +107,8 @@ func spawn_hit_blood(source: Node, hit_context: Dictionary = {}) -> void:
 	blood_sprite.z_index = player.hit_blood_z_index
 	blood_sprite.flip_h = away_direction.x < 0.0
 	blood_sprite.flip_v = abs(away_direction.y) > abs(away_direction.x) and away_direction.y < 0.0
-	fx_root.add_child(blood_sprite)
+	if blood_sprite.get_parent() == null:
+		fx_root.add_child(blood_sprite)
 
 	BLEEDING_EFFECT_FRAMES.set_animation_loop(animation_name, false)
 	BLEEDING_EFFECT_FRAMES.set_animation_speed(animation_name, max(player.hit_blood_anim_fps, 1.0))
@@ -114,10 +123,13 @@ func spawn_hit_blood(source: Node, hit_context: Dictionary = {}) -> void:
 		max(player.hit_blood_fly_duration_sec, 0.05)
 	)
 
-	blood_sprite.animation_finished.connect(func() -> void:
+	var release_blood_sprite := func() -> void:
 		if is_instance_valid(blood_sprite):
-			blood_sprite.queue_free()
-	)
+			if player.get_node_or_null("/root/EffectPool") != null:
+				EffectPool.release_animated_sprite(blood_sprite)
+			else:
+				blood_sprite.queue_free()
+	blood_sprite.animation_finished.connect(release_blood_sprite, CONNECT_ONE_SHOT)
 
 
 func resolve_hit_blood_animation_name() -> String:

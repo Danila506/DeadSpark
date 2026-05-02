@@ -19,5 +19,5 @@ is_weapon_attachment = true
 mounted_scope_texture = ExtResource("2_hr0a0")
 mounted_handle_texture = ExtResource("4_ehto8")
 mounted_silencer_texture = ExtResource("6_uc1po")
-allowed_scope_weapons = Array[ExtResource("2_11xcv")]([ExtResource("4_weapon")])
+allowed_scope_weapons = Array[Resource]([ExtResource("4_weapon")])
 attachment_spread_multiplier = 0.85

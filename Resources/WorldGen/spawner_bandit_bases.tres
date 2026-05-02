@@ -5,14 +5,15 @@
 
 [resource]
 script = ExtResource("1")
+spawner_id = "bandit_bases"
 player_path = NodePath("../../Y-Sort_Objects/Player2")
 spawn_parent_path = NodePath("../../Y-Sort_Objects/GeneratedBanditBases")
 tree_scene = ExtResource("2")
-randomize_seed_on_start = true
-tree_probability = 0.00015
+spawn_probability = 0.00035
 min_trees_per_chunk = 0
 min_spawn_distance_px = 900.0
-blocked_node_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/ForesterHouse"), NodePath("../../Y-Sort_Objects/ForesterHouse2"), NodePath("../../Y-Sort_Objects/MedicineKit"), NodePath("../../Y-Sort_Objects/BanditBase")])
 blocked_node_radius_px = 220.0
-forbidden_layer_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/LakeLayer")])
-forbidden_layer_radius_tiles = 1
+spawn_clearance_radius_px = 0.0
+footprint_size_px = Vector2(520, 360)
+forbidden_layer_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/LakeLayer"), NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/Biom1/Biom1Layer"), NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer"), NodePath("../../Y-Sort_Objects/xz")])
+forbidden_layer_radius_tiles = 2

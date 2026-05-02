@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://rkdcjhmkr5mg"
-path="res://.godot/imported/yacheyka.png-ca8edf1376396daa331e1a3574e40980.ctex"
+uid="uid://s5qdw1juil6g"
+path="res://.godot/imported/craftBtn.png-5152acc12fbdfaa1a70d6db682608e68.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/itemAssets/animation_sprites/clothes/yacheyka.png"
-dest_files=["res://.godot/imported/yacheyka.png-ca8edf1376396daa331e1a3574e40980.ctex"]
+source_file="res://gui/InvNavigation/craftBtn.png"
+dest_files=["res://.godot/imported/craftBtn.png-5152acc12fbdfaa1a70d6db682608e68.ctex"]
 
 [params]
 

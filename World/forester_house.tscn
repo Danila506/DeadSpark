@@ -106,6 +106,7 @@ offset_bottom = -29.0
 theme_override_font_sizes/font_size = 16
 text = "[E] - открыть"
 horizontal_alignment = 1
+metadata/_edit_use_anchors_ = true
 
 [node name="HouseArea" type="Area2D" parent="." unique_id=1219130001]
 

@@ -169,8 +169,11 @@ func spawn_projectiles(spawn_pos: Vector2) -> void:
 
 	var pellets: int = max(controller.current_weapon.pellets_per_shot, 1)
 	for _i in range(pellets):
-		var bullet: Node = bullet_scene.instantiate()
-		spawn_root.add_child(bullet)
+		var bullet: Node = ProjectilePool.acquire_projectile(bullet_scene, spawn_root) if controller.get_node_or_null("/root/ProjectilePool") != null else bullet_scene.instantiate()
+		if bullet == null:
+			continue
+		if bullet.get_parent() == null:
+			spawn_root.add_child(bullet)
 
 		var shoot_dir: Vector2 = get_pellet_direction(controller._get_direction_to_aim_target(spawn_pos))
 		var bullet_distance: float = get_pellet_distance()

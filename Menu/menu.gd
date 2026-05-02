@@ -17,7 +17,10 @@ func _on_new_game_pressed() -> void:
 	if InventoryManager != null and InventoryManager.has_method("reset_state"):
 		InventoryManager.reset_state()
 
-	_write_save(DEFAULT_LEVEL_PATH)
+	if GameSaveManager != null and GameSaveManager.has_method("start_new_game"):
+		GameSaveManager.start_new_game(DEFAULT_LEVEL_PATH, SAVE_FILE_PATH)
+	else:
+		_write_save(DEFAULT_LEVEL_PATH)
 	get_tree().change_scene_to_file(DEFAULT_LEVEL_PATH)
 
 

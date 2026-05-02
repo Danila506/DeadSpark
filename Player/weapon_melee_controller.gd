@@ -2,6 +2,7 @@ extends RefCounted
 class_name WeaponMeleeController
 
 const ENEMY_GROUP: StringName = &"enemy"
+const AXE_CHOPPABLE_GROUP: StringName = &"axe_choppable"
 const MELEE_SWING_ANIMATION_FRONT: String = "SwingAttackFront"
 const MELEE_SWING_ANIMATION_BACK: String = "SwingAttackBack"
 const MELEE_SWING_ANIMATION_RIGHT_LEGACY: String = "SwingAttackRight"
@@ -157,32 +158,56 @@ func find_best_melee_target() -> Node2D:
 	var half_angle_cos: float = cos(deg_to_rad(clamp(controller.melee_hit_angle_degrees, 1.0, 359.0) * 0.5))
 	var best_target: Node2D = null
 	var best_distance: float = INF
-	for enemy_node in controller.get_tree().get_nodes_in_group(ENEMY_GROUP):
-		if enemy_node == null or not is_instance_valid(enemy_node):
+	for target_node in get_melee_target_nodes():
+		if target_node == null or not is_instance_valid(target_node):
 			continue
-		if is_damage_target_dead(enemy_node):
+		if is_damage_target_dead(target_node):
 			continue
-		if not (enemy_node is Node2D):
+		if not (target_node is Node2D):
 			continue
-		if not enemy_node.has_method("take_damage_from"):
+		if not target_node.has_method("take_damage_from"):
 			continue
 
-		var enemy: Node2D = enemy_node as Node2D
-		var to_enemy: Vector2 = enemy.global_position - controller.player.global_position
-		var distance: float = to_enemy.length()
-		if distance > max(controller.melee_attack_range, 1.0):
+		var target: Node2D = target_node as Node2D
+		var to_target: Vector2 = target.global_position - controller.player.global_position
+		var distance: float = to_target.length()
+		var max_range: float = maxf(float(controller.melee_attack_range), 1.0)
+		if target_node.is_in_group(AXE_CHOPPABLE_GROUP):
+			max_range = maxf(max_range, 96.0)
+		if distance > max_range:
 			continue
 
 		if not full_circle_attack:
-			var direction: Vector2 = to_enemy.normalized()
+			var direction: Vector2 = to_target.normalized()
 			if direction.dot(attack_direction) < half_angle_cos:
 				continue
 
 		if distance < best_distance:
 			best_distance = distance
-			best_target = enemy
+			best_target = target
 
 	return best_target
+
+
+func get_melee_target_nodes() -> Array[Node]:
+	var result: Array[Node] = []
+	for enemy_node in controller.get_tree().get_nodes_in_group(ENEMY_GROUP):
+		if enemy_node is Node:
+			result.append(enemy_node as Node)
+
+	if _can_current_weapon_chop_trees():
+		for tree_node in controller.get_tree().get_nodes_in_group(AXE_CHOPPABLE_GROUP):
+			if tree_node is Node and not result.has(tree_node):
+				result.append(tree_node as Node)
+	return result
+
+
+func _can_current_weapon_chop_trees() -> bool:
+	return (
+		controller.current_melee_weapon != null
+		and controller.current_melee_weapon.item_type == ItemData.ItemType.MeleeWeapon
+		and controller.current_melee_weapon.item_name == "Топор"
+	)
 
 
 func is_damage_target_dead(target: Node) -> bool:
@@ -235,7 +260,9 @@ func spawn_melee_blood_effect(hit_world_position: Vector2) -> void:
 	if fx_root == null:
 		return
 
-	var blood_sprite: AnimatedSprite2D = AnimatedSprite2D.new()
+	var blood_sprite: AnimatedSprite2D = EffectPool.acquire_animated_sprite(fx_root) if controller.get_node_or_null("/root/EffectPool") != null else AnimatedSprite2D.new()
+	if blood_sprite == null:
+		return
 	blood_sprite.sprite_frames = blood_frames
 	blood_sprite.animation = animation_name
 	blood_sprite.speed_scale = 1.0
@@ -246,12 +273,16 @@ func spawn_melee_blood_effect(hit_world_position: Vector2) -> void:
 	blood_sprite.z_index = 20
 	blood_sprite.top_level = true
 
-	fx_root.add_child(blood_sprite)
+	if blood_sprite.get_parent() == null:
+		fx_root.add_child(blood_sprite)
 	blood_sprite.play(animation_name)
-	blood_sprite.animation_finished.connect(func() -> void:
+	var release_blood_sprite := func() -> void:
 		if is_instance_valid(blood_sprite):
-			blood_sprite.queue_free()
-	)
+			if controller.get_node_or_null("/root/EffectPool") != null:
+				EffectPool.release_animated_sprite(blood_sprite)
+			else:
+				blood_sprite.queue_free()
+	blood_sprite.animation_finished.connect(release_blood_sprite, CONNECT_ONE_SHOT)
 
 
 func get_melee_blood_frames() -> SpriteFrames:

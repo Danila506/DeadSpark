@@ -27,6 +27,10 @@ func physics_update(delta: float) -> void:
 		transition(EnemyAI.STATE_HOUSE_SEARCH, enemy.build_house_search_enter_data())
 		return
 
+	if enemy.enforce_melee_attack_spacing():
+		enemy.request_animation(&"run")
+		return
+
 	enemy.stop_move()
 	enemy.face_towards(enemy.get_target_position())
 

@@ -60,11 +60,13 @@ func update_stamina(delta: float, inventory_root) -> void:
 	var previous_stamina: float = player.stamina
 	var is_inventory_blocking: bool = inventory_root != null and inventory_root.is_inventory_open
 	var is_moving: bool = not is_inventory_blocking and player.velocity.length() > 0.1
+	var stamina_drain_multiplier: float = player.get_stamina_drain_multiplier() if player.has_method("get_stamina_drain_multiplier") else 1.0
+	var stamina_recovery_multiplier: float = player.get_stamina_recovery_multiplier() if player.has_method("get_stamina_recovery_multiplier") else 1.0
 
 	if is_moving:
-		player.stamina = clamp(player.stamina - player.stamina_drain_per_sec * delta, 0.0, player.max_stamina)
+		player.stamina = clamp(player.stamina - player.stamina_drain_per_sec * stamina_drain_multiplier * delta, 0.0, player.max_stamina)
 	else:
-		player.stamina = clamp(player.stamina + player.stamina_recovery_per_sec * delta, 0.0, player.max_stamina)
+		player.stamina = clamp(player.stamina + player.stamina_recovery_per_sec * stamina_recovery_multiplier * delta, 0.0, player.max_stamina)
 
 	if not is_equal_approx(previous_stamina, player.stamina):
 		player.stats_changed.emit()
@@ -190,7 +192,12 @@ func set_diseased(value: bool, duration_sec: float = -1.0) -> void:
 
 
 func has_passive_regeneration() -> bool:
-	return player.health < player.max_health and not player.is_bleeding and (player.food / player.max_food > player.passive_regen_threshold_ratio and player.water / player.max_water > player.passive_regen_threshold_ratio)
+	if player.max_food <= 0.0 or player.max_water <= 0.0:
+		return false
+
+	var food_ratio: float = clamp(player.food / player.max_food, 0.0, 1.0)
+	var water_ratio: float = clamp(player.water / player.max_water, 0.0, 1.0)
+	return player.health < player.max_health and not player.is_bleeding and food_ratio > player.passive_regen_threshold_ratio and water_ratio > player.passive_regen_threshold_ratio
 
 
 func _update_bleeding(delta: float) -> void:

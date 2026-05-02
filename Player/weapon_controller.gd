@@ -41,7 +41,7 @@ class_name WeaponController
 @export var hearing_footstep_bonus_radius: float = 80.0
 @export var hearing_shot_bonus_radius: float = 240.0
 @export var hearing_decay_per_sec: float = 180.0
-@export var show_hearing_radius: bool = true
+@export var show_hearing_radius: bool = false
 @export var hearing_radius_color: Color = Color(1.0, 0.95, 0.35, 0.45)
 @export var hearing_radius_line_width: float = 1.2
 @export_range(24, 128, 1) var hearing_radius_segments: int = 64
@@ -72,6 +72,9 @@ var melee_debug_outline: Line2D = null
 var hearing_radius_root: Node2D = null
 var hearing_radius_line: Line2D = null
 var melee_camera_shake_time_left: float = 0.0
+var _last_mouse_mode: int = -1
+var _last_cursor_texture: Texture2D = null
+var _last_cursor_hotspot: Vector2 = Vector2(-999999.0, -999999.0)
 var noise_controller
 var reload_controller
 var shooting_controller
@@ -194,24 +197,49 @@ func _update_aim_state() -> void:
 
 func _update_cursor() -> void:
 	if is_reloading:
-		Input.set_custom_mouse_cursor(null)
-		Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
+		_set_mouse_mode_if_changed(Input.MOUSE_MODE_HIDDEN)
+		_set_cursor_if_changed(null, Vector2.ZERO)
 		return
 
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	_set_mouse_mode_if_changed(Input.MOUSE_MODE_VISIBLE)
 
 	if is_aiming and current_weapon != null:
 		var cursor_texture: Texture2D = _get_current_aim_cursor()
 		if cursor_texture != null:
 			var hotspot: Vector2 = cursor_texture.get_size() / 2.0
-			Input.set_custom_mouse_cursor(cursor_texture, Input.CURSOR_ARROW, hotspot)
+			_set_cursor_if_changed(cursor_texture, hotspot)
 			return
 
 	if default_cursor != null:
 		var default_hotspot: Vector2 = default_cursor.get_size() / 2.0
-		Input.set_custom_mouse_cursor(default_cursor, Input.CURSOR_ARROW, default_hotspot)
+		_set_cursor_if_changed(default_cursor, default_hotspot)
 	else:
+		_set_cursor_if_changed(null, Vector2.ZERO)
+
+
+func _set_mouse_mode_if_changed(mode: int) -> void:
+	if _last_mouse_mode == mode:
+		return
+	_last_mouse_mode = mode
+	Input.set_mouse_mode(mode)
+
+
+func _set_cursor_if_changed(texture: Texture2D, hotspot: Vector2) -> void:
+	var needs_update := false
+	if _last_cursor_texture != texture:
+		needs_update = true
+	elif texture != null and _last_cursor_hotspot != hotspot:
+		needs_update = true
+
+	if not needs_update:
+		return
+
+	_last_cursor_texture = texture
+	_last_cursor_hotspot = hotspot
+	if texture == null:
 		Input.set_custom_mouse_cursor(null)
+	else:
+		Input.set_custom_mouse_cursor(texture, Input.CURSOR_ARROW, hotspot)
 
 
 func _update_spread(delta: float) -> void:

@@ -20,6 +20,10 @@ config/icon="uid://ckj6wcs50m3g3"
 InventoryManager="*res://items/scripts/inventory_manager.gd"
 NearbyItemsManager="*uid://c56gshp3tcryp"
 GameSaveManager="*res://Autoloads/GameSaveManager.gd"
+ProjectilePool="*res://Autoloads/ProjectilePool.gd"
+EffectPool="*res://Autoloads/EffectPool.gd"
+StutterMonitor="*res://Autoloads/StutterMonitor.gd"
+ChunkProfiler="*res://Autoloads/ChunkProfiler.gd"
 
 [display]
 

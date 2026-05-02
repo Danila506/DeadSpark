@@ -12,7 +12,10 @@ class_name ChunkWorldGeneratorConfig
 @export_range(1, 64, 1) var world_chunks_y: int = 8
 @export var clear_existing_on_start: bool = true
 @export var preserve_editor_tiles: bool = false
+@export var load_entire_world_on_start: bool = true
+@export var unload_enabled: bool = false
 @export var update_interval_sec: float = 0.20
+@export_range(1, 32, 1) var max_chunk_operations_per_update: int = 2
 
 @export_category("Generation")
 @export var world_seed: int = 1337
@@ -38,6 +41,13 @@ class_name ChunkWorldGeneratorConfig
 @export var terrain_id: int = 0
 @export var terrain_ignore_empty: bool = true
 @export var terrain_blob_mode: bool = false
+@export_range(0.1, 3.0, 0.05) var blob_size_scale_min: float = 0.6
+@export_range(0.1, 3.0, 0.05) var blob_size_scale_max: float = 1.7
+@export_range(1, 8, 1) var blob_lobe_count_min: int = 1
+@export_range(1, 8, 1) var blob_lobe_count_max: int = 4
+@export_range(0.0, 2.0, 0.05) var blob_lobe_offset_factor: float = 0.75
+@export_range(0.0, 0.8, 0.01) var blob_edge_jitter: float = 0.28
+@export_range(0.0, 1.0, 0.01) var blob_cell_keep_probability: float = 0.94
 @export var road_corner_atlas: Vector2i = Vector2i(-1, -1)
 @export var road_corner_alt_up_left: int = 0
 @export var road_corner_alt_up_right: int = -1
@@ -64,7 +74,10 @@ class_name ChunkWorldGeneratorConfig
 
 @export_category("Placement Rules")
 @export var blocked_node_paths: Array[NodePath] = []
+@export var blocker_group_name: StringName = &"world_generation_blocker"
 @export var blocked_node_radius_px: float = 120.0
+@export var avoid_physics_collision: bool = false
+@export var physics_collision_padding_px: float = 0.0
 @export var avoid_layer_path: NodePath
 @export_range(0, 8, 1) var avoid_layer_radius_tiles: int = 0
 @export var avoid_layer_paths: Array[NodePath] = []

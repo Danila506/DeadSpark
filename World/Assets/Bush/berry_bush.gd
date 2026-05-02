@@ -63,6 +63,7 @@ func _finish_collect() -> void:
 	remove_from_group("secondary_interactable")
 	_grant_berries()
 	_update_visual_state()
+	_persist_generation_state()
 
 
 func _grant_berries() -> void:
@@ -120,3 +121,9 @@ func _get_persistent_identity() -> String:
 		scene_path = scene_root.scene_file_path
 	var local_path: String = str(get_path())
 	return "%s|%s" % [scene_path, local_path]
+
+
+func _persist_generation_state() -> void:
+	if GameSaveManager == null or not GameSaveManager.has_method("record_world_generation_object_state"):
+		return
+	GameSaveManager.record_world_generation_object_state(self)

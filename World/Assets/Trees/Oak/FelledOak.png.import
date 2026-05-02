@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bixxwm6w13a4m"
-path="res://.godot/imported/Polzunok.png-ffeac77583e2edefc2f2d40d9d18878b.ctex"
+uid="uid://brhpy7bgjxt8t"
+path="res://.godot/imported/FelledOak.png-e9b657ce9df5edaa00890e325e60c8f9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://gui/Polzunok.png"
-dest_files=["res://.godot/imported/Polzunok.png-ffeac77583e2edefc2f2d40d9d18878b.ctex"]
+source_file="res://World/Assets/Trees/Oak/FelledOak.png"
+dest_files=["res://.godot/imported/FelledOak.png-e9b657ce9df5edaa00890e325e60c8f9.ctex"]
 
 [params]
 

@@ -55,11 +55,13 @@ func _ready() -> void:
 	wardrobe_area.body_exited.connect(_on_wardrobe_body_exited)
 	_update_house_visual()
 	_update_wardrobe_visual()
+	set_physics_process(false)
+	call_deferred("_eject_current_overlapping_enemies")
 	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
 		GameSaveManager.register_persistent_node(self)
 
 
-func _physics_process(_delta: float) -> void:
+func _eject_current_overlapping_enemies() -> void:
 	if house_area == null:
 		return
 

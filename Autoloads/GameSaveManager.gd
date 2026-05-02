@@ -1,7 +1,9 @@
 extends Node
 
 const SAVE_FILE_PATH: String = "user://savegame.json"
-const SAVE_SCHEMA_VERSION: int = 2
+const SAVE_SCHEMA_VERSION: int = 3
+const WORLD_GENERATOR_VERSION: int = 1
+const DEFAULT_WORLD_SEED: int = 0
 const FALLBACK_LEVEL_PATH: String = "res://level.tscn"
 const MENU_SCENE_PATH: String = "res://Menu/Menu.tscn"
 const ITEM_INSTANCE_SCRIPT = preload("res://items/scripts/item_instance.gd")
@@ -10,6 +12,12 @@ const PICKUP_ITEM_SCENE: PackedScene = preload("res://items/scenes/pickup_item.t
 var _has_pending_load: bool = false
 var _pending_world_nodes: Dictionary = {}
 var _pending_world_pickups: Array = []
+var _has_active_world_seed: bool = false
+var _world_generation_state: Dictionary = {
+	"seed": DEFAULT_WORLD_SEED,
+	"generator_version": WORLD_GENERATOR_VERSION,
+	"modified_objects": {}
+}
 
 
 func _ready() -> void:
@@ -36,10 +44,27 @@ func save_game(path: String = SAVE_FILE_PATH) -> int:
 		"scene_path": scene_path,
 		"saved_at_unix": int(Time.get_unix_time_from_system()),
 		"inventory": InventoryManager.get_save_data() if InventoryManager != null and InventoryManager.has_method("get_save_data") else {},
+		"world_generation_state": _collect_world_generation_state(scene_root),
 		"world_nodes": _collect_world_nodes_save_data(scene_root),
 		"world_pickups": _collect_world_pickups(scene_root)
 	}
 
+	return _write_json_file(path, save_payload)
+
+
+func start_new_game(scene_path: String = FALLBACK_LEVEL_PATH, path: String = SAVE_FILE_PATH) -> int:
+	_reset_runtime_state_for_new_game()
+	_set_world_generation_seed(_generate_world_seed())
+
+	var save_payload: Dictionary = {
+		"schema_version": SAVE_SCHEMA_VERSION,
+		"scene_path": scene_path,
+		"saved_at_unix": int(Time.get_unix_time_from_system()),
+		"inventory": InventoryManager.get_save_data() if InventoryManager != null and InventoryManager.has_method("get_save_data") else {},
+		"world_generation_state": _world_generation_state.duplicate(true),
+		"world_nodes": {},
+		"world_pickups": []
+	}
 	return _write_json_file(path, save_payload)
 
 
@@ -64,7 +89,8 @@ func load_game(path: String = SAVE_FILE_PATH) -> int:
 		return ERR_FILE_NOT_FOUND
 
 	var schema_version: int = int(save_payload.get("schema_version", 0))
-	var has_runtime_state: bool = schema_version == SAVE_SCHEMA_VERSION
+	var has_runtime_state: bool = schema_version >= 2
+	var reload_same_scene_for_generation: bool = _should_reload_same_scene_for_generation(save_payload)
 	if has_runtime_state:
 		_queue_runtime_state(save_payload)
 
@@ -74,6 +100,8 @@ func load_game(path: String = SAVE_FILE_PATH) -> int:
 		current_scene_path = current_scene.scene_file_path
 
 	if current_scene_path == scene_path:
+		if reload_same_scene_for_generation:
+			return get_tree().reload_current_scene()
 		if has_runtime_state:
 			call_deferred("_apply_pending_runtime_state")
 		return OK
@@ -83,9 +111,35 @@ func load_game(path: String = SAVE_FILE_PATH) -> int:
 
 
 func register_persistent_node(node: Node) -> void:
-	if not _has_pending_load:
+	if _has_pending_load:
+		_apply_state_to_node(node)
+	_apply_world_generation_state_to_node(node)
+
+
+func resolve_world_generation_seed(seed_salt: int = 0) -> int:
+	if not _has_active_world_seed:
+		_set_world_generation_seed(DEFAULT_WORLD_SEED)
+	return _mix_world_seed(int(_world_generation_state.get("seed", DEFAULT_WORLD_SEED)), seed_salt)
+
+
+func set_world_generation_seed(seed: int, clear_modified_objects: bool = true) -> void:
+	_set_world_generation_seed(seed)
+	if clear_modified_objects:
+		_world_generation_state["modified_objects"] = {}
+
+
+func get_world_generation_state() -> Dictionary:
+	return _world_generation_state.duplicate(true)
+
+
+func record_world_generation_object_state(node: Node) -> void:
+	if node == null:
 		return
-	_apply_state_to_node(node)
+	if not node.is_in_group("generated_world_object"):
+		return
+	var modified_objects: Dictionary = _get_world_generation_modified_objects()
+	_merge_generated_node_state(node, modified_objects)
+	_world_generation_state["modified_objects"] = modified_objects
 
 
 func serialize_item(item: ItemData) -> Dictionary:
@@ -120,6 +174,8 @@ func deserialize_item(raw_item: Variant) -> ItemData:
 func _queue_runtime_state(save_payload: Dictionary) -> void:
 	_pending_world_nodes = save_payload.get("world_nodes", {}).duplicate(true)
 	_pending_world_pickups = save_payload.get("world_pickups", []).duplicate(true)
+	_world_generation_state = _normalize_world_generation_state(save_payload.get("world_generation_state", {}))
+	_has_active_world_seed = true
 	_has_pending_load = true
 
 	var inventory_payload: Dictionary = save_payload.get("inventory", {})
@@ -183,9 +239,32 @@ func _apply_state_to_node(node: Node) -> void:
 	_pending_world_nodes.erase(matched_key)
 
 
+func _apply_world_generation_state_to_node(node: Node) -> void:
+	if node == null:
+		return
+	if not node.is_in_group("generated_world_object"):
+		return
+	if not node.has_method("get_save_key") or not node.has_method("apply_save_data"):
+		return
+
+	var save_key: String = String(node.call("get_save_key"))
+	if save_key.is_empty():
+		return
+
+	var modified_objects: Dictionary = _get_world_generation_modified_objects()
+	if not modified_objects.has(save_key):
+		return
+
+	var save_data: Variant = modified_objects.get(save_key, {})
+	if save_data is Dictionary:
+		node.call("apply_save_data", save_data as Dictionary)
+
+
 func _collect_world_nodes_save_data(scene_root: Node) -> Dictionary:
 	var result: Dictionary = {}
 	for node in _collect_persistent_nodes(scene_root):
+		if node.is_in_group("generated_world_object"):
+			continue
 		var save_key: String = String(node.call("get_save_key"))
 		if save_key.is_empty():
 			continue
@@ -194,6 +273,152 @@ func _collect_world_nodes_save_data(scene_root: Node) -> Dictionary:
 			continue
 		result[save_key] = (save_data as Dictionary).duplicate(true)
 	return result
+
+
+func _collect_world_generation_state(scene_root: Node) -> Dictionary:
+	if not _has_active_world_seed:
+		_set_world_generation_seed(DEFAULT_WORLD_SEED)
+
+	var modified_objects: Dictionary = _get_world_generation_modified_objects().duplicate(true)
+	for node in _collect_generated_persistent_nodes(scene_root):
+		_merge_generated_node_state(node, modified_objects)
+
+	_world_generation_state["generator_version"] = WORLD_GENERATOR_VERSION
+	_world_generation_state["modified_objects"] = modified_objects
+	return _world_generation_state.duplicate(true)
+
+
+func _collect_generated_persistent_nodes(scene_root: Node) -> Array[Node]:
+	var result: Array[Node] = []
+	for candidate in get_tree().get_nodes_in_group("generated_world_object"):
+		if not (candidate is Node):
+			continue
+		var node: Node = candidate as Node
+		if scene_root != null and not scene_root.is_ancestor_of(node):
+			continue
+		if node.has_method("get_save_key") and node.has_method("get_save_data"):
+			result.append(node)
+	return result
+
+
+func _merge_generated_node_state(node: Node, modified_objects: Dictionary) -> void:
+	if node == null:
+		return
+	if not node.has_method("get_save_key") or not node.has_method("get_save_data"):
+		return
+	var save_key: String = String(node.call("get_save_key"))
+	if save_key.is_empty():
+		return
+	var save_data: Variant = node.call("get_save_data")
+	if not (save_data is Dictionary):
+		return
+	var data: Dictionary = (save_data as Dictionary).duplicate(true)
+	if _is_default_generated_object_state(data):
+		modified_objects.erase(save_key)
+		return
+	modified_objects[save_key] = data
+
+
+func _is_default_generated_object_state(save_data: Dictionary) -> bool:
+	for value in save_data.values():
+		match typeof(value):
+			TYPE_BOOL:
+				if bool(value):
+					return false
+			TYPE_INT:
+				if int(value) != 0:
+					return false
+			TYPE_FLOAT:
+				if not is_equal_approx(float(value), 0.0):
+					return false
+			TYPE_STRING, TYPE_STRING_NAME, TYPE_NODE_PATH:
+				if not String(value).strip_edges().is_empty():
+					return false
+			TYPE_ARRAY:
+				if (value as Array).size() > 0:
+					return false
+			TYPE_DICTIONARY:
+				if (value as Dictionary).size() > 0:
+					return false
+			TYPE_NIL:
+				pass
+			_:
+				return false
+	return true
+
+
+func _get_world_generation_modified_objects() -> Dictionary:
+	var raw_modified: Variant = _world_generation_state.get("modified_objects", {})
+	if raw_modified is Dictionary:
+		return raw_modified as Dictionary
+	_world_generation_state["modified_objects"] = {}
+	return _world_generation_state["modified_objects"] as Dictionary
+
+
+func _normalize_world_generation_state(raw_state: Variant) -> Dictionary:
+	var state: Dictionary = {}
+	if raw_state is Dictionary:
+		state = (raw_state as Dictionary).duplicate(true)
+
+	var raw_modified: Variant = state.get("modified_objects", {})
+	var modified_objects: Dictionary = {}
+	if raw_modified is Dictionary:
+		modified_objects = (raw_modified as Dictionary).duplicate(true)
+
+	return {
+		"seed": int(state.get("seed", DEFAULT_WORLD_SEED)),
+		"generator_version": int(state.get("generator_version", WORLD_GENERATOR_VERSION)),
+		"modified_objects": modified_objects
+	}
+
+
+func _should_reload_same_scene_for_generation(save_payload: Dictionary) -> bool:
+	if not _has_active_world_seed:
+		return false
+	var raw_state: Variant = save_payload.get("world_generation_state", {})
+	if not (raw_state is Dictionary):
+		return false
+	var saved_seed := int((raw_state as Dictionary).get("seed", DEFAULT_WORLD_SEED))
+	var active_seed := int(_world_generation_state.get("seed", DEFAULT_WORLD_SEED))
+	return saved_seed != active_seed
+
+
+func _reset_runtime_state_for_new_game() -> void:
+	_has_pending_load = false
+	_pending_world_nodes.clear()
+	_pending_world_pickups.clear()
+	_world_generation_state = {
+		"seed": DEFAULT_WORLD_SEED,
+		"generator_version": WORLD_GENERATOR_VERSION,
+		"modified_objects": {}
+	}
+	_has_active_world_seed = false
+
+
+func _set_world_generation_seed(seed: int) -> void:
+	_world_generation_state["seed"] = int(seed)
+	_world_generation_state["generator_version"] = WORLD_GENERATOR_VERSION
+	if not (_world_generation_state.get("modified_objects", {}) is Dictionary):
+		_world_generation_state["modified_objects"] = {}
+	_has_active_world_seed = true
+
+
+func _generate_world_seed() -> int:
+	var time_seed := int(Time.get_unix_time_from_system())
+	var tick_seed := int(Time.get_ticks_usec())
+	var instance_seed := int(get_instance_id())
+	var seed: int = abs(time_seed ^ tick_seed ^ instance_seed)
+	return 1 if seed == 0 else seed
+
+
+func _mix_world_seed(base_seed: int, seed_salt: int) -> int:
+	if base_seed == DEFAULT_WORLD_SEED:
+		return int(seed_salt)
+	var h := int(base_seed)
+	h = int((h * 1103515245) ^ (seed_salt * 12345) ^ 0x45d9f3b)
+	if h < 0:
+		h = -h
+	return h
 
 
 func _collect_persistent_nodes(scene_root: Node) -> Array[Node]:

@@ -54,6 +54,7 @@ enum AttachmentSlot {
 @export var inventory_icon: Texture2D
 @export var inventory_icon_scale: float = 1.0
 @export var inventory_icon_rotation_degrees: float = 0.0
+@export_range(0.0, 100.0, 0.1) var item_weight: float = 1.0
 # Default runtime values copied into ItemInstance. Keep them here so existing
 # item .tres files remain definitions, while spawned/equipped items get identity.
 @export var stack_count: int = 1
@@ -127,7 +128,7 @@ var runtime_storage_items: Array[ItemData] = []
 		can_receive_weapon_attachments = value
 		notify_property_list_changed()
 @export var allowed_scope_weapon_types: Array[ItemType] = [ItemType.AR_Weapon]
-@export var allowed_scope_weapons: Array[ItemData] = []
+@export var allowed_scope_weapons: Array[Resource] = []
 @export var allowed_scope_weapon_names: Array[String] = []
 @export_range(0.1, 3.0, 0.01) var attachment_aim_settle_time_multiplier: float = 1.0
 @export_range(0.1, 3.0, 0.01) var attachment_spread_multiplier: float = 1.0

@@ -22,12 +22,12 @@ texture = ExtResource("3_k4al2")
 offset = Vector2(0, 30)
 
 [node name="NormalSprite" type="Sprite2D" parent="." unique_id=1798578161]
-position = Vector2(0, -58)
+position = Vector2(0, -73)
 texture = ExtResource("2_xbjys")
 offset = Vector2(0, 30)
 
 [node name="Area2D" type="Area2D" parent="." unique_id=105230708]
-position = Vector2(0, -32)
+position = Vector2(0, -47)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=261075648]
 position = Vector2(-2, 27)
@@ -45,7 +45,7 @@ text = "[F] - срубить"
 horizontal_alignment = 1
 
 [node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=1244241385]
-position = Vector2(0, -32)
+position = Vector2(0, -47)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=852731568]
 position = Vector2(-1.4999996, 46)
@@ -54,6 +54,6 @@ shape = SubResource("RectangleShape2D_607lp")
 
 [node name="FelledTree" type="Sprite2D" parent="." unique_id=92040141]
 z_index = -1
-position = Vector2(-36, -30)
+position = Vector2(-36, -45)
 texture = ExtResource("4_7uxsm")
 offset = Vector2(0, 30)

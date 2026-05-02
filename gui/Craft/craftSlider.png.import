@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b6b4ktl61k7gt"
-path="res://.godot/imported/UIStock.png-42693badf926e15446f094ae7430b76b.ctex"
+uid="uid://bvyfms41anpky"
+path="res://.godot/imported/craftSlider.png-cd9993bbe70f5dfa4db9e704cccf1f44.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://gui/slots/slotAssets/UIStock.png"
-dest_files=["res://.godot/imported/UIStock.png-42693badf926e15446f094ae7430b76b.ctex"]
+source_file="res://gui/Craft/craftSlider.png"
+dest_files=["res://.godot/imported/craftSlider.png-cd9993bbe70f5dfa4db9e704cccf1f44.ctex"]
 
 [params]
 

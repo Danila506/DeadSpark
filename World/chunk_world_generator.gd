@@ -1,5 +1,8 @@
 extends Node
 
+const META_GENERATED_CELLS: StringName = &"world_generation_generated_cells"
+const META_PRESERVE_EDITOR_TILES: StringName = &"world_generation_preserve_editor_tiles"
+const META_PROTECTED_CELLS: StringName = &"world_generation_protected_cells"
 
 @export var enabled: bool = true
 @export var tile_map_path: NodePath
@@ -13,7 +16,10 @@ extends Node
 @export_range(1, 64, 1) var world_chunks_y: int = 8
 @export var clear_existing_on_start: bool = true
 @export var preserve_editor_tiles: bool = false
+@export var load_entire_world_on_start: bool = true
+@export var unload_enabled: bool = false
 @export var update_interval_sec: float = 0.20
+@export_range(1, 32, 1) var max_chunk_operations_per_update: int = 2
 
 @export_category("Generation")
 @export var world_seed: int = 1337
@@ -39,6 +45,13 @@ extends Node
 @export var terrain_id: int = 0
 @export var terrain_ignore_empty: bool = true
 @export var terrain_blob_mode: bool = false
+@export_range(0.1, 3.0, 0.05) var blob_size_scale_min: float = 0.6
+@export_range(0.1, 3.0, 0.05) var blob_size_scale_max: float = 1.7
+@export_range(1, 8, 1) var blob_lobe_count_min: int = 1
+@export_range(1, 8, 1) var blob_lobe_count_max: int = 4
+@export_range(0.0, 2.0, 0.05) var blob_lobe_offset_factor: float = 0.75
+@export_range(0.0, 0.8, 0.01) var blob_edge_jitter: float = 0.28
+@export_range(0.0, 1.0, 0.01) var blob_cell_keep_probability: float = 0.94
 @export var road_corner_atlas: Vector2i = Vector2i(-1, -1)
 @export var road_corner_alt_up_left: int = 0
 @export var road_corner_alt_up_right: int = -1
@@ -65,7 +78,10 @@ extends Node
 
 @export_category("Placement Rules")
 @export var blocked_node_paths: Array[NodePath] = []
+@export var blocker_group_name: StringName = &"world_generation_blocker"
 @export var blocked_node_radius_px: float = 120.0
+@export var avoid_physics_collision: bool = false
+@export var physics_collision_padding_px: float = 0.0
 @export var avoid_layer_path: NodePath
 @export_range(0, 8, 1) var avoid_layer_radius_tiles: int = 0
 @export var avoid_layer_paths: Array[NodePath] = []
@@ -85,12 +101,25 @@ var _overlap_clear_layers: Array = []
 var _prefer_layer: TileMapLayer
 var _player: Node2D
 var _loaded_chunks := {}
+var _required_chunks := {}
+var _pending_load_chunks: Array[Vector2i] = []
+var _pending_unload_chunks: Array[Vector2i] = []
 var _last_center_chunk := Vector2i(999999, 999999)
 var _update_timer: float = 0.0
 var _world_min_chunk: Vector2i
 var _world_max_chunk: Vector2i
 var _blocked_world_positions: Array[Vector2] = []
 var _protected_cells := {}
+var _generated_cells := {}
+var _atlas_source: TileSetAtlasSource
+var _valid_tile_options: Array[Vector2i] = []
+var _valid_tile_weights: Array[float] = []
+var _valid_tile_weight_total: float = 0.0
+var _has_matching_tile_weights: bool = false
+var _first_available_atlas_tile: Vector2i = Vector2i.ZERO
+var _tile_span_cache := {}
+var _generation_meta_dirty: bool = false
+var _last_chunk_profile_stats: Dictionary = {}
 
 
 func _ready() -> void:
@@ -140,13 +169,12 @@ func _ready() -> void:
 		set_process(false)
 		return
 
-	if randomize_seed_on_start:
-		var time_seed := int(Time.get_unix_time_from_system())
-		var tick_seed := int(Time.get_ticks_usec())
-		world_seed = abs(time_seed ^ tick_seed)
+	world_seed = _resolve_generation_seed(world_seed)
+	_initialize_update_phase_offset()
 
 	if preserve_editor_tiles:
 		_cache_protected_cells()
+	_sync_generation_layer_meta()
 
 	if not use_terrain_connect and tile_options_atlas.is_empty():
 		push_error("ChunkWorldGenerator: tile_options_atlas is empty")
@@ -155,6 +183,7 @@ func _ready() -> void:
 	if use_terrain_connect and not _ensure_valid_terrain_target():
 		set_process(false)
 		return
+	_rebuild_tile_cache()
 
 	_collect_blocked_positions()
 	_init_world_bounds()
@@ -175,7 +204,10 @@ func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
 	world_chunks_y = cfg.world_chunks_y
 	clear_existing_on_start = cfg.clear_existing_on_start
 	preserve_editor_tiles = cfg.preserve_editor_tiles
+	load_entire_world_on_start = cfg.load_entire_world_on_start
+	unload_enabled = cfg.unload_enabled
 	update_interval_sec = cfg.update_interval_sec
+	max_chunk_operations_per_update = cfg.max_chunk_operations_per_update
 	world_seed = cfg.world_seed
 	randomize_seed_on_start = cfg.randomize_seed_on_start
 	fill_probability = cfg.fill_probability
@@ -195,6 +227,13 @@ func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
 	terrain_id = cfg.terrain_id
 	terrain_ignore_empty = cfg.terrain_ignore_empty
 	terrain_blob_mode = cfg.terrain_blob_mode
+	blob_size_scale_min = cfg.blob_size_scale_min
+	blob_size_scale_max = cfg.blob_size_scale_max
+	blob_lobe_count_min = cfg.blob_lobe_count_min
+	blob_lobe_count_max = cfg.blob_lobe_count_max
+	blob_lobe_offset_factor = cfg.blob_lobe_offset_factor
+	blob_edge_jitter = cfg.blob_edge_jitter
+	blob_cell_keep_probability = cfg.blob_cell_keep_probability
 	road_corner_atlas = cfg.road_corner_atlas
 	road_corner_alt_up_left = cfg.road_corner_alt_up_left
 	road_corner_alt_up_right = cfg.road_corner_alt_up_right
@@ -219,7 +258,10 @@ func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
 	road_min_branch_spacing_tiles = cfg.road_min_branch_spacing_tiles
 	road_enable_service_pocket = cfg.road_enable_service_pocket
 	blocked_node_paths = cfg.blocked_node_paths.duplicate()
+	blocker_group_name = cfg.blocker_group_name
 	blocked_node_radius_px = cfg.blocked_node_radius_px
+	avoid_physics_collision = cfg.avoid_physics_collision
+	physics_collision_padding_px = cfg.physics_collision_padding_px
 	avoid_layer_path = cfg.avoid_layer_path
 	avoid_layer_radius_tiles = cfg.avoid_layer_radius_tiles
 	avoid_layer_paths = cfg.avoid_layer_paths.duplicate()
@@ -256,32 +298,88 @@ func _init_world_bounds() -> void:
 func _update_visible_chunks(force: bool) -> void:
 	var player_cell := _tile_map.local_to_map(_tile_map.to_local(_player.global_position))
 	var center_chunk := _world_to_chunk(player_cell)
-	if not force and center_chunk == _last_center_chunk:
+	var has_pending_work := not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty()
+	if not force and center_chunk == _last_center_chunk and not has_pending_work:
 		return
 
-	_last_center_chunk = center_chunk
-	var required_chunks := {}
+	if force or center_chunk != _last_center_chunk:
+		_last_center_chunk = center_chunk
+		_rebuild_chunk_work_queues(center_chunk)
 
-	for cy in range(center_chunk.y - load_radius_chunks, center_chunk.y + load_radius_chunks + 1):
-		for cx in range(center_chunk.x - load_radius_chunks, center_chunk.x + load_radius_chunks + 1):
+	_process_chunk_work_queues(max_chunk_operations_per_update)
+
+
+func _rebuild_chunk_work_queues(center_chunk: Vector2i) -> void:
+	_required_chunks.clear()
+	_pending_load_chunks.clear()
+	_pending_unload_chunks.clear()
+	var min_chunk := _world_min_chunk
+	var max_chunk := _world_max_chunk
+	if not load_entire_world_on_start:
+		min_chunk = Vector2i(center_chunk.x - load_radius_chunks, center_chunk.y - load_radius_chunks)
+		max_chunk = Vector2i(center_chunk.x + load_radius_chunks, center_chunk.y + load_radius_chunks)
+
+	for cy in range(min_chunk.y, max_chunk.y + 1):
+		for cx in range(min_chunk.x, max_chunk.x + 1):
 			var chunk := Vector2i(cx, cy)
 			if not _is_chunk_in_world(chunk):
 				continue
 
-			required_chunks[chunk] = true
+			_required_chunks[chunk] = true
 			if not _loaded_chunks.has(chunk):
-				_generate_chunk(chunk)
-				_loaded_chunks[chunk] = true
+				_pending_load_chunks.append(chunk)
 
-	var to_unload: Array[Vector2i] = []
-	for chunk_key in _loaded_chunks.keys():
-		var loaded_chunk := chunk_key as Vector2i
-		if not required_chunks.has(loaded_chunk):
-			to_unload.append(loaded_chunk)
+	if unload_enabled:
+		for chunk_key in _loaded_chunks.keys():
+			var loaded_chunk := chunk_key as Vector2i
+			if not _required_chunks.has(loaded_chunk):
+				_pending_unload_chunks.append(loaded_chunk)
 
-	for chunk in to_unload:
-		_unload_chunk(chunk)
-		_loaded_chunks.erase(chunk)
+	_sort_chunks_near_center(_pending_load_chunks, center_chunk)
+	_sort_chunks_near_center(_pending_unload_chunks, center_chunk)
+
+
+func _process_chunk_work_queues(chunk_budget: int) -> void:
+	var operations_left := maxi(1, chunk_budget)
+
+	while operations_left > 0 and not _pending_load_chunks.is_empty():
+		var chunk := _pending_load_chunks.pop_front() as Vector2i
+		if _required_chunks.has(chunk) and not _loaded_chunks.has(chunk):
+			var load_start_usec := Time.get_ticks_usec()
+			_generate_chunk(chunk)
+			_loaded_chunks[chunk] = true
+			_profile_chunk_operation("generate", chunk, load_start_usec, _last_chunk_profile_stats)
+			operations_left -= 1
+
+	if not unload_enabled:
+		_pending_unload_chunks.clear()
+		return
+
+	while operations_left > 0 and not _pending_unload_chunks.is_empty():
+		var chunk := _pending_unload_chunks.pop_front() as Vector2i
+		if not _required_chunks.has(chunk) and _loaded_chunks.has(chunk):
+			var unload_start_usec := Time.get_ticks_usec()
+			_unload_chunk(chunk)
+			_loaded_chunks.erase(chunk)
+			_profile_chunk_operation("unload", chunk, unload_start_usec, _last_chunk_profile_stats)
+			operations_left -= 1
+
+
+func _sort_chunks_near_center(chunks: Array[Vector2i], center_chunk: Vector2i) -> void:
+	for i in range(chunks.size()):
+		var best := i
+		for j in range(i + 1, chunks.size()):
+			if _chunk_distance_squared(chunks[j], center_chunk) < _chunk_distance_squared(chunks[best], center_chunk):
+				best = j
+		if best != i:
+			var temp := chunks[i]
+			chunks[i] = chunks[best]
+			chunks[best] = temp
+
+
+func _chunk_distance_squared(chunk: Vector2i, center_chunk: Vector2i) -> int:
+	var delta := chunk - center_chunk
+	return delta.x * delta.x + delta.y * delta.y
 
 
 func _is_chunk_in_world(chunk: Vector2i) -> bool:
@@ -296,8 +394,17 @@ func _world_to_chunk(cell: Vector2i) -> Vector2i:
 
 
 func _generate_chunk(chunk: Vector2i) -> void:
+	var stats := {
+		"cells_set": 0,
+		"cells_erased": 0,
+		"overlap_erased": 0
+	}
 	if not _is_chunk_allowed_for_biome(chunk):
-		_unload_chunk(chunk)
+		if unload_enabled:
+			_unload_chunk(chunk)
+			stats = _last_chunk_profile_stats
+		else:
+			_last_chunk_profile_stats = stats
 		return
 
 	var origin := chunk * chunk_size_tiles
@@ -314,15 +421,19 @@ func _generate_chunk(chunk: Vector2i) -> void:
 		if ensure_non_empty_chunk and fill_probability > 0.0 and placed_count == 0:
 			var fallback_cell := _pick_fallback_cell(origin)
 			var fallback_local := fallback_cell - origin
-			if _can_place(chunk, fallback_local, Vector2i.ONE, occupied) and not _overlaps_blocked_nodes(fallback_cell, Vector2i.ONE) and not _is_protected_cell(fallback_cell):
+			if _can_place(chunk, fallback_local, Vector2i.ONE, occupied) and not _is_blocked_by_avoid_layer(fallback_cell) and not _overlaps_blocked_nodes(fallback_cell, Vector2i.ONE) and not _is_protected_cell(fallback_cell):
 				terrain_cells.append(fallback_cell)
 				_mark_occupied(fallback_local, Vector2i.ONE, occupied)
 
 		if not terrain_cells.is_empty():
 			_tile_map.set_cells_terrain_connect(terrain_cells, terrain_set_id, terrain_id, terrain_ignore_empty)
-			_clear_overlapping_layers(terrain_cells)
+			stats["cells_set"] = terrain_cells.size()
+			_mark_generated_cells(terrain_cells)
+			stats["overlap_erased"] = _clear_overlapping_layers(terrain_cells)
 			if not terrain_blob_mode:
 				_apply_corner_alternatives(terrain_cells)
+			_sync_generation_layer_meta_if_dirty()
+		_last_chunk_profile_stats = stats
 		return
 
 	var placed_cells: Array[Vector2i] = []
@@ -334,78 +445,84 @@ func _generate_chunk(chunk: Vector2i) -> void:
 				fill_prob = clampf(fill_prob + prefer_layer_fill_bonus, 0.0, 1.0)
 			if _cell_fill_roll(cell) > fill_prob:
 				if not _is_protected_cell(cell):
-					_tile_map.erase_cell(cell)
+					stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
 				continue
 
 			var atlas := _pick_tile(cell)
 			var local_cell := Vector2i(local_x, local_y)
 			if _is_blocked_by_avoid_layer(cell):
 				if not _is_protected_cell(cell):
-					_tile_map.erase_cell(cell)
+					stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
 				continue
 			if _try_place_tile(chunk, origin, local_cell, cell, atlas, occupied):
 				placed_count += 1
 				placed_cells.append(cell)
+				stats["cells_set"] = int(stats["cells_set"]) + 1
 			else:
 				if not _is_protected_cell(cell):
-					_tile_map.erase_cell(cell)
+					stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
 
 	if ensure_non_empty_chunk and fill_probability > 0.0 and placed_count == 0:
 		var fallback_cell := _pick_fallback_cell(origin)
 		var fallback_local := fallback_cell - origin
 		var fallback_atlas := _pick_tile(fallback_cell)
-		_try_place_tile(chunk, origin, fallback_local, fallback_cell, fallback_atlas, occupied)
-		placed_cells.append(fallback_cell)
-	_clear_overlapping_layers(placed_cells)
+		if _try_place_tile(chunk, origin, fallback_local, fallback_cell, fallback_atlas, occupied):
+			placed_cells.append(fallback_cell)
+			stats["cells_set"] = int(stats["cells_set"]) + 1
+	stats["overlap_erased"] = _clear_overlapping_layers(placed_cells)
+	_sync_generation_layer_meta_if_dirty()
+	_last_chunk_profile_stats = stats
 
 
 func _unload_chunk(chunk: Vector2i) -> void:
+	var stats := {
+		"cells_set": 0,
+		"cells_erased": 0,
+		"overlap_erased": 0
+	}
+	if not unload_enabled:
+		_last_chunk_profile_stats = stats
+		return
 	var origin := chunk * chunk_size_tiles
 
 	for local_y in range(chunk_size_tiles):
 		for local_x in range(chunk_size_tiles):
 			var cell := origin + Vector2i(local_x, local_y)
 			if not _is_protected_cell(cell):
-				_tile_map.erase_cell(cell)
+				stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, true)
+	_sync_generation_layer_meta_if_dirty()
+	_last_chunk_profile_stats = stats
+
+
+func _erase_cell_if_present(cell: Vector2i, unmark_generated: bool) -> int:
+	var had_cell := _tile_map != null and _tile_map.get_cell_source_id(cell) != -1
+	if _tile_map != null:
+		_tile_map.erase_cell(cell)
+	if unmark_generated:
+		_unmark_generated_cell(cell)
+	return 1 if had_cell else 0
 
 
 func _pick_tile(cell: Vector2i) -> Vector2i:
-	var valid_options: Array[Vector2i] = []
-	var valid_weights: Array[float] = []
-	for i in range(tile_options_atlas.size()):
-		var atlas := tile_options_atlas[i]
-		if not _is_valid_atlas_tile(atlas):
-			continue
-		valid_options.append(atlas)
-		if i < tile_option_weights.size():
-			valid_weights.append(maxf(tile_option_weights[i], 0.0))
-		else:
-			valid_weights.append(1.0)
-
-	if valid_options.is_empty():
+	var option_count := _valid_tile_options.size()
+	if option_count <= 0:
 		return _get_first_available_atlas_tile()
-
-	var option_count := valid_options.size()
 	if option_count <= 1:
-		return valid_options[0]
-	if tile_option_weights.size() != tile_options_atlas.size():
+		return _valid_tile_options[0]
+	if not _has_matching_tile_weights:
 		var idx := int(_hash_cell(cell.x, cell.y, world_seed) % option_count)
-		return valid_options[idx]
-
-	var total_weight := 0.0
-	for i in range(option_count):
-		total_weight += valid_weights[i]
-	if total_weight <= 0.0:
-		return valid_options[0]
+		return _valid_tile_options[idx]
+	if _valid_tile_weight_total <= 0.0:
+		return _valid_tile_options[0]
 
 	var h := _hash_cell(cell.x, cell.y, world_seed + 3333)
-	var roll := (float(h % 100000) / 100000.0) * total_weight
+	var roll := (float(h % 100000) / 100000.0) * _valid_tile_weight_total
 	var acc := 0.0
 	for i in range(option_count):
-		acc += valid_weights[i]
+		acc += _valid_tile_weights[i]
 		if roll <= acc:
-			return valid_options[i]
-	return valid_options[option_count - 1]
+			return _valid_tile_options[i]
+	return _valid_tile_options[option_count - 1]
 
 
 func _cell_fill_roll(cell: Vector2i) -> float:
@@ -426,6 +543,8 @@ func _clear_existing_cells() -> void:
 		if _is_protected_cell(cell):
 			continue
 		_tile_map.erase_cell(cell)
+		_unmark_generated_cell(cell)
+	_sync_generation_layer_meta_if_dirty()
 
 
 func _pick_fallback_cell(chunk_origin: Vector2i) -> Vector2i:
@@ -460,7 +579,7 @@ func _collect_connected_terrain_cells(chunk: Vector2i, origin: Vector2i, occupie
 	var result: Array[Vector2i] = []
 	var used_world: Dictionary = {}
 	var anchors: Array[Vector2i] = _get_chunk_road_anchors(chunk)
-	if anchors.size() < 2:
+	if anchors.is_empty():
 		return result
 	var target_count := maxi(0, int(round(float(chunk_size_tiles * chunk_size_tiles) * fill_probability)))
 	target_count = maxi(target_count, anchors.size() * 5)
@@ -528,72 +647,320 @@ func _collect_connected_terrain_cells(chunk: Vector2i, origin: Vector2i, occupie
 
 func _collect_blob_terrain_cells(chunk: Vector2i, origin: Vector2i, occupied: Dictionary) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	var target_count := maxi(0, int(round(float(chunk_size_tiles * chunk_size_tiles) * fill_probability)))
-	if target_count <= 0:
+	var chunk_area := chunk_size_tiles * chunk_size_tiles
+	var base_target := maxi(0, int(round(float(chunk_area) * fill_probability)))
+	if base_target <= 0:
 		return result
 
-	var side_min := 2
-	var side_max := maxi(2, chunk_size_tiles - 1)
-	var area_min := side_min * side_min
-	var area_max := side_max * side_max
-	var target_area := clampi(target_count, area_min, area_max)
+	var region_size_cells := _get_blob_region_size_cells()
+	var min_world_cell := origin
+	var max_world_cell := origin + Vector2i(chunk_size_tiles - 1, chunk_size_tiles - 1)
+	var min_region := _world_to_blob_region(min_world_cell, region_size_cells)
+	var max_region := _world_to_blob_region(max_world_cell, region_size_cells)
 
-	var candidates: Array[Vector2i] = []
-	var side_base := clampi(int(round(sqrt(float(target_area)))), side_min, side_max)
-	candidates.append(Vector2i(side_base, side_base))
-	candidates.append(Vector2i(clampi(side_base + 1, side_min, side_max), side_base))
-	candidates.append(Vector2i(side_base, clampi(side_base + 1, side_min, side_max)))
-	candidates.append(Vector2i(clampi(side_base + 2, side_min, side_max), side_base))
-	candidates.append(Vector2i(side_base, clampi(side_base + 2, side_min, side_max)))
-	candidates.append(Vector2i(clampi(side_base + 1, side_min, side_max), clampi(side_base + 1, side_min, side_max)))
+	var regions: Array = []
+	for ry in range(min_region.y - 1, max_region.y + 2):
+		for rx in range(min_region.x - 1, max_region.x + 2):
+			var region := Vector2i(rx, ry)
+			var region_data := _build_blob_region_descriptor(region, region_size_cells)
+			if region_data.is_empty():
+				continue
+			regions.append(region_data)
 
-	for i in range(candidates.size()):
-		var size := candidates[i] as Vector2i
-		if size.x <= 0 or size.y <= 0:
-			continue
-		if size.x > chunk_size_tiles or size.y > chunk_size_tiles:
-			continue
-
-		var max_x := chunk_size_tiles - size.x
-		var max_y := chunk_size_tiles - size.y
-		var h := _hash_cell(chunk.x * 733 + i * 17, chunk.y * 977 - i * 23, world_seed + 12341)
-		var x0 := 0 if max_x <= 0 else (h % (max_x + 1))
-		var y0 := 0 if max_y <= 0 else ((int(h / 97)) % (max_y + 1))
-		var local_origin := Vector2i(x0, y0)
-
-		if not _can_place_lake_rect(chunk, origin, local_origin, size, occupied):
-			continue
-
-		var used_world: Dictionary = {}
-		for ly in range(size.y):
-			for lx in range(size.x):
-				var local_cell := local_origin + Vector2i(lx, ly)
-				_try_add_terrain_local(chunk, origin, local_cell, result, used_world, occupied)
+	if regions.is_empty():
 		return result
+
+	var used_world: Dictionary = {}
+	for ly in range(chunk_size_tiles):
+		for lx in range(chunk_size_tiles):
+			var local_cell := Vector2i(lx, ly)
+			var world_cell := origin + local_cell
+			if not _is_world_cell_inside_blob_regions(world_cell, regions):
+				continue
+			_try_add_terrain_local(chunk, origin, local_cell, result, used_world, occupied)
+
+	_fill_small_blob_holes(chunk, origin, result, used_world, occupied)
+	_smooth_blob_contour(origin, result, used_world, occupied, 2)
+	_fill_small_blob_holes(chunk, origin, result, used_world, occupied)
+	result = _remove_isolated_cells(result)
 
 	return result
 
 
-func _can_place_lake_rect(
+func _get_blob_region_size_cells() -> int:
+	var min_region_size := maxi(chunk_size_tiles * 2, 8)
+	var max_region_size := maxi(min_region_size, chunk_size_tiles * 5)
+	var sparse_factor := clampf(1.0 - fill_probability, 0.0, 1.0)
+	var blended := lerpf(float(min_region_size), float(max_region_size), sparse_factor)
+	return maxi(8, int(round(blended)))
+
+
+func _world_to_blob_region(world_cell: Vector2i, region_size_cells: int) -> Vector2i:
+	var div := maxi(region_size_cells, 1)
+	return Vector2i(
+		floori(float(world_cell.x) / float(div)),
+		floori(float(world_cell.y) / float(div))
+	)
+
+
+func _build_blob_region_descriptor(region: Vector2i, region_size_cells: int) -> Dictionary:
+	var activation_hash := _hash_cell(region.x * 991 + 17, region.y * 733 + 31, world_seed + 20411)
+	var activation_roll := float(activation_hash % 10000) / 10000.0
+	var spawn_chance := clampf(fill_probability * 4.1 + 0.04, 0.06, 0.78)
+	if activation_roll > spawn_chance:
+		return {}
+
+	var region_origin := region * region_size_cells
+	var center_hash := _hash_cell(region.x * 761 + 11, region.y * 587 + 19, world_seed + 20627)
+	var center_jitter_x := float(center_hash % 10000) / 10000.0
+	var center_jitter_y := float((int(center_hash / 101)) % 10000) / 10000.0
+	var center := Vector2(
+		float(region_origin.x) + lerpf(float(region_size_cells) * 0.15, float(region_size_cells) * 0.85, center_jitter_x),
+		float(region_origin.y) + lerpf(float(region_size_cells) * 0.15, float(region_size_cells) * 0.85, center_jitter_y)
+	)
+
+	var size_scale_min := minf(blob_size_scale_min, blob_size_scale_max)
+	var size_scale_max := maxf(blob_size_scale_min, blob_size_scale_max)
+	var size_roll := float((int(center_hash / 211)) % 10000) / 10000.0
+	var global_scale := lerpf(size_scale_min, size_scale_max, size_roll)
+	var base_radius := maxf(2.0, float(region_size_cells) * 0.24 * global_scale)
+
+	var lobe_min := maxi(1, mini(blob_lobe_count_min, blob_lobe_count_max))
+	var lobe_max := maxi(lobe_min, maxi(blob_lobe_count_min, blob_lobe_count_max))
+	var lobe_span := lobe_max - lobe_min + 1
+	var lobe_count := lobe_min + (_hash_cell(region.x * 397 + 43, region.y * 461 + 59, world_seed + 20971) % lobe_span)
+
+	var lobes: Array = []
+	var min_x := INF
+	var min_y := INF
+	var max_x := -INF
+	var max_y := -INF
+	for i in range(lobe_count):
+		var h := _hash_cell(region.x * 601 + i * 43, region.y * 809 - i * 59, world_seed + 21421)
+		var angle := TAU * (float(h % 10000) / 10000.0)
+		var offset_roll := float((int(h / 10000)) % 10000) / 10000.0
+		var offset_dist := base_radius * blob_lobe_offset_factor * offset_roll
+		var lobe_center := center + Vector2(cos(angle), sin(angle)) * offset_dist
+
+		var rx_roll := float((int(h / 173)) % 10000) / 10000.0
+		var ry_roll := float((int(h / 347)) % 10000) / 10000.0
+		var lobe_radius_x := maxf(1.4, base_radius * lerpf(0.55, 1.35, rx_roll))
+		var lobe_radius_y := maxf(1.4, base_radius * lerpf(0.55, 1.35, ry_roll))
+		lobes.append({
+			"center": lobe_center,
+			"rx": lobe_radius_x,
+			"ry": lobe_radius_y,
+			"seed": _hash_cell(region.x * 151 + i * 71, region.y * 173 + i * 89, world_seed + 21859)
+		})
+
+		min_x = minf(min_x, lobe_center.x - lobe_radius_x)
+		min_y = minf(min_y, lobe_center.y - lobe_radius_y)
+		max_x = maxf(max_x, lobe_center.x + lobe_radius_x)
+		max_y = maxf(max_y, lobe_center.y + lobe_radius_y)
+
+	var margin := maxf(1.0, base_radius * 0.4)
+	var bbox := Rect2(
+		Vector2(min_x - margin, min_y - margin),
+		Vector2((max_x - min_x) + margin * 2.0, (max_y - min_y) + margin * 2.0)
+	).abs()
+	return {
+		"bbox": bbox,
+		"lobes": lobes
+	}
+
+
+func _is_world_cell_inside_blob_regions(world_cell: Vector2i, regions: Array) -> bool:
+	var p := Vector2(float(world_cell.x) + 0.5, float(world_cell.y) + 0.5)
+	for region_variant in regions:
+		if not (region_variant is Dictionary):
+			continue
+		var region_data := region_variant as Dictionary
+		var bbox := region_data.get("bbox", Rect2()) as Rect2
+		if not bbox.has_area() or not bbox.has_point(p):
+			continue
+
+		var lobes: Array = region_data.get("lobes", [])
+		var inside := false
+		for lobe_variant in lobes:
+			if not (lobe_variant is Dictionary):
+				continue
+			var lobe := lobe_variant as Dictionary
+			var c := Vector2(lobe.get("center", p))
+			var rx := maxf(float(lobe.get("rx", 1.0)), 0.001)
+			var ry := maxf(float(lobe.get("ry", 1.0)), 0.001)
+			var nx := (p.x - c.x) / rx
+			var ny := (p.y - c.y) / ry
+			var d := nx * nx + ny * ny
+			var lobe_seed := int(lobe.get("seed", 0))
+			var edge_hash := _hash_cell(world_cell.x * 997 + int(c.x) * 17, world_cell.y * 881 + int(c.y) * 19, world_seed + 22003 + lobe_seed)
+			var edge_roll := float(edge_hash % 10000) / 10000.0
+			var threshold := 1.0 + (edge_roll - 0.5) * blob_edge_jitter
+			if d <= threshold:
+				inside = true
+				break
+
+		if not inside:
+			continue
+
+		var keep_hash := _hash_cell(world_cell.x * 457 + 41, world_cell.y * 521 + 37, world_seed + 22307)
+		var keep_roll := float(keep_hash % 10000) / 10000.0
+		if keep_roll <= blob_cell_keep_probability:
+			return true
+
+	return false
+
+
+func _fill_small_blob_holes(
 	chunk: Vector2i,
 	origin: Vector2i,
-	local_origin: Vector2i,
-	size: Vector2i,
+	result: Array[Vector2i],
+	used_world: Dictionary,
 	occupied: Dictionary
-) -> bool:
-	for ly in range(size.y):
-		for lx in range(size.x):
-			var local_cell := local_origin + Vector2i(lx, ly)
+) -> void:
+	if result.is_empty():
+		return
+	var world_set: Dictionary = {}
+	for cell in result:
+		world_set[cell] = true
+
+	var to_fill: Array[Vector2i] = []
+	for ly in range(chunk_size_tiles):
+		for lx in range(chunk_size_tiles):
+			var local_cell := Vector2i(lx, ly)
 			var world_cell := origin + local_cell
-			if not _can_place(chunk, local_cell, Vector2i.ONE, occupied):
-				return false
+			if world_set.has(world_cell):
+				continue
+
+			var neighbors := 0
+			for n in [world_cell + Vector2i.RIGHT, world_cell + Vector2i.LEFT, world_cell + Vector2i.UP, world_cell + Vector2i.DOWN]:
+				if world_set.has(n):
+					neighbors += 1
+			if neighbors < 3:
+				continue
+
 			if _is_protected_cell(world_cell):
-				return false
+				continue
 			if _is_blocked_by_avoid_layer(world_cell):
-				return false
+				continue
 			if _overlaps_blocked_nodes(world_cell, Vector2i.ONE):
-				return false
+				continue
+			if not _can_place(chunk, local_cell, Vector2i.ONE, occupied):
+				continue
+			to_fill.append(local_cell)
+
+	for local_cell in to_fill:
+		_try_add_terrain_local(chunk, origin, local_cell, result, used_world, occupied)
+
+
+func _smooth_blob_contour(
+	origin: Vector2i,
+	result: Array[Vector2i],
+	used_world: Dictionary,
+	occupied: Dictionary,
+	iterations: int
+) -> void:
+	if result.is_empty() or iterations <= 0:
+		return
+
+	var world_set: Dictionary = {}
+	for world_cell in result:
+		world_set[world_cell] = true
+
+	for _i in range(iterations):
+		var next_set: Dictionary = {}
+		for ly in range(chunk_size_tiles):
+			for lx in range(chunk_size_tiles):
+				var world_cell := origin + Vector2i(lx, ly)
+				var n4 := _count_blob_neighbors_4(world_cell, world_set)
+				var n8 := _count_blob_neighbors_8(world_cell, world_set)
+				if world_set.has(world_cell):
+					next_set[world_cell] = true
+					continue
+
+				if n8 < 5 or n4 < 2:
+					continue
+				if not _can_use_blob_cell(world_cell):
+					continue
+				next_set[world_cell] = true
+		world_set = next_set
+
+	_apply_blob_world_set(origin, world_set, result, used_world, occupied)
+
+
+func _count_blob_neighbors_4(world_cell: Vector2i, world_set: Dictionary) -> int:
+	var count := 0
+	for n in [world_cell + Vector2i.RIGHT, world_cell + Vector2i.LEFT, world_cell + Vector2i.UP, world_cell + Vector2i.DOWN]:
+		if world_set.has(n):
+			count += 1
+	return count
+
+
+func _count_blob_neighbors_8(world_cell: Vector2i, world_set: Dictionary) -> int:
+	var count := 0
+	for oy in range(-1, 2):
+		for ox in range(-1, 2):
+			if ox == 0 and oy == 0:
+				continue
+			var n := world_cell + Vector2i(ox, oy)
+			if world_set.has(n):
+				count += 1
+	return count
+
+
+func _can_use_blob_cell(world_cell: Vector2i) -> bool:
+	if _is_protected_cell(world_cell):
+		return false
+	if _is_blocked_by_avoid_layer(world_cell):
+		return false
+	if _overlaps_blocked_nodes(world_cell, Vector2i.ONE):
+		return false
 	return true
+
+
+func _apply_blob_world_set(
+	origin: Vector2i,
+	world_set: Dictionary,
+	result: Array[Vector2i],
+	used_world: Dictionary,
+	occupied: Dictionary
+) -> void:
+	result.clear()
+	used_world.clear()
+	occupied.clear()
+
+	for ly in range(chunk_size_tiles):
+		for lx in range(chunk_size_tiles):
+			var local_cell := Vector2i(lx, ly)
+			var world_cell := origin + local_cell
+			if not world_set.has(world_cell):
+				continue
+			result.append(world_cell)
+			used_world[world_cell] = true
+			_mark_occupied(local_cell, Vector2i.ONE, occupied)
+
+
+func _shrink_blob_to_target(chunk: Vector2i, cells: Array[Vector2i], target_count: int) -> Array[Vector2i]:
+	if cells.size() <= target_count:
+		return cells
+	var scored: Array = []
+	for world_cell in cells:
+		var local := world_cell - chunk * chunk_size_tiles
+		var d := absf(float(local.x) - float(chunk_size_tiles) * 0.5) + absf(float(local.y) - float(chunk_size_tiles) * 0.5)
+		scored.append({"cell": world_cell, "score": d})
+
+	var out: Array[Vector2i] = []
+	while out.size() < target_count and not scored.is_empty():
+		var best_idx := 0
+		var best_score := float(scored[0]["score"])
+		for i in range(1, scored.size()):
+			var score := float(scored[i]["score"])
+			if score < best_score:
+				best_score = score
+				best_idx = i
+		out.append(scored[best_idx]["cell"] as Vector2i)
+		scored[best_idx] = scored[scored.size() - 1]
+		scored.pop_back()
+	return out
 
 
 func _get_chunk_road_anchors(chunk: Vector2i) -> Array[Vector2i]:
@@ -619,40 +986,6 @@ func _get_chunk_road_anchors(chunk: Vector2i) -> Array[Vector2i]:
 			continue
 		unique[a] = true
 		deduped.append(a)
-
-	if deduped.is_empty():
-		var trunk_chance := clampi(int(round(fill_probability * 120.0)), 4, 35)
-		var trunk_hash := _hash_cell(chunk.x * 37, chunk.y * 41, world_seed + 7757)
-		if trunk_hash % 100 < trunk_chance:
-			var lane := trunk_hash % chunk_size_tiles
-			if (int(trunk_hash / 3)) % 2 == 0:
-				deduped.append(Vector2i(0, lane))
-				deduped.append(Vector2i(chunk_size_tiles - 1, lane))
-			else:
-				deduped.append(Vector2i(lane, 0))
-				deduped.append(Vector2i(lane, chunk_size_tiles - 1))
-	elif deduped.size() == 1:
-		deduped.append(_opposite_border_anchor(deduped[0]))
-
-	var cross_hash := _hash_cell(chunk.x * 109 + 3, chunk.y * 113 + 5, world_seed + 7919)
-	var cross_chance := clampi(int(round(fill_probability * 180.0)), 15, 72)
-	if not is_trunk:
-		cross_chance = int(round(cross_chance * 0.45))
-	if cross_hash % 100 < cross_chance:
-		var y_lane := (int(cross_hash / 7)) % chunk_size_tiles
-		deduped.append(Vector2i(0, y_lane))
-		deduped.append(Vector2i(chunk_size_tiles - 1, y_lane))
-	if (int(cross_hash / 11)) % 100 < int(cross_chance / 2):
-		var x_lane := (int(cross_hash / 13)) % chunk_size_tiles
-		deduped.append(Vector2i(x_lane, 0))
-		deduped.append(Vector2i(x_lane, chunk_size_tiles - 1))
-
-	if deduped.size() > 6:
-		var reduced: Array[Vector2i] = []
-		for i in range(6):
-			reduced.append(deduped[i])
-		deduped = reduced
-	deduped = _enforce_anchor_spacing(deduped)
 
 	return deduped
 
@@ -1051,43 +1384,48 @@ func _is_corner_cell(world_cell: Vector2i, world_set: Dictionary) -> bool:
 	return (up and left) or (up and right) or (down and left) or (down and right)
 
 
-func _is_blocked_by_avoid_layer(world_cell: Vector2i) -> bool:
+func _is_blocked_by_avoid_layer(world_cell: Vector2i, span: Vector2i = Vector2i.ONE) -> bool:
 	if _avoid_layers.is_empty() or avoid_layer_radius_tiles < 0:
 		return false
-	for oy in range(-avoid_layer_radius_tiles, avoid_layer_radius_tiles + 1):
-		for ox in range(-avoid_layer_radius_tiles, avoid_layer_radius_tiles + 1):
-			var c := world_cell + Vector2i(ox, oy)
-			for layer_item in _avoid_layers:
-				var avoid := layer_item as TileMapLayer
-				if avoid != null and avoid.get_cell_source_id(c) != -1:
-					return true
+	var world_rect := _get_world_cell_rect(world_cell, span)
+	for layer_item in _avoid_layers:
+		var avoid := layer_item as TileMapLayer
+		if avoid != null and _layer_has_tile_in_world_rect(avoid, world_rect, avoid_layer_radius_tiles):
+			return true
 	return false
 
 
-func _clear_overlapping_layers(cells: Array[Vector2i]) -> void:
+func _clear_overlapping_layers(cells: Array[Vector2i]) -> int:
 	if _overlap_clear_layers.is_empty() or cells.is_empty():
-		return
+		return 0
+	var erased_count := 0
 	var radius: int = maxi(0, overlap_clear_radius_tiles)
 	for cell in cells:
-		for oy in range(-radius, radius + 1):
-			for ox in range(-radius, radius + 1):
-				var target_cell := cell + Vector2i(ox, oy)
-				for layer_item in _overlap_clear_layers:
-					var layer := layer_item as TileMapLayer
-					if layer == null:
-						continue
-					layer.erase_cell(target_cell)
+		var world_rect := _get_world_cell_rect(cell, Vector2i.ONE)
+		for layer_item in _overlap_clear_layers:
+			var layer := layer_item as TileMapLayer
+			if layer == null:
+				continue
+			var erased_origins := {}
+			for target_cell in _get_layer_cells_in_world_rect(layer, world_rect, radius):
+				var erase_cell := _get_overlap_erase_cell(layer, target_cell)
+				if erase_cell == Vector2i(999999, 999999):
+					continue
+				if erased_origins.has(erase_cell):
+					continue
+				if layer.get_cell_source_id(erase_cell) == -1:
+					continue
+				layer.erase_cell(erase_cell)
+				_unmark_layer_generated_origin(layer, erase_cell)
+				erased_origins[erase_cell] = true
+				erased_count += 1
+	return erased_count
 
 
 func _is_near_prefer_layer(world_cell: Vector2i) -> bool:
 	if _prefer_layer == null or prefer_layer_radius_tiles <= 0:
 		return false
-	for oy in range(-prefer_layer_radius_tiles, prefer_layer_radius_tiles + 1):
-		for ox in range(-prefer_layer_radius_tiles, prefer_layer_radius_tiles + 1):
-			var c := world_cell + Vector2i(ox, oy)
-			if _prefer_layer.get_cell_source_id(c) != -1:
-				return true
-	return false
+	return _layer_has_tile_in_world_rect(_prefer_layer, _get_world_cell_rect(world_cell, Vector2i.ONE), prefer_layer_radius_tiles)
 
 
 func _add_service_pocket(
@@ -1258,12 +1596,17 @@ func _try_place_tile(chunk: Vector2i, _chunk_origin: Vector2i, local_cell: Vecto
 	var span := _get_tile_span(atlas)
 	if _is_world_span_protected(world_cell, span):
 		return false
+	if _is_blocked_by_avoid_layer(world_cell, span):
+		return false
 	if not _can_place(chunk, local_cell, span, occupied):
 		return false
 	if _overlaps_blocked_nodes(world_cell, span):
 		return false
+	if avoid_physics_collision and _overlaps_world_collision(world_cell, span):
+		return false
 
 	_tile_map.set_cell(world_cell, source_id, atlas)
+	_mark_generated_span(world_cell, span)
 	_mark_occupied(local_cell, span, occupied)
 	return true
 
@@ -1292,48 +1635,61 @@ func _mark_occupied(local_cell: Vector2i, span: Vector2i, occupied: Dictionary) 
 
 
 func _get_tile_span(atlas: Vector2i) -> Vector2i:
-	if _tile_map == null or _tile_map.tile_set == null:
+	if _tile_span_cache.has(atlas):
+		return _tile_span_cache[atlas] as Vector2i
+	if _atlas_source == null:
 		return Vector2i.ONE
-	var source := _tile_map.tile_set.get_source(source_id)
-	if source == null:
+	if not _atlas_source.has_tile(atlas):
+		_tile_span_cache[atlas] = Vector2i.ONE
 		return Vector2i.ONE
-	if source is TileSetAtlasSource:
-		var atlas_source := source as TileSetAtlasSource
-		if atlas_source.has_method("has_tile") and not atlas_source.has_tile(atlas):
-			return Vector2i.ONE
-		if atlas_source.has_method("get_tile_size_in_atlas"):
-			var span := atlas_source.get_tile_size_in_atlas(atlas)
-			if span.x > 0 and span.y > 0:
-				return span
-	return Vector2i.ONE
+	var span := _atlas_source.get_tile_size_in_atlas(atlas)
+	if span.x <= 0 or span.y <= 0:
+		span = Vector2i.ONE
+	_tile_span_cache[atlas] = span
+	return span
 
 
 func _is_valid_atlas_tile(atlas: Vector2i) -> bool:
-	if _tile_map == null or _tile_map.tile_set == null:
-		return false
-	var source := _tile_map.tile_set.get_source(source_id)
-	if source == null:
-		return false
-	if source is TileSetAtlasSource:
-		var atlas_source := source as TileSetAtlasSource
-		if atlas_source.has_method("has_tile"):
-			return atlas_source.has_tile(atlas)
-	return false
+	return _atlas_source != null and _atlas_source.has_tile(atlas)
 
 
 func _get_first_available_atlas_tile() -> Vector2i:
+	return _first_available_atlas_tile
+
+
+func _rebuild_tile_cache() -> void:
+	_atlas_source = null
+	_valid_tile_options.clear()
+	_valid_tile_weights.clear()
+	_valid_tile_weight_total = 0.0
+	_has_matching_tile_weights = tile_option_weights.size() == tile_options_atlas.size()
+	_first_available_atlas_tile = Vector2i.ZERO
+	_tile_span_cache.clear()
+
 	if _tile_map == null or _tile_map.tile_set == null:
-		return Vector2i.ZERO
+		return
 	var source := _tile_map.tile_set.get_source(source_id)
 	if source == null:
-		return Vector2i.ZERO
+		return
 	if source is TileSetAtlasSource:
-		var atlas_source := source as TileSetAtlasSource
-		if atlas_source.has_method("get_tiles_count") and atlas_source.has_method("get_tile_id"):
-			var count := int(atlas_source.get_tiles_count())
-			if count > 0:
-				return atlas_source.get_tile_id(0)
-	return Vector2i.ZERO
+		_atlas_source = source as TileSetAtlasSource
+	if _atlas_source == null:
+		return
+
+	var source_tile_count := int(_atlas_source.get_tiles_count())
+	if source_tile_count > 0:
+		_first_available_atlas_tile = _atlas_source.get_tile_id(0)
+
+	for i in range(tile_options_atlas.size()):
+		var atlas := tile_options_atlas[i]
+		if not _is_valid_atlas_tile(atlas):
+			continue
+		_valid_tile_options.append(atlas)
+		var weight := 1.0
+		if i < tile_option_weights.size():
+			weight = maxf(tile_option_weights[i], 0.0)
+		_valid_tile_weights.append(weight)
+		_valid_tile_weight_total += weight
 
 
 func _cache_protected_cells() -> void:
@@ -1362,6 +1718,119 @@ func _is_world_span_protected(world_cell: Vector2i, span: Vector2i) -> bool:
 	return false
 
 
+func _mark_generated_cells(cells: Array[Vector2i]) -> void:
+	for cell in cells:
+		_generated_cells[cell] = cell
+	_generation_meta_dirty = true
+
+
+func _mark_generated_span(world_cell: Vector2i, span: Vector2i) -> void:
+	var span_w := maxi(1, span.x)
+	var span_h := maxi(1, span.y)
+	for oy in range(span_h):
+		for ox in range(span_w):
+			_generated_cells[world_cell + Vector2i(ox, oy)] = world_cell
+	_generation_meta_dirty = true
+
+
+func _unmark_generated_cell(cell: Vector2i) -> void:
+	if not _generated_cells.has(cell):
+		return
+	_generated_cells.erase(cell)
+	_generation_meta_dirty = true
+
+
+func _sync_generation_layer_meta_if_dirty() -> void:
+	if not _generation_meta_dirty:
+		return
+	_sync_generation_layer_meta()
+
+
+func _sync_generation_layer_meta() -> void:
+	if _tile_map == null:
+		return
+	_tile_map.set_meta(META_GENERATED_CELLS, _generated_cells)
+	_tile_map.set_meta(META_PRESERVE_EDITOR_TILES, preserve_editor_tiles)
+	_tile_map.set_meta(META_PROTECTED_CELLS, _protected_cells)
+	_generation_meta_dirty = false
+
+
+func _get_overlap_erase_cell(layer: TileMapLayer, cell: Vector2i) -> Vector2i:
+	var generated_cells: Variant = layer.get_meta(META_GENERATED_CELLS, {})
+	if generated_cells is Dictionary:
+		var cells := generated_cells as Dictionary
+		if not cells.has(cell):
+			return Vector2i(999999, 999999)
+		var origin: Variant = cells.get(cell, cell)
+		if origin is Vector2i:
+			return origin as Vector2i
+		return cell
+	if layer.get_cell_source_id(cell) == -1:
+		return Vector2i(999999, 999999)
+	if bool(layer.get_meta(META_PRESERVE_EDITOR_TILES, false)):
+		return Vector2i(999999, 999999)
+	return cell
+
+
+func _unmark_layer_generated_origin(layer: TileMapLayer, origin: Vector2i) -> void:
+	var generated_cells: Variant = layer.get_meta(META_GENERATED_CELLS, {})
+	if not (generated_cells is Dictionary):
+		return
+	var cells := generated_cells as Dictionary
+	for key in cells.keys():
+		var generated_cell := key as Vector2i
+		var generated_origin: Variant = cells.get(generated_cell, generated_cell)
+		if generated_cell == origin or (generated_origin is Vector2i and generated_origin == origin):
+			cells.erase(generated_cell)
+	layer.set_meta(META_GENERATED_CELLS, cells)
+
+
+func _get_world_cell_rect(world_cell: Vector2i, span: Vector2i) -> Rect2:
+	if _tile_map == null or _tile_map.tile_set == null:
+		return Rect2()
+	var tile_size := Vector2(_tile_map.tile_set.tile_size)
+	var span_w := maxi(1, span.x)
+	var span_h := maxi(1, span.y)
+	var top_left := _tile_map.to_global(_tile_map.map_to_local(world_cell) - tile_size * 0.5)
+	return Rect2(top_left, Vector2(float(span_w) * tile_size.x, float(span_h) * tile_size.y))
+
+
+func _layer_has_tile_in_world_rect(layer: TileMapLayer, world_rect: Rect2, radius_tiles: int) -> bool:
+	for cell in _get_layer_cells_in_world_rect(layer, world_rect, radius_tiles):
+		if layer.get_cell_source_id(cell) != -1:
+			return true
+	return false
+
+
+func _get_layer_cells_in_world_rect(layer: TileMapLayer, world_rect: Rect2, radius_tiles: int) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if layer == null or world_rect.size.x <= 0.0 or world_rect.size.y <= 0.0:
+		return out
+
+	var epsilon := Vector2(0.01, 0.01)
+	var corners: Array[Vector2] = [
+		world_rect.position,
+		Vector2(world_rect.end.x - epsilon.x, world_rect.position.y),
+		Vector2(world_rect.position.x, world_rect.end.y - epsilon.y),
+		world_rect.end - epsilon
+	]
+
+	var min_cell := Vector2i(999999, 999999)
+	var max_cell := Vector2i(-999999, -999999)
+	for corner in corners:
+		var cell := layer.local_to_map(layer.to_local(corner))
+		min_cell.x = mini(min_cell.x, cell.x)
+		min_cell.y = mini(min_cell.y, cell.y)
+		max_cell.x = maxi(max_cell.x, cell.x)
+		max_cell.y = maxi(max_cell.y, cell.y)
+
+	var radius := maxi(0, radius_tiles)
+	for y in range(min_cell.y - radius, max_cell.y + radius + 1):
+		for x in range(min_cell.x - radius, max_cell.x + radius + 1):
+			out.append(Vector2i(x, y))
+	return out
+
+
 func _collect_blocked_positions() -> void:
 	_blocked_world_positions.clear()
 	for p in blocked_node_paths:
@@ -1369,7 +1838,24 @@ func _collect_blocked_positions() -> void:
 			continue
 		var n := get_node_or_null(p)
 		if n is Node2D:
-			_blocked_world_positions.append((n as Node2D).global_position)
+			_append_blocked_world_position((n as Node2D).global_position)
+
+	if blocker_group_name == &"":
+		return
+	var scene_root := get_tree().current_scene
+	for candidate in get_tree().get_nodes_in_group(blocker_group_name):
+		if not (candidate is Node2D):
+			continue
+		var node := candidate as Node2D
+		if scene_root != null and node != scene_root and not scene_root.is_ancestor_of(node):
+			continue
+		_append_blocked_world_position(node.global_position)
+
+
+func _append_blocked_world_position(world_pos: Vector2) -> void:
+	if _blocked_world_positions.has(world_pos):
+		return
+	_blocked_world_positions.append(world_pos)
 
 
 func _overlaps_blocked_nodes(world_cell: Vector2i, span: Vector2i) -> bool:
@@ -1377,7 +1863,8 @@ func _overlaps_blocked_nodes(world_cell: Vector2i, span: Vector2i) -> bool:
 		return false
 
 	var tile_size: Vector2i = _tile_map.tile_set.tile_size
-	var rect_pos: Vector2 = _tile_map.to_global(_tile_map.map_to_local(world_cell))
+	var half_tile := Vector2(tile_size) * 0.5
+	var rect_pos: Vector2 = _tile_map.to_global(_tile_map.map_to_local(world_cell) - half_tile)
 	var span_w: int = maxi(1, span.x)
 	var span_h: int = maxi(1, span.y)
 	var rect_size: Vector2 = Vector2(float(span_w * tile_size.x), float(span_h * tile_size.y))
@@ -1393,6 +1880,45 @@ func _overlaps_blocked_nodes(world_cell: Vector2i, span: Vector2i) -> bool:
 	return false
 
 
+func _overlaps_world_collision(world_cell: Vector2i, span: Vector2i) -> bool:
+	if _tile_map == null or _tile_map.tile_set == null:
+		return false
+	var viewport := get_viewport()
+	if viewport == null or viewport.world_2d == null:
+		return false
+	var space_state: PhysicsDirectSpaceState2D = viewport.world_2d.direct_space_state
+
+	var world_rect := _get_world_cell_rect(world_cell, span).abs()
+	var padding := maxf(physics_collision_padding_px, 0.0)
+	if padding > 0.0:
+		world_rect = world_rect.grow(padding)
+	if not world_rect.has_area():
+		return false
+
+	var shape := RectangleShape2D.new()
+	shape.size = world_rect.size
+
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = shape
+	query.transform = Transform2D(0.0, world_rect.get_center())
+	query.collide_with_bodies = true
+	query.collide_with_areas = true
+	query.collision_mask = 0x7fffffff
+
+	var hits: Array = space_state.intersect_shape(query, 16)
+	for hit_value in hits:
+		if not (hit_value is Dictionary):
+			continue
+		var hit := hit_value as Dictionary
+		var collider: Object = hit.get("collider", null)
+		if collider == null:
+			continue
+		if collider == _tile_map:
+			continue
+		return true
+	return false
+
+
 func get_world_bounds_rect() -> Rect2:
 	if _tile_map == null or _tile_map.tile_set == null:
 		return Rect2()
@@ -1404,6 +1930,87 @@ func get_world_bounds_rect() -> Rect2:
 	var min_world := _tile_map.to_global(_tile_map.map_to_local(min_cell) - half_tile)
 	var max_world := _tile_map.to_global(_tile_map.map_to_local(max_cell_exclusive) - half_tile)
 	return Rect2(min_world, max_world - min_world)
+
+
+func has_generation_pending() -> bool:
+	return not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty()
+
+
+func get_pending_generation_chunk_count() -> int:
+	return _pending_load_chunks.size() + _pending_unload_chunks.size()
+
+
+func force_generate_step(chunk_budget: int = -1) -> void:
+	if not enabled or _tile_map == null or _player == null:
+		return
+
+	var budget := chunk_budget
+	if budget <= 0:
+		budget = max_chunk_operations_per_update
+
+	var player_cell := _tile_map.local_to_map(_tile_map.to_local(_player.global_position))
+	var center_chunk := _world_to_chunk(player_cell)
+	if center_chunk != _last_center_chunk or not has_generation_pending():
+		_last_center_chunk = center_chunk
+		_rebuild_chunk_work_queues(center_chunk)
+
+	_process_chunk_work_queues(maxi(1, budget))
+
+
+func _resolve_generation_seed(config_seed: int) -> int:
+	if GameSaveManager != null and GameSaveManager.has_method("resolve_world_generation_seed"):
+		return int(GameSaveManager.resolve_world_generation_seed(config_seed))
+	if randomize_seed_on_start:
+		var time_seed := int(Time.get_unix_time_from_system())
+		var tick_seed := int(Time.get_ticks_usec())
+		return abs(time_seed ^ tick_seed)
+	return config_seed
+
+
+func _initialize_update_phase_offset() -> void:
+	_update_timer = _compute_phase_offset(update_interval_sec, 587)
+
+
+func _compute_phase_offset(interval_sec: float, salt: int) -> float:
+	var interval := maxf(interval_sec, 0.001)
+	var stable_hash := int(get_instance_id()) ^ (world_seed * 1103515245) ^ salt
+	if stable_hash < 0:
+		stable_hash = -stable_hash
+	var normalized := float(stable_hash % 10000) / 10000.0
+	return normalized * interval
+
+
+func _profile_chunk_operation(action: String, chunk: Vector2i, start_usec: int, stats: Dictionary) -> void:
+	var profiler := get_node_or_null("/root/ChunkProfiler")
+	if profiler == null or not profiler.has_method("record_chunk_operation"):
+		return
+	var payload := stats.duplicate()
+	payload["elapsed_ms"] = float(Time.get_ticks_usec() - start_usec) / 1000.0
+	payload["pending_load"] = _pending_load_chunks.size()
+	payload["pending_unload"] = _pending_unload_chunks.size()
+	payload["loaded_chunks"] = _loaded_chunks.size()
+	profiler.call("record_chunk_operation", name, action, chunk, payload)
+
+
+func get_debug_world_generation_info() -> Dictionary:
+	var tile_size := Vector2.ZERO
+	if _tile_map != null and _tile_map.tile_set != null:
+		tile_size = Vector2(_tile_map.tile_set.tile_size)
+	return {
+		"type": "tile_layer",
+		"name": name,
+		"seed": world_seed,
+		"chunk_size_tiles": chunk_size_tiles,
+		"tile_size_px": tile_size,
+		"world_min_chunk": _world_min_chunk,
+		"world_max_chunk": _world_max_chunk,
+		"loaded_chunks": _loaded_chunks.keys(),
+		"load_entire_world_on_start": load_entire_world_on_start,
+		"unload_enabled": unload_enabled,
+		"protected_cells": _protected_cells.keys(),
+		"generated_cells": _generated_cells.keys(),
+		"blocked_world_positions": _blocked_world_positions.duplicate()
+	}
 
 
 func _resolve_fallback_tile_map() -> TileMapLayer:

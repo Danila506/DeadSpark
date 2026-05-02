@@ -1,0 +1,31 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://World/generation_preview.gd" id="1"]
+[ext_resource type="PackedScene" path="res://level.tscn" id="2"]
+
+[node name="GenerationPreview" type="Node2D"]
+script = ExtResource("1")
+level_scene = ExtResource("2")
+
+[node name="PreviewRoot" type="Node2D" parent="."]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="PanelContainer" type="PanelContainer" parent="CanvasLayer"]
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 374.0
+offset_bottom = 58.0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/PanelContainer"]
+layout_mode = 2
+
+[node name="SeedEdit" type="LineEdit" parent="CanvasLayer/PanelContainer/HBoxContainer"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+placeholder_text = "seed"
+
+[node name="RegenerateButton" type="Button" parent="CanvasLayer/PanelContainer/HBoxContainer"]
+layout_mode = 2
+text = "Regenerate"

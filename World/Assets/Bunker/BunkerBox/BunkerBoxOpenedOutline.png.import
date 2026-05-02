@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dcjdgpsxesv2p"
-path="res://.godot/imported/bandit_lut_panel.png-b746fa57f37a978db94d5ec628093f0b.ctex"
+uid="uid://biamwvr5robxf"
+path="res://.godot/imported/BunkerBoxOpenedOutline.png-8f6f2993e4afac1ff7bd3cefd4bcbccf.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Enemies/Bandits/bandit_lut_panel.png"
-dest_files=["res://.godot/imported/bandit_lut_panel.png-b746fa57f37a978db94d5ec628093f0b.ctex"]
+source_file="res://World/Assets/Bunker/BunkerBox/BunkerBoxOpenedOutline.png"
+dest_files=["res://.godot/imported/BunkerBoxOpenedOutline.png-8f6f2993e4afac1ff7bd3cefd4bcbccf.ctex"]
 
 [params]
 

@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://idvir86r3wxy"]
+
+[ext_resource type="Script" uid="uid://cemernbfb7wsm" path="res://World/tree.gd" id="1_vjkkt"]
+[ext_resource type="Texture2D" uid="uid://1b2bqm82yk07" path="res://World/Assets/Trees/Maple/RedMaple.png" id="2_tfft7"]
+[ext_resource type="Texture2D" uid="uid://bldus1h6m6c1b" path="res://World/Assets/Trees/Maple/RedMapleOutline.png" id="3_vn5oj"]
+[ext_resource type="Texture2D" uid="uid://cj8nijf3wqes4" path="res://World/Assets/Trees/Maple/FelledMaple.png" id="4_o5has"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_dsvlt"]
+radius = 22.857143
+height = 60.952385
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_607lp"]
+size = Vector2(23.021858, 21.494253)
+
+[node name="Tree" type="Node2D" unique_id=612556921]
+script = ExtResource("1_vjkkt")
+
+[node name="NormalSprite" type="Sprite2D" parent="." unique_id=1798578161]
+position = Vector2(4.5, -68)
+texture = ExtResource("2_tfft7")
+offset = Vector2(0, 30)
+
+[node name="OutlineSprite" type="Sprite2D" parent="." unique_id=679275182]
+position = Vector2(4.5, -68)
+texture = ExtResource("3_vn5oj")
+offset = Vector2(0, 30)
+
+[node name="Area2D" type="Area2D" parent="." unique_id=105230708]
+position = Vector2(4.5, -42)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=261075648]
+position = Vector2(-1, 24)
+scale = Vector2(0.95, 1.05)
+shape = SubResource("CapsuleShape2D_dsvlt")
+
+[node name="InteractLabel" type="Label" parent="." unique_id=160969885]
+visible = false
+offset_left = -52.0
+offset_top = -84.0
+offset_right = 56.0
+offset_bottom = -61.0
+theme_override_font_sizes/font_size = 16
+text = "[F] - срубить"
+horizontal_alignment = 1
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=1244241385]
+position = Vector2(4.5, -42)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=852731568]
+position = Vector2(-2.99, 43.435)
+scale = Vector2(0.915, 0.435)
+shape = SubResource("RectangleShape2D_607lp")
+
+[node name="FelledTree" type="Sprite2D" parent="." unique_id=92040141]
+z_index = -1
+position = Vector2(-31.5, -40)
+texture = ExtResource("4_o5has")
+offset = Vector2(0, 30)

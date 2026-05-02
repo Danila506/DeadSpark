@@ -4,11 +4,11 @@
 
 [resource]
 script = ExtResource("1")
+enabled = false
 tile_map_path = NodePath("../../RoadLayer")
 player_path = NodePath("../../Y-Sort_Objects/Player2")
 load_radius_chunks = 2
 preserve_editor_tiles = true
-randomize_seed_on_start = true
 fill_probability = 0.08
 source_id = 0
 tile_options_atlas = Array[Vector2i]([Vector2i(20, 1)])
@@ -31,8 +31,6 @@ road_branch_density = 0.38
 road_continue_direction_chance = 74
 road_trunk_period_chunks = 6
 road_min_branch_spacing_tiles = 6
-blocked_node_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/ForesterHouse"), NodePath("../../Y-Sort_Objects/MedicineKit"), NodePath("../../Y-Sort_Objects/BanditBase")])
 blocked_node_radius_px = 60.0
 avoid_layer_path = NodePath("../../Y-Sort_Objects/LakeLayer")
 avoid_layer_radius_tiles = 2
-debug_log = false

@@ -15,12 +15,24 @@
 [ext_resource type="Resource" path="res://Resources/WorldGen/spawner_bandit_bases.tres" id="12"]
 [ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_deadwood_trees.tres" id="14"]
 [ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_berry_bushes.tres" id="15"]
+[ext_resource type="Script" path="res://World/world_generation_debug_overlay.gd" id="16"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_bunkers.tres" id="17"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_forester_houses.tres" id="18"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/chunk_xz_layer.tres" id="19"]
 
 [node name="WorldGeneration" type="Node"]
 
 [node name="ChunkWorldGenerator" type="Node" parent="."]
 script = ExtResource("1")
 config = ExtResource("3")
+
+[node name="ChunkLayerGenerator_Lake" type="Node" parent="."]
+script = ExtResource("1")
+config = ExtResource("13")
+
+[node name="ChunkLayerGenerator_Road" type="Node" parent="."]
+script = ExtResource("1")
+config = ExtResource("6")
 
 [node name="ChunkLayerGenerator_Secondary" type="Node" parent="."]
 script = ExtResource("1")
@@ -30,13 +42,9 @@ config = ExtResource("4")
 script = ExtResource("1")
 config = ExtResource("5")
 
-[node name="ChunkLayerGenerator_Lake" type="Node" parent="."]
+[node name="ChunkLayerGenerator_Xz" type="Node" parent="."]
 script = ExtResource("1")
-config = ExtResource("13")
-
-[node name="ChunkLayerGenerator_Road" type="Node" parent="."]
-script = ExtResource("1")
-config = ExtResource("6")
+config = ExtResource("19")
 
 [node name="ChunkTreeSpawner" type="Node2D" parent="."]
 script = ExtResource("2")
@@ -69,3 +77,14 @@ config = ExtResource("15")
 [node name="ChunkBanditBaseSpawner" type="Node2D" parent="."]
 script = ExtResource("2")
 config = ExtResource("12")
+
+[node name="ChunkBunkerSpawner" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("17")
+
+[node name="ChunkForesterHouseSpawner" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("18")
+
+[node name="WorldGenerationDebugOverlay" type="Node2D" parent="."]
+script = ExtResource("16")
