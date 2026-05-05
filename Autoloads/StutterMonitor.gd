@@ -1,6 +1,6 @@
 extends Node
 
-@export var enabled: bool = true
+@export var enabled: bool = false
 @export var spike_threshold_ms: float = 30.0
 @export var log_cooldown_sec: float = 0.5
 

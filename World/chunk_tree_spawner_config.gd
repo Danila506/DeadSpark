@@ -12,11 +12,11 @@ class_name ChunkTreeSpawnerConfig
 @export_category("Chunk Settings")
 @export_range(4, 256, 1) var chunk_size_tiles: int = 16
 @export var tile_size_px: Vector2 = Vector2(60.0, 60.0)
-@export_range(1, 12, 1) var load_radius_chunks: int = 2
+@export_range(1, 12, 1) var load_radius_chunks: int = 1
 @export_range(1, 64, 1) var world_chunks_x: int = 8
 @export_range(1, 64, 1) var world_chunks_y: int = 8
-@export var load_entire_world_on_start: bool = true
-@export var unload_enabled: bool = false
+@export var load_entire_world_on_start: bool = false
+@export var unload_enabled: bool = true
 @export var update_interval_sec: float = 0.20
 @export_range(1, 32, 1) var max_chunk_operations_per_update: int = 1
 @export var revalidate_enabled: bool = false

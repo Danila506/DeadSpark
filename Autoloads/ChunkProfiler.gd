@@ -1,9 +1,9 @@
 extends Node
 
-@export var enabled: bool = true
+@export var enabled: bool = false
 @export var log_all_operations: bool = false
 @export var spike_threshold_ms: float = 8.0
-@export var destructive_operation_threshold: int = 1
+@export var destructive_operation_threshold: int = 9999
 
 
 func record_chunk_operation(source_name: String, action: String, chunk: Vector2i, stats: Dictionary) -> void:

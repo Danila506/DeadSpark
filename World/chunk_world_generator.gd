@@ -16,10 +16,10 @@ const META_PROTECTED_CELLS: StringName = &"world_generation_protected_cells"
 @export_range(1, 64, 1) var world_chunks_y: int = 8
 @export var clear_existing_on_start: bool = true
 @export var preserve_editor_tiles: bool = false
-@export var load_entire_world_on_start: bool = true
+@export var load_entire_world_on_start: bool = false
 @export var unload_enabled: bool = false
 @export var update_interval_sec: float = 0.20
-@export_range(1, 32, 1) var max_chunk_operations_per_update: int = 2
+@export_range(1, 32, 1) var max_chunk_operations_per_update: int = 1
 
 @export_category("Generation")
 @export var world_seed: int = 1337

@@ -6,21 +6,21 @@ extends CanvasLayer
 	preload("res://World/Assets/snowflake2.png")
 ]
 @export var spawn_margin_px: float = 96.0
-@export_range(0.1, 1.0, 0.05) var performance_scale: float = 1.0
-@export var viewport_spawn_overscan_px: float = 128.0
-@export var bounds_update_interval_sec: float = 0.15
+@export_range(0.1, 1.0, 0.05) var performance_scale: float = 0.75
+@export var viewport_spawn_overscan_px: float = 160.0
+@export var bounds_update_interval_sec: float = 0.0
 
 # Количество частиц на слой (делится между типами снежинок).
-@export_range(16, 8000, 1) var far_snowflake_count: int = 2880
-@export_range(16, 8000, 1) var near_snowflake_count: int = 2240
+@export_range(16, 8000, 1) var far_snowflake_count: int = 1500
+@export_range(16, 8000, 1) var near_snowflake_count: int = 1000
 
-@export var global_wind_speed: float = 0.28
-@export var global_wind_strength: float = 20.0
+@export var global_wind_speed: float = 0.0
+@export var global_wind_strength: float = 0.0
 
 @export var far_min_fall_speed: float = 20.0
 @export var far_max_fall_speed: float = 48.0
-@export var far_min_scale: float = 0.42
-@export var far_max_scale: float = 0.92
+@export var far_min_scale: float = 0.7
+@export var far_max_scale: float = 1.25
 @export_range(0.05, 1.0, 0.01) var far_min_alpha: float = 0.32
 @export_range(0.05, 1.0, 0.01) var far_max_alpha: float = 0.62
 @export var far_min_sway_amount: float = 5.0
@@ -31,8 +31,8 @@ extends CanvasLayer
 
 @export var near_min_fall_speed: float = 54.0
 @export var near_max_fall_speed: float = 126.0
-@export var near_min_scale: float = 1.05
-@export var near_max_scale: float = 1.9
+@export var near_min_scale: float = 1.45
+@export var near_max_scale: float = 2.65
 @export_range(0.05, 1.0, 0.01) var near_min_alpha: float = 0.62
 @export_range(0.05, 1.0, 0.01) var near_max_alpha: float = 0.98
 @export var near_min_sway_amount: float = 14.0
@@ -64,6 +64,7 @@ func _ready() -> void:
 	_world_rect = _resolve_world_rect()
 	_rebuild_gpu_snow()
 	_update_particle_bounds(true)
+	set_process(global_wind_speed > 0.0 and abs(global_wind_strength) > 0.001)
 
 
 func _process(delta: float) -> void:
@@ -82,6 +83,8 @@ func _process(delta: float) -> void:
 		var wind_x: float = clamp((wind_value * wind_factor) / 220.0, -0.35, 0.35)
 		mat.direction = Vector3(wind_x, 1.0, 0.0).normalized()
 
+	if bounds_update_interval_sec <= 0.0:
+		return
 	_bounds_update_elapsed += delta
 	if _bounds_update_elapsed >= max(bounds_update_interval_sec, 0.01):
 		_bounds_update_elapsed = 0.0
@@ -169,7 +172,7 @@ func _create_layer_particles(parent: Node2D, texture: Texture2D, layer_type: Str
 	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	mat.emission_box_extents = Vector3(world_width * 0.5, 6.0, 0.0)
 	mat.direction = Vector3(0.0, 1.0, 0.0)
-	mat.spread = _rng.randf_range(5.0, 14.0) if is_near else _rng.randf_range(3.0, 10.0)
+	mat.spread = 0.0
 	mat.gravity = Vector3.ZERO
 	mat.initial_velocity_min = min_speed
 	mat.initial_velocity_max = max_speed
@@ -181,8 +184,8 @@ func _create_layer_particles(parent: Node2D, texture: Texture2D, layer_type: Str
 	mat.damping_max = 0.0
 	mat.linear_accel_min = 0.0
 	mat.linear_accel_max = 0.0
-	mat.tangential_accel_min = -(near_max_sway_amount if is_near else far_max_sway_amount) * 0.25
-	mat.tangential_accel_max = (near_max_sway_amount if is_near else far_max_sway_amount) * 0.25
+	mat.tangential_accel_min = 0.0
+	mat.tangential_accel_max = 0.0
 	particles.process_material = mat
 
 	parent.add_child(particles)

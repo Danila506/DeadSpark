@@ -20,11 +20,11 @@ static var _global_reserved_footprint_grid: Dictionary = {}
 @export_category("Chunk Settings")
 @export_range(4, 256, 1) var chunk_size_tiles: int = 16
 @export var tile_size_px: Vector2 = Vector2(60.0, 60.0)
-@export_range(1, 12, 1) var load_radius_chunks: int = 2
+@export_range(1, 12, 1) var load_radius_chunks: int = 1
 @export_range(1, 64, 1) var world_chunks_x: int = 8
 @export_range(1, 64, 1) var world_chunks_y: int = 8
-@export var load_entire_world_on_start: bool = true
-@export var unload_enabled: bool = false
+@export var load_entire_world_on_start: bool = false
+@export var unload_enabled: bool = true
 @export var update_interval_sec: float = 0.20
 @export_range(1, 32, 1) var max_chunk_operations_per_update: int = 1
 @export var revalidate_enabled: bool = false
@@ -248,6 +248,16 @@ func _rebuild_chunk_work_queues(center_chunk: Vector2i) -> void:
 func _process_chunk_work_queues(chunk_budget: int) -> void:
 	var operations_left := maxi(1, chunk_budget)
 
+	if unload_enabled:
+		while operations_left > 0 and not _pending_unload_chunks.is_empty():
+			var chunk := _pending_unload_chunks.pop_front() as Vector2i
+			if not _required_chunks.has(chunk) and _loaded_chunks.has(chunk):
+				var unload_start_usec := Time.get_ticks_usec()
+				_unload_chunk_trees(chunk)
+				_loaded_chunks.erase(chunk)
+				_profile_chunk_operation("unload", chunk, unload_start_usec, _last_chunk_profile_stats)
+				operations_left -= 1
+
 	while operations_left > 0 and not _pending_load_chunks.is_empty():
 		var chunk := _pending_load_chunks.pop_front() as Vector2i
 		if _required_chunks.has(chunk) and not _loaded_chunks.has(chunk):
@@ -260,15 +270,6 @@ func _process_chunk_work_queues(chunk_budget: int) -> void:
 	if not unload_enabled:
 		_pending_unload_chunks.clear()
 		return
-
-	while operations_left > 0 and not _pending_unload_chunks.is_empty():
-		var chunk := _pending_unload_chunks.pop_front() as Vector2i
-		if not _required_chunks.has(chunk) and _loaded_chunks.has(chunk):
-			var unload_start_usec := Time.get_ticks_usec()
-			_unload_chunk_trees(chunk)
-			_loaded_chunks.erase(chunk)
-			_profile_chunk_operation("unload", chunk, unload_start_usec, _last_chunk_profile_stats)
-			operations_left -= 1
 
 
 func _sort_chunks_near_center(chunks: Array[Vector2i], center_chunk: Vector2i) -> void:
@@ -305,6 +306,7 @@ func _spawn_chunk_trees(chunk: Vector2i) -> void:
 	var chunk_spawn_positions: Array[Vector2] = []
 	var chunk_spawn_cells := {}
 	var placed := 0
+	var chunk_cell_count := chunk_size_tiles * chunk_size_tiles
 
 	for ly in range(chunk_size_tiles):
 		for lx in range(chunk_size_tiles):
@@ -320,9 +322,13 @@ func _spawn_chunk_trees(chunk: Vector2i) -> void:
 				placed += 1
 				stats["nodes_spawned"] = int(stats["nodes_spawned"]) + 1
 
-	if placed < min_trees_per_chunk and spawn_probability > 0.0:
-		var need := min_trees_per_chunk - placed
-		for i in range(need):
+	var target_min_trees := clampi(min_trees_per_chunk, 0, chunk_cell_count)
+	if placed < target_min_trees and spawn_probability > 0.0:
+		var need := target_min_trees - placed
+		var attempts_limit := maxi(need, chunk_cell_count)
+		for i in range(attempts_limit):
+			if placed >= target_min_trees:
+				break
 			var fallback_cell := _fallback_cell(base_cell, i)
 			var n := _spawn_tree_at_cell(fallback_cell, chunk, chunk_spawn_positions, chunk_spawn_cells)
 			if n != null:
@@ -330,6 +336,7 @@ func _spawn_chunk_trees(chunk: Vector2i) -> void:
 				chunk_spawn_positions.append(n.global_position)
 				_register_spawn_position(n.global_position)
 				chunk_spawn_cells[fallback_cell] = true
+				placed += 1
 				stats["nodes_spawned"] = int(stats["nodes_spawned"]) + 1
 
 	_spawned_trees_by_chunk[chunk] = nodes

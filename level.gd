@@ -36,6 +36,8 @@ extends Node2D
 @export var world_generation_root_path: NodePath = NodePath("WorldGeneration")
 @export_range(1, 512, 1) var startup_preload_chunk_budget: int = 24
 @export_range(30, 2000, 1) var startup_preload_max_frames: int = 420
+@export_range(1, 420, 1) var startup_spawner_preload_max_frames: int = 120
+@export_range(1.0, 33.0, 0.5) var startup_preload_frame_time_budget_ms: float = 7.0
 @export var startup_hidden_nodes: Array[NodePath] = [
 	NodePath("SnowLayer"),
 	NodePath("WoodLayer"),
@@ -51,6 +53,7 @@ var _cached_world_bounds: Rect2 = Rect2()
 var _layer_max_tile_span_by_id := {}
 var _loading_canvas: CanvasLayer
 var _loading_label: Label
+var _startup_paused_generators: Array[Node] = []
 
 
 func _ready() -> void:
@@ -153,35 +156,77 @@ func _preload_world_generation() -> void:
 		else:
 			tile_sources.append(source)
 
+	_pause_world_generation_processing(tile_sources)
+	_pause_world_generation_processing(spawner_sources)
 	await _drain_world_generation_sources(tile_sources, "Генерация мира...")
-	await _drain_world_generation_sources(spawner_sources, "Размещение объектов...")
+	await _drain_world_generation_sources(spawner_sources, "Размещение объектов...", startup_spawner_preload_max_frames)
 	for spawner in spawner_sources:
 		if spawner.has_method("revalidate_loaded_spawns"):
-			spawner.call("revalidate_loaded_spawns")
-	await _drain_world_generation_sources(spawner_sources, "Финальная проверка...")
+			spawner.call("revalidate_loaded_spawns", false)
+	_resume_world_generation_processing()
 
 
-func _drain_world_generation_sources(sources: Array[Node], loading_text: String) -> void:
+func _pause_world_generation_processing(sources: Array[Node]) -> void:
+	for source in sources:
+		if source == null or not is_instance_valid(source):
+			continue
+		if source.is_processing():
+			source.set_process(false)
+			_startup_paused_generators.append(source)
+
+
+func _resume_world_generation_processing() -> void:
+	for source in _startup_paused_generators:
+		if source == null or not is_instance_valid(source):
+			continue
+		source.set_process(true)
+	_startup_paused_generators.clear()
+
+
+func _drain_world_generation_sources(
+	sources: Array[Node],
+	loading_text: String,
+	max_frames_override: int = -1
+) -> void:
 	if sources.is_empty():
 		return
 
-	var max_frames := maxi(1, startup_preload_max_frames)
+	var max_frames := maxi(1, startup_preload_max_frames if max_frames_override <= 0 else max_frames_override)
+	var total_budget := maxi(1, startup_preload_chunk_budget)
+	var frame_time_budget_usec := int(maxf(1.0, startup_preload_frame_time_budget_ms) * 1000.0)
 	for _frame in range(max_frames):
-		var pending_total := 0
+		var step_start_usec := Time.get_ticks_usec()
+		var budget_left := total_budget
 		for source in sources:
 			if source == null or not is_instance_valid(source):
 				continue
-			source.call("force_generate_step", startup_preload_chunk_budget)
-			if source.has_method("get_pending_generation_chunk_count"):
-				pending_total += int(source.call("get_pending_generation_chunk_count"))
-			elif bool(source.call("has_generation_pending")):
-				pending_total += 1
+			if budget_left <= 0:
+				continue
 
+			var source_budget := maxi(1, int(ceil(float(budget_left) / float(sources.size()))))
+			source.call("force_generate_step", source_budget)
+			budget_left -= source_budget
+			if Time.get_ticks_usec() - step_start_usec >= frame_time_budget_usec:
+				break
+
+		var pending_total := _count_pending_world_generation_sources(sources)
 		if pending_total <= 0:
 			_set_loading_status(loading_text)
 			return
 		_set_loading_status("%s (%d)" % [loading_text, pending_total])
 		await get_tree().process_frame
+
+
+func _count_pending_world_generation_sources(sources: Array[Node]) -> int:
+	var pending_total := 0
+	for source in sources:
+		if source == null or not is_instance_valid(source):
+			continue
+		if source.has_method("get_pending_generation_chunk_count"):
+			pending_total += int(source.call("get_pending_generation_chunk_count"))
+		elif bool(source.call("has_generation_pending")):
+			pending_total += 1
+	return pending_total
 
 
 func _is_world_generation_spawner(source: Node) -> bool:
