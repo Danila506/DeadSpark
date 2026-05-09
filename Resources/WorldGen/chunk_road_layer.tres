@@ -11,7 +11,6 @@ load_radius_chunks = 2
 preserve_editor_tiles = true
 fill_probability = 0.08
 source_id = 0
-tile_options_atlas = Array[Vector2i]([Vector2i(20, 1)])
 use_terrain_connect = true
 terrain_ignore_empty = false
 road_corner_atlas = Vector2i(27, 0)

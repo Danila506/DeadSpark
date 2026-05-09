@@ -286,6 +286,11 @@ animations = [{
 }, {
 "frames": [],
 "loop": true,
+"name": &"Using",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": true,
 "name": &"default",
 "speed": 5.0
 }]

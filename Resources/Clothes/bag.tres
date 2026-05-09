@@ -85,6 +85,18 @@ region = Rect2(128, 128, 32, 32)
 atlas = ExtResource("0_bag_anim")
 region = Rect2(160, 128, 32, 32)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_vbbj6"]
+atlas = ExtResource("0_bag_anim")
+region = Rect2(64, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3mo5y"]
+atlas = ExtResource("0_bag_anim")
+region = Rect2(96, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_il6ip"]
+atlas = ExtResource("0_bag_anim")
+region = Rect2(128, 352, 32, 32)
+
 [sub_resource type="SpriteFrames" id="SpriteFrames_bag"]
 animations = [{
 "frames": [{
@@ -185,6 +197,20 @@ animations = [{
 }],
 "loop": true,
 "name": &"Up",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vbbj6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3mo5y")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_il6ip")
+}],
+"loop": true,
+"name": &"Using",
 "speed": 5.0
 }, {
 "frames": [],

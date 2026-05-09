@@ -19,6 +19,7 @@
 [ext_resource type="Resource" path="res://Resources/WorldGen/spawner_bunkers.tres" id="17"]
 [ext_resource type="Resource" path="res://Resources/WorldGen/spawner_forester_houses.tres" id="18"]
 [ext_resource type="Resource" path="res://Resources/WorldGen/chunk_xz_layer.tres" id="19"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_deer.tres" id="20"]
 
 [node name="WorldGeneration" type="Node"]
 
@@ -85,6 +86,10 @@ config = ExtResource("17")
 [node name="ChunkForesterHouseSpawner" type="Node2D" parent="."]
 script = ExtResource("2")
 config = ExtResource("18")
+
+[node name="ChunkDeerSpawner" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("20")
 
 [node name="WorldGenerationDebugOverlay" type="Node2D" parent="."]
 script = ExtResource("16")

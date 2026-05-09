@@ -3,6 +3,9 @@ extends Node2D
 const GENERATED_FOOTPRINT_META: StringName = &"world_generation_footprint_rect"
 const GENERATED_RESERVATION_KEY_META: StringName = &"world_generation_reservation_key"
 const GLOBAL_FOOTPRINT_GRID_CELL_SIZE: float = 256.0
+const SPAWN_JOB_PHASE_RANDOM: int = 0
+const SPAWN_JOB_PHASE_FALLBACK: int = 1
+const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 
 static var _global_registry_scene_id: int = 0
 static var _global_reserved_footprints: Dictionary = {}
@@ -12,6 +15,7 @@ static var _global_reserved_footprint_grid: Dictionary = {}
 @export var spawner_id: String = ""
 @export var player_path: NodePath
 @export var spawn_parent_path: NodePath
+@export var clear_generated_in_spawn_parent_on_start: bool = false
 @export var tree_scene: PackedScene
 @export var tree_scenes: Array[PackedScene] = []
 @export var tree_scene_weights: Array[float] = []
@@ -21,12 +25,15 @@ static var _global_reserved_footprint_grid: Dictionary = {}
 @export_range(4, 256, 1) var chunk_size_tiles: int = 16
 @export var tile_size_px: Vector2 = Vector2(60.0, 60.0)
 @export_range(1, 12, 1) var load_radius_chunks: int = 1
-@export_range(1, 64, 1) var world_chunks_x: int = 8
-@export_range(1, 64, 1) var world_chunks_y: int = 8
+@export_range(1, 64, 1) var world_chunks_x: int = DEFAULT_WORLD_CHUNKS_AXIS
+@export_range(1, 64, 1) var world_chunks_y: int = DEFAULT_WORLD_CHUNKS_AXIS
 @export var load_entire_world_on_start: bool = false
 @export var unload_enabled: bool = true
 @export var update_interval_sec: float = 0.20
 @export_range(1, 32, 1) var max_chunk_operations_per_update: int = 1
+@export_range(1, 512, 1) var max_spawn_candidates_per_update: int = 24
+@export_range(1, 128, 1) var max_spawn_nodes_per_update: int = 2
+@export_range(0.25, 16.0, 0.25) var spawn_step_time_budget_ms: float = 1.5
 @export var revalidate_enabled: bool = false
 @export var revalidate_interval_sec: float = 0.6
 @export_range(1, 32, 1) var revalidate_chunk_budget_per_pass: int = 2
@@ -82,6 +89,13 @@ var _layer_max_tile_span_by_id := {}
 var _layer_cell_span_cache := {}
 var _revalidate_chunk_cursor: int = 0
 var _last_chunk_profile_stats: Dictionary = {}
+var _active_spawn_job: Dictionary = {}
+var _valid_spawn_scenes: Array[PackedScene] = []
+var _valid_spawn_scene_weights: Array[float] = []
+var _valid_spawn_scene_weight_total: float = 0.0
+var _collision_query: PhysicsShapeQueryParameters2D = PhysicsShapeQueryParameters2D.new()
+var _collision_rect_shape: RectangleShape2D = RectangleShape2D.new()
+var _collision_circle_shape: CircleShape2D = CircleShape2D.new()
 
 
 func _ready() -> void:
@@ -93,9 +107,12 @@ func _ready() -> void:
 		return
 
 	_ensure_global_spawn_registry()
+	_rebuild_spawn_scene_cache()
 
 	_player = get_node_or_null(player_path) as Node2D
 	_spawn_parent = get_node_or_null(spawn_parent_path) as Node2D
+	if clear_generated_in_spawn_parent_on_start and _spawn_parent != null:
+		_clear_generated_spawn_parent_children()
 	_spawn_only_layer = null
 	if spawn_only_on_layer_path != NodePath(""):
 		_spawn_only_layer = get_node_or_null(spawn_only_on_layer_path) as TileMapLayer
@@ -128,12 +145,25 @@ func _ready() -> void:
 	else:
 		_update_visible_chunks(true)
 
+	_prewarm_initial_visible_generation()
+
+	if load_entire_world_on_start and not unload_enabled:
+		_prewarm_full_generation()
+		if not revalidate_enabled:
+			set_process(false)
+
+
+func _exit_tree() -> void:
+	_cancel_active_spawn_job()
+	_release_loaded_spawn_reservations()
+
 
 func _apply_config(cfg: ChunkTreeSpawnerConfig) -> void:
 	enabled = cfg.enabled
 	spawner_id = cfg.spawner_id
 	player_path = cfg.player_path
 	spawn_parent_path = cfg.spawn_parent_path
+	clear_generated_in_spawn_parent_on_start = cfg.clear_generated_in_spawn_parent_on_start
 	tree_scene = cfg.tree_scene
 	tree_scenes = cfg.tree_scenes.duplicate()
 	tree_scene_weights = cfg.tree_scene_weights.duplicate()
@@ -146,6 +176,9 @@ func _apply_config(cfg: ChunkTreeSpawnerConfig) -> void:
 	unload_enabled = cfg.unload_enabled
 	update_interval_sec = cfg.update_interval_sec
 	max_chunk_operations_per_update = cfg.max_chunk_operations_per_update
+	max_spawn_candidates_per_update = cfg.max_spawn_candidates_per_update
+	max_spawn_nodes_per_update = cfg.max_spawn_nodes_per_update
+	spawn_step_time_budget_ms = cfg.spawn_step_time_budget_ms
 	revalidate_enabled = cfg.revalidate_enabled
 	revalidate_interval_sec = cfg.revalidate_interval_sec
 	revalidate_chunk_budget_per_pass = cfg.revalidate_chunk_budget_per_pass
@@ -186,6 +219,19 @@ func _process(delta: float) -> void:
 	_try_revalidate_loaded_spawns()
 
 
+func _clear_generated_spawn_parent_children() -> void:
+	for child in _spawn_parent.get_children():
+		if not (child is Node):
+			continue
+		var node := child as Node
+		if not node.is_in_group("generated_world_object"):
+			continue
+		_release_global_reservation_for_node(node)
+		if node is Node2D:
+			_unregister_spawn_position((node as Node2D).global_position)
+		node.queue_free()
+
+
 func _init_world_bounds() -> void:
 	var start_chunk := _world_to_chunk(_player.global_position)
 	var half_x := int(floor(world_chunks_x / 2.0))
@@ -220,6 +266,10 @@ func _rebuild_chunk_work_queues(center_chunk: Vector2i) -> void:
 	_required_chunks.clear()
 	_pending_load_chunks.clear()
 	_pending_unload_chunks.clear()
+	var has_active_job := not _active_spawn_job.is_empty()
+	var active_chunk := Vector2i(999999, 999999)
+	if has_active_job:
+		active_chunk = _active_spawn_job.get("chunk", active_chunk) as Vector2i
 	var min_chunk := _world_min_chunk
 	var max_chunk := _world_max_chunk
 	if not load_entire_world_on_start:
@@ -232,8 +282,13 @@ func _rebuild_chunk_work_queues(center_chunk: Vector2i) -> void:
 			if not _is_chunk_in_world(chunk):
 				continue
 			_required_chunks[chunk] = true
+			if has_active_job and chunk == active_chunk:
+				continue
 			if not _loaded_chunks.has(chunk):
 				_pending_load_chunks.append(chunk)
+
+	if has_active_job and not _required_chunks.has(active_chunk):
+		_cancel_active_spawn_job()
 
 	if unload_enabled:
 		for chunk_key in _loaded_chunks.keys():
@@ -248,6 +303,15 @@ func _rebuild_chunk_work_queues(center_chunk: Vector2i) -> void:
 func _process_chunk_work_queues(chunk_budget: int) -> void:
 	var operations_left := maxi(1, chunk_budget)
 
+	if not _active_spawn_job.is_empty():
+		var active_chunk: Vector2i = _active_spawn_job.get("chunk", Vector2i(999999, 999999)) as Vector2i
+		if not _required_chunks.has(active_chunk):
+			_cancel_active_spawn_job()
+		elif _process_active_spawn_job():
+			operations_left -= 1
+		else:
+			return
+
 	if unload_enabled:
 		while operations_left > 0 and not _pending_unload_chunks.is_empty():
 			var chunk := _pending_unload_chunks.pop_front() as Vector2i
@@ -261,11 +325,11 @@ func _process_chunk_work_queues(chunk_budget: int) -> void:
 	while operations_left > 0 and not _pending_load_chunks.is_empty():
 		var chunk := _pending_load_chunks.pop_front() as Vector2i
 		if _required_chunks.has(chunk) and not _loaded_chunks.has(chunk):
-			var spawn_start_usec := Time.get_ticks_usec()
-			_spawn_chunk_trees(chunk)
-			_loaded_chunks[chunk] = true
-			_profile_chunk_operation("spawn", chunk, spawn_start_usec, _last_chunk_profile_stats)
-			operations_left -= 1
+			_start_spawn_chunk_job(chunk)
+			if _process_active_spawn_job():
+				operations_left -= 1
+			else:
+				return
 
 	if not unload_enabled:
 		_pending_unload_chunks.clear()
@@ -289,65 +353,211 @@ func _chunk_distance_squared(chunk: Vector2i, center_chunk: Vector2i) -> int:
 	return delta.x * delta.x + delta.y * delta.y
 
 
-func _spawn_chunk_trees(chunk: Vector2i) -> void:
+func _start_spawn_chunk_job(chunk: Vector2i) -> void:
+	var chunk_cell_count := chunk_size_tiles * chunk_size_tiles
 	var stats := {
 		"nodes_spawned": 0,
 		"nodes_freed": 0,
 		"revalidated_removed": 0
 	}
-	if not _is_chunk_allowed_for_biome(chunk):
-		_spawned_trees_by_chunk[chunk] = []
-		_spawn_positions_by_chunk[chunk] = []
-		_last_chunk_profile_stats = stats
-		return
-
-	var nodes: Array[Node2D] = []
 	var base_cell := chunk * chunk_size_tiles
-	var chunk_spawn_positions: Array[Vector2] = []
-	var chunk_spawn_cells := {}
-	var placed := 0
-	var chunk_cell_count := chunk_size_tiles * chunk_size_tiles
+	var random_cells := _build_chunk_random_cell_order(base_cell)
+	var target_min_trees := clampi(min_trees_per_chunk, 0, chunk_cell_count)
+	_active_spawn_job = {
+		"chunk": chunk,
+		"base_cell": base_cell,
+		"random_cells": random_cells,
+		"nodes": [],
+		"chunk_spawn_positions": [],
+		"chunk_spawn_cells": {},
+		"placed": 0,
+		"phase": SPAWN_JOB_PHASE_RANDOM,
+		"next_index": 0,
+		"target_min_trees": target_min_trees,
+		"attempts_limit": maxi(target_min_trees, chunk_cell_count),
+		"stats": stats,
+		"start_usec": Time.get_ticks_usec(),
+		"work_usec": 0,
+		"skip": not _is_chunk_allowed_for_biome(chunk)
+	}
 
-	for ly in range(chunk_size_tiles):
-		for lx in range(chunk_size_tiles):
-			var cell := base_cell + Vector2i(lx, ly)
+
+func _process_active_spawn_job() -> bool:
+	if _active_spawn_job.is_empty():
+		return false
+
+	if bool(_active_spawn_job.get("skip", false)):
+		_finish_active_spawn_job()
+		return true
+
+	var chunk: Vector2i = _active_spawn_job.get("chunk", Vector2i.ZERO) as Vector2i
+	var base_cell: Vector2i = _active_spawn_job.get("base_cell", chunk * chunk_size_tiles) as Vector2i
+	var random_cells: Array = _active_spawn_job.get("random_cells", [])
+	var nodes: Array = _active_spawn_job.get("nodes", [])
+	var chunk_spawn_positions: Array = _active_spawn_job.get("chunk_spawn_positions", [])
+	var chunk_spawn_cells: Dictionary = _active_spawn_job.get("chunk_spawn_cells", {})
+	var placed := int(_active_spawn_job.get("placed", 0))
+	var phase := int(_active_spawn_job.get("phase", SPAWN_JOB_PHASE_RANDOM))
+	var next_index := int(_active_spawn_job.get("next_index", 0))
+	var target_min_trees := int(_active_spawn_job.get("target_min_trees", 0))
+	var attempts_limit := int(_active_spawn_job.get("attempts_limit", chunk_size_tiles * chunk_size_tiles))
+	var stats: Dictionary = _active_spawn_job.get("stats", {})
+	var chunk_cell_count := chunk_size_tiles * chunk_size_tiles
+	var max_attempts := maxi(1, max_spawn_candidates_per_update)
+	var max_spawned := maxi(1, max_spawn_nodes_per_update)
+	var time_budget_usec := int(maxf(spawn_step_time_budget_ms, 0.25) * 1000.0)
+	var step_start_usec := Time.get_ticks_usec()
+	var attempts_this_step := 0
+	var spawned_this_step := 0
+
+	while attempts_this_step < max_attempts and spawned_this_step < max_spawned:
+		if Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
+			break
+
+		if phase == SPAWN_JOB_PHASE_RANDOM and next_index >= random_cells.size():
+			phase = SPAWN_JOB_PHASE_FALLBACK
+			next_index = 0
+			continue
+
+		if phase == SPAWN_JOB_PHASE_FALLBACK:
+			if placed >= target_min_trees or spawn_probability <= 0.0 or next_index >= attempts_limit:
+				break
+
+		var cell := Vector2i.ZERO
+		if phase == SPAWN_JOB_PHASE_RANDOM:
+			cell = random_cells[next_index] as Vector2i
+			next_index += 1
+			attempts_this_step += 1
 			if _roll(cell) > spawn_probability:
 				continue
-			var n := _spawn_tree_at_cell(cell, chunk, chunk_spawn_positions, chunk_spawn_cells)
-			if n != null:
-				nodes.append(n)
-				chunk_spawn_positions.append(n.global_position)
-				_register_spawn_position(n.global_position)
-				chunk_spawn_cells[cell] = true
-				placed += 1
-				stats["nodes_spawned"] = int(stats["nodes_spawned"]) + 1
+		else:
+			cell = _fallback_cell(base_cell, next_index)
+			next_index += 1
+			attempts_this_step += 1
 
-	var target_min_trees := clampi(min_trees_per_chunk, 0, chunk_cell_count)
-	if placed < target_min_trees and spawn_probability > 0.0:
-		var need := target_min_trees - placed
-		var attempts_limit := maxi(need, chunk_cell_count)
-		for i in range(attempts_limit):
-			if placed >= target_min_trees:
-				break
-			var fallback_cell := _fallback_cell(base_cell, i)
-			var n := _spawn_tree_at_cell(fallback_cell, chunk, chunk_spawn_positions, chunk_spawn_cells)
-			if n != null:
-				nodes.append(n)
-				chunk_spawn_positions.append(n.global_position)
-				_register_spawn_position(n.global_position)
-				chunk_spawn_cells[fallback_cell] = true
-				placed += 1
-				stats["nodes_spawned"] = int(stats["nodes_spawned"]) + 1
+		var n := _spawn_tree_at_cell(cell, chunk, placed, chunk_spawn_positions, chunk_spawn_cells)
+		if n == null:
+			continue
+		nodes.append(n)
+		chunk_spawn_positions.append(n.global_position)
+		_register_spawn_position(n.global_position)
+		chunk_spawn_cells[cell] = true
+		placed += 1
+		spawned_this_step += 1
+		stats["nodes_spawned"] = int(stats.get("nodes_spawned", 0)) + 1
 
+	if phase == SPAWN_JOB_PHASE_RANDOM and next_index >= random_cells.size():
+		phase = SPAWN_JOB_PHASE_FALLBACK
+		next_index = 0
+
+	var step_elapsed_usec := Time.get_ticks_usec() - step_start_usec
+	_active_spawn_job["nodes"] = nodes
+	_active_spawn_job["chunk_spawn_positions"] = chunk_spawn_positions
+	_active_spawn_job["chunk_spawn_cells"] = chunk_spawn_cells
+	_active_spawn_job["placed"] = placed
+	_active_spawn_job["phase"] = phase
+	_active_spawn_job["next_index"] = next_index
+	_active_spawn_job["stats"] = stats
+	_active_spawn_job["work_usec"] = int(_active_spawn_job.get("work_usec", 0)) + step_elapsed_usec
+
+	if phase == SPAWN_JOB_PHASE_FALLBACK:
+		if placed >= target_min_trees or spawn_probability <= 0.0 or next_index >= attempts_limit:
+			_finish_active_spawn_job()
+			return true
+
+	return false
+
+
+func _build_chunk_random_cell_order(chunk_origin: Vector2i) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	cells.resize(chunk_size_tiles * chunk_size_tiles)
+	var idx := 0
+	for y in range(chunk_size_tiles):
+		for x in range(chunk_size_tiles):
+			cells[idx] = chunk_origin + Vector2i(x, y)
+			idx += 1
+
+	var state := _seed_for_chunk_shuffle(chunk_origin)
+	for i in range(cells.size() - 1, 0, -1):
+		state = _xorshift32(state)
+		var j := int(posmod(state, i + 1))
+		if i == j:
+			continue
+		var tmp := cells[i]
+		cells[i] = cells[j]
+		cells[j] = tmp
+	return cells
+
+
+func _seed_for_chunk_shuffle(chunk_origin: Vector2i) -> int:
+	var seed := _hash_cell(chunk_origin.x, chunk_origin.y, world_seed + 11939)
+	if seed == 0:
+		seed = 1
+	return seed
+
+
+func _xorshift32(value: int) -> int:
+	var x := value
+	x ^= (x << 13)
+	x ^= (x >> 17)
+	x ^= (x << 5)
+	if x == 0:
+		return 1
+	return x
+
+
+func _finish_active_spawn_job() -> void:
+	if _active_spawn_job.is_empty():
+		return
+	var chunk: Vector2i = _active_spawn_job.get("chunk", Vector2i.ZERO) as Vector2i
+	var nodes: Array = _active_spawn_job.get("nodes", [])
+	var chunk_spawn_positions: Array = _active_spawn_job.get("chunk_spawn_positions", [])
+	var stats: Dictionary = _active_spawn_job.get("stats", {})
+	var work_usec := int(_active_spawn_job.get("work_usec", 0))
+	var profile_start_usec := Time.get_ticks_usec() - maxi(work_usec, 0)
 	_spawned_trees_by_chunk[chunk] = nodes
 	_spawn_positions_by_chunk[chunk] = chunk_spawn_positions
+	_loaded_chunks[chunk] = true
 	_last_chunk_profile_stats = stats
+	_active_spawn_job.clear()
+	_profile_chunk_operation("spawn", chunk, profile_start_usec, stats)
+
+
+func _cancel_active_spawn_job() -> void:
+	if _active_spawn_job.is_empty():
+		return
+	var nodes: Array = _active_spawn_job.get("nodes", [])
+	for item in nodes:
+		var node := item as Node
+		if node == null or not is_instance_valid(node):
+			continue
+		if node is Node2D:
+			_unregister_spawn_position((node as Node2D).global_position)
+		_release_global_reservation_for_node(node)
+		node.queue_free()
+	_active_spawn_job.clear()
+
+
+func _release_loaded_spawn_reservations() -> void:
+	for chunk_key in _spawned_trees_by_chunk.keys():
+		var nodes := _spawned_trees_by_chunk[chunk_key] as Array
+		for item in nodes:
+			var node := item as Node
+			if node == null or not is_instance_valid(node):
+				continue
+			if node is Node2D:
+				_unregister_spawn_position((node as Node2D).global_position)
+			_release_global_reservation_for_node(node)
+	_spawned_trees_by_chunk.clear()
+	_spawn_positions_by_chunk.clear()
+	_spawn_position_grid.clear()
 
 
 func _spawn_tree_at_cell(
 	cell: Vector2i,
 	chunk: Vector2i,
-	chunk_spawn_positions: Array[Vector2],
+	placed_index: int,
+	chunk_spawn_positions: Array,
 	chunk_spawn_cells: Dictionary
 ) -> Node2D:
 	if chunk_spawn_cells.has(cell):
@@ -365,7 +575,7 @@ func _spawn_tree_at_cell(
 	var candidate_rect: Rect2 = _get_candidate_spawn_rect(world_pos)
 	if _is_globally_occupied(candidate_rect):
 		return null
-	var scene := _pick_tree_scene(cell)
+	var scene := _pick_tree_scene(cell, chunk, placed_index)
 	if scene == null:
 		return null
 	var reservation_key: String = _make_spawn_reservation_key(chunk, cell)
@@ -484,12 +694,13 @@ func _overlaps_blocked(world_pos: Vector2) -> bool:
 	return false
 
 
-func _too_close_to_other_spawns(world_pos: Vector2, chunk_spawn_positions: Array[Vector2]) -> bool:
+func _too_close_to_other_spawns(world_pos: Vector2, chunk_spawn_positions: Array) -> bool:
 	var min_dist := maxf(0.0, min_spawn_distance_px)
 	if min_dist <= 0.0:
 		return false
 	var min_dist_sq := min_dist * min_dist
-	for local_pos in chunk_spawn_positions:
+	for local_pos_variant in chunk_spawn_positions:
+		var local_pos: Vector2 = local_pos_variant
 		if local_pos.distance_squared_to(world_pos) < min_dist_sq:
 			return true
 	var cell_size := _get_spawn_position_grid_cell_size()
@@ -580,25 +791,20 @@ func _overlaps_world_collision(world_pos: Vector2) -> bool:
 		return false
 
 	var query_position := world_pos
-	var shape: Shape2D
 	if has_rect_footprint:
 		var footprint_rect := _get_spawn_footprint_rect(world_pos)
-		var rect_shape := RectangleShape2D.new()
-		rect_shape.size = footprint_rect.size
-		shape = rect_shape
+		_collision_rect_shape.size = footprint_rect.size
 		query_position = footprint_rect.get_center()
+		_collision_query.shape = _collision_rect_shape
 	else:
-		var circle_shape := CircleShape2D.new()
-		circle_shape.radius = radius
-		shape = circle_shape
+		_collision_circle_shape.radius = radius
+		_collision_query.shape = _collision_circle_shape
 
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = shape
-	query.transform = Transform2D(0.0, query_position)
-	query.collide_with_bodies = true
-	query.collide_with_areas = true
-	query.collision_mask = 0x7fffffff
-	var hits: Array = world.direct_space_state.intersect_shape(query, 8)
+	_collision_query.transform = Transform2D(0.0, query_position)
+	_collision_query.collide_with_bodies = true
+	_collision_query.collide_with_areas = true
+	_collision_query.collision_mask = 0x7fffffff
+	var hits: Array = world.direct_space_state.intersect_shape(_collision_query, 8)
 	for hit_value in hits:
 		if not (hit_value is Dictionary):
 			continue
@@ -743,11 +949,12 @@ func _is_chunk_allowed_for_biome(chunk: Vector2i) -> bool:
 
 
 func has_generation_pending() -> bool:
-	return not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty()
+	return not _active_spawn_job.is_empty() or not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty()
 
 
 func get_pending_generation_chunk_count() -> int:
-	return _pending_load_chunks.size() + _pending_unload_chunks.size()
+	var active_count := 1 if not _active_spawn_job.is_empty() else 0
+	return active_count + _pending_load_chunks.size() + _pending_unload_chunks.size()
 
 
 func force_generate_step(chunk_budget: int = -1) -> void:
@@ -764,6 +971,22 @@ func force_generate_step(chunk_budget: int = -1) -> void:
 		_rebuild_chunk_work_queues(center_chunk)
 
 	_process_chunk_work_queues(maxi(1, budget))
+
+
+func _prewarm_full_generation() -> void:
+	var guard := 0
+	var max_iterations := maxi(world_chunks_x * world_chunks_y * 32, 1024)
+	while has_generation_pending() and guard < max_iterations:
+		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 32))
+		guard += 1
+
+
+func _prewarm_initial_visible_generation() -> void:
+	var guard := 0
+	var max_iterations := 160
+	while has_generation_pending() and guard < max_iterations:
+		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 24))
+		guard += 1
 
 
 func revalidate_loaded_spawns(full_pass: bool = true) -> void:
@@ -983,9 +1206,35 @@ func _resolve_generation_seed(config_seed: int) -> int:
 	return config_seed
 
 
+func _rebuild_spawn_scene_cache() -> void:
+	_valid_spawn_scenes.clear()
+	_valid_spawn_scene_weights.clear()
+	_valid_spawn_scene_weight_total = 0.0
+
+	if tree_scenes.is_empty():
+		if tree_scene != null:
+			_valid_spawn_scenes.append(tree_scene)
+			_valid_spawn_scene_weights.append(1.0)
+			_valid_spawn_scene_weight_total = 1.0
+		return
+
+	for i in range(tree_scenes.size()):
+		var scene := tree_scenes[i]
+		if scene == null:
+			continue
+		var weight := 1.0
+		if i < tree_scene_weights.size():
+			weight = maxf(tree_scene_weights[i], 0.0)
+		_valid_spawn_scenes.append(scene)
+		_valid_spawn_scene_weights.append(weight)
+		_valid_spawn_scene_weight_total += weight
+
+
 func _prepare_generated_node(node: Node2D, chunk: Vector2i, cell: Vector2i, scene: PackedScene) -> void:
 	var object_id := _make_generated_object_id(chunk, cell, scene)
 	node.set_meta("world_generation_id", object_id)
+	if scene != null:
+		node.set_meta("world_generation_scene_path", scene.resource_path)
 	node.add_to_group("generated_world_object")
 	if "persistent_id" in node:
 		node.persistent_id = object_id
@@ -1013,49 +1262,44 @@ func _get_spawner_identity() -> String:
 
 
 func _get_spawn_scene_count() -> int:
-	if not tree_scenes.is_empty():
-		var valid_count := 0
-		for scene in tree_scenes:
-			if scene != null:
-				valid_count += 1
-		return valid_count
-	return 1 if tree_scene != null else 0
+	return _valid_spawn_scenes.size()
 
 
-func _pick_tree_scene(cell: Vector2i) -> PackedScene:
-	if tree_scenes.is_empty():
+func _pick_tree_scene(cell: Vector2i, chunk: Vector2i, placed_index: int) -> PackedScene:
+	var scene_count := _valid_spawn_scenes.size()
+	if scene_count <= 0:
 		return tree_scene
-
-	var scenes: Array[PackedScene] = []
-	var weights: Array[float] = []
-	var total_weight := 0.0
-	for i in range(tree_scenes.size()):
-		var scene := tree_scenes[i]
-		if scene == null:
-			continue
-		var weight := 1.0
-		if i < tree_scene_weights.size():
-			weight = maxf(tree_scene_weights[i], 0.0)
-		scenes.append(scene)
-		weights.append(weight)
-		total_weight += weight
-
-	if scenes.is_empty():
-		return tree_scene
-	if scenes.size() == 1:
-		return scenes[0]
-	if total_weight <= 0.0:
-		var uniform_index := int(_hash_cell(cell.x, cell.y, world_seed + 6163) % scenes.size())
-		return scenes[uniform_index]
+	if scene_count == 1:
+		return _valid_spawn_scenes[0]
+	if _has_balanced_spawn_scene_weights():
+		var offset := int(_hash_cell(chunk.x, chunk.y, world_seed + 6163) % scene_count)
+		return _valid_spawn_scenes[(offset + maxi(0, placed_index)) % scene_count]
+	if _valid_spawn_scene_weight_total <= 0.0:
+		var uniform_index := int(_hash_cell(cell.x, cell.y, world_seed + 6163) % scene_count)
+		return _valid_spawn_scenes[uniform_index]
 
 	var h := _hash_cell(cell.x, cell.y, world_seed + 6163)
-	var roll := (float(h % 100000) / 100000.0) * total_weight
+	var roll := (float(h % 100000) / 100000.0) * _valid_spawn_scene_weight_total
 	var acc := 0.0
-	for i in range(scenes.size()):
-		acc += weights[i]
+	for i in range(scene_count):
+		acc += _valid_spawn_scene_weights[i]
 		if roll <= acc:
-			return scenes[i]
-	return scenes[scenes.size() - 1]
+			return _valid_spawn_scenes[i]
+	return _valid_spawn_scenes[scene_count - 1]
+
+
+func _has_balanced_spawn_scene_weights() -> bool:
+	if _valid_spawn_scenes.size() <= 1:
+		return false
+	if _valid_spawn_scene_weight_total <= 0.0:
+		return true
+	var first_weight := float(_valid_spawn_scene_weights[0])
+	if first_weight <= 0.0:
+		return false
+	for weight in _valid_spawn_scene_weights:
+		if not is_equal_approx(float(weight), first_weight):
+			return false
+	return true
 
 
 func _record_generated_object_state(node: Node) -> void:
@@ -1090,5 +1334,23 @@ func get_debug_world_generation_info() -> Dictionary:
 		"unload_enabled": unload_enabled,
 		"revalidate_enabled": revalidate_enabled,
 		"spawn_positions_by_chunk": _spawn_positions_by_chunk.duplicate(true),
+		"spawn_scene_counts": _collect_spawn_scene_counts(),
 		"blocked_world_positions": _blocked_world_positions.duplicate()
 	}
+
+
+func _collect_spawn_scene_counts() -> Dictionary:
+	var counts := {}
+	for chunk_key in _spawned_trees_by_chunk.keys():
+		var nodes := _spawned_trees_by_chunk[chunk_key] as Array
+		for item in nodes:
+			var node := item as Node
+			if node == null or not is_instance_valid(node):
+				continue
+			var scene_path := str(node.get_meta("world_generation_scene_path", ""))
+			if scene_path.is_empty():
+				scene_path = node.scene_file_path
+			if scene_path.is_empty():
+				scene_path = node.name
+			counts[scene_path] = int(counts.get(scene_path, 0)) + 1
+	return counts

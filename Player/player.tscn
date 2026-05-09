@@ -2497,7 +2497,7 @@ zoom = Vector2(2, 2)
 
 [node name="BodySprite" type="AnimatedSprite2D" parent="." unique_id=175970804]
 sprite_frames = SubResource("SpriteFrames_1jxqw")
-animation = &"Using"
+animation = &"Left"
 offset = Vector2(0, -15.105)
 metadata/_aseprite_wizard_interface_config_ = {
 "animation_section": true,

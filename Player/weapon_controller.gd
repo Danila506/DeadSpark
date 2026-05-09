@@ -37,6 +37,11 @@ class_name WeaponController
 @export var cursor_speed_min_px_per_sec: float = 120.0
 @export var cursor_speed_max_px_per_sec: float = 1400.0
 @export var aim_target_offset: Vector2 = Vector2(0.0, 0.0)
+@export var aim_camera_zoom: Vector2 = Vector2(2.65, 2.65)
+@export var scoped_aim_camera_zoom: Vector2 = Vector2(3.25, 3.25)
+@export var aim_camera_look_ahead_distance: float = 34.0
+@export var scoped_aim_camera_look_ahead_distance: float = 48.0
+@export_range(1.0, 20.0, 0.1) var aim_camera_transition_speed: float = 8.0
 @export var hearing_base_radius: float = 140.0
 @export var hearing_footstep_bonus_radius: float = 80.0
 @export var hearing_shot_bonus_radius: float = 240.0
@@ -75,6 +80,14 @@ var melee_camera_shake_time_left: float = 0.0
 var _last_mouse_mode: int = -1
 var _last_cursor_texture: Texture2D = null
 var _last_cursor_hotspot: Vector2 = Vector2(-999999.0, -999999.0)
+var mobile_aim_active: bool = false
+var mobile_aim_vector: Vector2 = Vector2.DOWN
+var mobile_aim_distance: float = 420.0
+var mobile_shoot_active: bool = false
+var mobile_shoot_just_pressed: bool = false
+var previous_aim_target_position: Vector2 = Vector2.ZERO
+var base_camera_zoom: Vector2 = Vector2(2.0, 2.0)
+var base_camera_position: Vector2 = Vector2.ZERO
 var noise_controller
 var reload_controller
 var shooting_controller
@@ -97,6 +110,9 @@ func _ready() -> void:
 	melee_controller = WEAPON_MELEE_CONTROLLER.new(self)
 	_ensure_reload_input_action()
 	current_hearing_radius = max(hearing_base_radius, 1.0)
+	if player_camera != null:
+		base_camera_zoom = player_camera.zoom
+		base_camera_position = player_camera.position
 	_resolve_weapon_audio_nodes()
 	_setup_shoot_sfx()
 	if noise_controller != null:
@@ -121,6 +137,7 @@ func _process(delta: float) -> void:
 	if melee_controller != null:
 		melee_controller.update_melee_attack(delta)
 		melee_controller.update_melee_camera_shake(delta)
+	_update_aim_camera(delta)
 	if reload_controller != null:
 		reload_controller.update(delta)
 	_sync_reload_state_from_controller()
@@ -160,6 +177,7 @@ func _update_current_weapon() -> void:
 		cursor_motion_ratio = 0.0
 		aim_visual_ratio = 1.0
 		previous_mouse_position = Vector2.ZERO
+		previous_aim_target_position = Vector2.ZERO
 
 
 func _stop_weapon_audio() -> void:
@@ -196,6 +214,11 @@ func _update_aim_state() -> void:
 
 
 func _update_cursor() -> void:
+	if mobile_aim_active:
+		_set_mouse_mode_if_changed(Input.MOUSE_MODE_HIDDEN)
+		_set_cursor_if_changed(null, Vector2.ZERO)
+		return
+
 	if is_reloading:
 		_set_mouse_mode_if_changed(Input.MOUSE_MODE_HIDDEN)
 		_set_cursor_if_changed(null, Vector2.ZERO)
@@ -454,7 +477,7 @@ func _update_cursor_heat(delta: float) -> void:
 		cursor_heat_ratio = 1.0
 		return
 
-	if Input.is_action_pressed("shoot") and not is_reloading and _get_ammo_in_mag() > 0:
+	if _is_shoot_input_active() and not is_reloading and _get_ammo_in_mag() > 0:
 		cursor_heat_ratio = move_toward(cursor_heat_ratio, 1.0, CURSOR_HEAT_BUILD_PER_SEC * delta)
 	else:
 		cursor_heat_ratio = move_toward(cursor_heat_ratio, 0.0, settle_speed * delta)
@@ -521,13 +544,15 @@ func _get_hold_spread_ratio() -> float:
 
 
 func _update_cursor_motion_ratio(delta: float) -> void:
-	var mouse_world_pos: Vector2 = player.get_global_mouse_position()
-	if previous_mouse_position == Vector2.ZERO:
-		previous_mouse_position = mouse_world_pos
+	var aim_target_world_pos: Vector2 = _get_aim_target_world_position()
+	if previous_aim_target_position == Vector2.ZERO:
+		previous_aim_target_position = aim_target_world_pos
+		previous_mouse_position = aim_target_world_pos
 		return
 
-	var distance_moved: float = mouse_world_pos.distance_to(previous_mouse_position)
-	previous_mouse_position = mouse_world_pos
+	var distance_moved: float = aim_target_world_pos.distance_to(previous_aim_target_position)
+	previous_aim_target_position = aim_target_world_pos
+	previous_mouse_position = aim_target_world_pos
 
 	if delta <= 0.0:
 		return
@@ -558,6 +583,11 @@ func _is_player_moving() -> bool:
 
 
 func _get_aim_target_world_position() -> Vector2:
+	if mobile_aim_active and player != null:
+		var direction: Vector2 = mobile_aim_vector
+		if direction == Vector2.ZERO:
+			direction = Vector2.DOWN
+		return player.global_position + direction.normalized() * maxf(mobile_aim_distance, MIN_BULLET_DISTANCE)
 	return player.get_global_mouse_position() + aim_target_offset
 
 
@@ -566,6 +596,79 @@ func _get_direction_to_aim_target(from_position: Vector2) -> Vector2:
 	if direction == Vector2.ZERO:
 		return Vector2.DOWN
 	return direction
+
+
+func set_mobile_aim_vector(direction: Vector2, distance: float = 420.0) -> void:
+	if direction == Vector2.ZERO:
+		clear_mobile_aim()
+		return
+	mobile_aim_active = true
+	mobile_aim_vector = direction.normalized()
+	mobile_aim_distance = maxf(distance, MIN_BULLET_DISTANCE)
+
+
+func set_mobile_shoot_active(active: bool) -> void:
+	if active and not mobile_shoot_active:
+		mobile_shoot_just_pressed = true
+	mobile_shoot_active = active
+	if not active:
+		mobile_shoot_just_pressed = false
+
+
+func clear_mobile_aim() -> void:
+	mobile_aim_active = false
+	set_mobile_shoot_active(false)
+	previous_aim_target_position = Vector2.ZERO
+
+
+func _is_shoot_input_active() -> bool:
+	if mobile_aim_active:
+		return mobile_shoot_active
+	return Input.is_action_pressed("shoot")
+
+
+func _is_shoot_input_just_pressed() -> bool:
+	if mobile_aim_active:
+		if not mobile_shoot_just_pressed:
+			return false
+		mobile_shoot_just_pressed = false
+		return true
+	return Input.is_action_just_pressed("shoot")
+
+
+func _update_aim_camera(delta: float) -> void:
+	if player_camera == null:
+		return
+
+	var target_zoom: Vector2 = base_camera_zoom
+	var target_position: Vector2 = base_camera_position
+	if is_aiming and current_weapon != null and not is_reloading:
+		var has_scope: bool = _has_scope_attachment()
+		target_zoom = scoped_aim_camera_zoom if has_scope else aim_camera_zoom
+		var look_ahead_distance: float = scoped_aim_camera_look_ahead_distance if has_scope else aim_camera_look_ahead_distance
+		target_position = base_camera_position + _get_direction_to_aim_target(player.global_position) * maxf(look_ahead_distance, 0.0)
+
+	var blend: float = clamp(aim_camera_transition_speed * delta, 0.0, 1.0)
+	player_camera.zoom = player_camera.zoom.lerp(target_zoom, blend)
+	player_camera.position = player_camera.position.lerp(target_position, blend)
+
+
+func _has_scope_attachment() -> bool:
+	if current_weapon == null:
+		return false
+
+	var attached_scope: ItemData = InventoryManager.get_attached_scope(current_weapon)
+	if attached_scope != null:
+		return true
+
+	var attachments: Array[ItemData] = InventoryManager.get_attached_attachments(current_weapon)
+	for attachment in attachments:
+		if attachment == null:
+			continue
+		if attachment.is_scope_attachment or attachment.attachment_slot == ItemData.AttachmentSlot.SCOPE:
+			return true
+
+	return false
 
 
 func _start_reload() -> void:

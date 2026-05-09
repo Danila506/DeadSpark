@@ -336,4 +336,3 @@ spread_increase_per_shot = 8.0
 spread_recovery_per_sec = 2.0
 aim_distance_min = 100.0
 aim_distance_max = 280.0
-metadata/_custom_type_script = "uid://caml33j8nxvfl"

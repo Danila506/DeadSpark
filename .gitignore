@@ -7,6 +7,8 @@
 *.bak
 *.swp
 .godot-headless*.log
+.godot*headless*.log
+.godot*.log
 
 # Export credentials are machine/user specific.
 export_credentials.cfg

@@ -32,6 +32,15 @@ const INSIDE_HOUSE_ANCHOR_META: StringName = &"inside_house_anchor"
 	preload("res://Resources/Food/pepper.tres"),
 	preload("res://Resources/Food/eggplant.tres")
 ]
+@export var wardrobe_clothing_pool: Array[ItemData] = [
+	preload("res://Resources/Clothes/kurtka_demisezonka.tres"),
+	preload("res://Resources/Clothes/kurtka_sanitara.tres"),
+	preload("res://Resources/Clothes/plash_palatka.tres"),
+	preload("res://Resources/Clothes/rabochie_shtany.tres"),
+	preload("res://Resources/Clothes/shtany_mehanika.tres"),
+	preload("res://Resources/Clothes/shtany_sanitara.tres"),
+	preload("res://Resources/Clothes/altyn_bt.tres")
+]
 @export var persistent_id: String = ""
 
 var player_in_house: bool = false
@@ -246,7 +255,15 @@ func _ensure_wardrobe_loot() -> void:
 		var guaranteed_item_instance: ItemData = guaranteed_item.create_instance(1)
 		wardrobe_loot_slots[guaranteed_slot_index] = guaranteed_item_instance
 
-	if wardrobe_food_pool.is_empty() or free_indices.is_empty():
+	var wardrobe_random_pool: Array[ItemData] = []
+	for item in wardrobe_food_pool:
+		if item != null:
+			wardrobe_random_pool.append(item)
+	for item in wardrobe_clothing_pool:
+		if item != null:
+			wardrobe_random_pool.append(item)
+
+	if wardrobe_random_pool.is_empty() or free_indices.is_empty():
 		return
 
 	var spawn_count: int = randi_range(min_spawn, max_spawn)
@@ -259,7 +276,7 @@ func _ensure_wardrobe_loot() -> void:
 		var slot_index: int = free_indices[free_pos]
 		free_indices.remove_at(free_pos)
 
-		var template_item: ItemData = wardrobe_food_pool[randi_range(0, wardrobe_food_pool.size() - 1)]
+		var template_item: ItemData = wardrobe_random_pool[randi_range(0, wardrobe_random_pool.size() - 1)]
 		if template_item == null:
 			continue
 

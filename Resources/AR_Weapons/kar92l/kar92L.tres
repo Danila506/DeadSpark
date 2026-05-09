@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://cflnqtyt37c8q" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/kar92l/kar92lInv.png" id="2_mhvcm"]
 [ext_resource type="Texture2D" uid="uid://brvu3jo4col46" path="res://Assets/Sights/cursorHighSpread.png" id="2_v1e88"]
 [ext_resource type="Texture2D" uid="uid://jlqlub1oao7h" path="res://Assets/Sights/cursorLowSpread.png" id="3_ctnag"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="3_qajex"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="3_qajex"]
 [ext_resource type="Texture2D" uid="uid://by0iwuio78qtd" path="res://Assets/Sights/cursorMediumSpread.png" id="4_cnds5"]
 [ext_resource type="Texture2D" uid="uid://cyrwivdm5cqpf" path="res://Assets/itemAssets/on_world_icon/AR_Weapon/kar92l/kar92lWrd.png" id="4_qajex"]
 [ext_resource type="Texture2D" uid="uid://bchssg1341jjr" path="res://Assets/itemAssets/inventory_icon/bullets/ammoKar92lInv.png" id="5_6b3xh"]

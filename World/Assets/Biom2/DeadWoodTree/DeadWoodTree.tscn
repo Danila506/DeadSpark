@@ -16,8 +16,7 @@ size = Vector2(18.579233, 18.390804)
 script = ExtResource("1_7afne")
 
 [node name="OutlineSprite" type="Sprite2D" parent="." unique_id=679275182]
-visible = false
-position = Vector2(0, -58)
+position = Vector2(0, -73)
 texture = ExtResource("3_k4al2")
 offset = Vector2(0, 30)
 

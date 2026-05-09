@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bjeh1i8p5b857"
-path="res://.godot/imported/medicalKit.png-a5d0df54758e9ea5f26726fbebe374b5.ctex"
+uid="uid://hmjiustbcu5o"
+path="res://.godot/imported/ReloadBtn.png-0327281432000c5042ad0661aeab1c29.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/itemAssets/on_world_icon/Medicine/medicalKit.png"
-dest_files=["res://.godot/imported/medicalKit.png-a5d0df54758e9ea5f26726fbebe374b5.ctex"]
+source_file="res://Smartphone/ReloadBtn.png"
+dest_files=["res://.godot/imported/ReloadBtn.png-0327281432000c5042ad0661aeab1c29.ctex"]
 
 [params]
 

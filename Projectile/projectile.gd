@@ -207,7 +207,7 @@ func _should_ignore_collision(body: Node) -> bool:
 
 	if pass_through_tilemap_layers and body is TileMapLayer:
 		return true
-	if _node_looks_like_bush(body):
+	if _node_should_not_block_bullets(body):
 		return true
 
 	var parent: Node = body.get_parent()
@@ -215,7 +215,7 @@ func _should_ignore_collision(body: Node) -> bool:
 		return true
 	if parent != null and parent.is_in_group("bullet_passthrough"):
 		return true
-	if parent != null and _node_looks_like_bush(parent):
+	if parent != null and _node_should_not_block_bullets(parent):
 		return true
 
 	return false
@@ -239,12 +239,20 @@ func _is_dead_target(node: Node) -> bool:
 	return false
 
 
-func _node_looks_like_bush(node: Node) -> bool:
+func _node_should_not_block_bullets(node: Node) -> bool:
 	if node == null:
 		return false
 
 	var name_lower: String = node.name.to_lower()
-	return name_lower.contains("bush") or name_lower.contains("куст")
+	return (
+		name_lower.contains("bush")
+		or name_lower.contains("куст")
+		or name_lower.contains("tree")
+		or name_lower.contains("дерев")
+		or name_lower.contains("stone")
+		or name_lower.contains("кам")
+		or name_lower.contains("deadwood")
+	)
 
 
 func _raycast_to_position(from_pos: Vector2, to_pos: Vector2) -> Dictionary:
@@ -267,6 +275,8 @@ func _handle_raycast_hit(hit: Dictionary) -> bool:
 		_release_projectile()
 		return true
 	var target_node: Node = collider as Node
+	if target_node is TileMapLayer and not _tilemap_hit_is_solid(target_node as TileMapLayer, hit):
+		return false
 	global_position = hit.get("position", global_position)
 	if _should_ignore_collision(target_node):
 		return false
@@ -285,6 +295,31 @@ func _handle_raycast_hit(hit: Dictionary) -> bool:
 	_apply_damage_to_target(target_node, body_context)
 	_release_projectile()
 	return true
+
+
+func _tilemap_hit_is_solid(tilemap_layer: TileMapLayer, hit: Dictionary) -> bool:
+	if tilemap_layer == null:
+		return false
+
+	var hit_position: Vector2 = hit.get("position", global_position)
+	var hit_cell: Vector2i = tilemap_layer.local_to_map(tilemap_layer.to_local(hit_position))
+	if tilemap_layer.get_cell_source_id(hit_cell) == -1:
+		return false
+
+	var tile_data: TileData = tilemap_layer.get_cell_tile_data(hit_cell)
+	if tile_data == null:
+		return false
+
+	var tile_set: TileSet = tilemap_layer.tile_set
+	if tile_set == null:
+		return false
+
+	var physics_layers_count: int = max(tile_set.get_physics_layers_count(), 1)
+	for layer_index in range(physics_layers_count):
+		if tile_data.get_collision_polygons_count(layer_index) > 0:
+			return true
+
+	return false
 
 
 func reset_for_pool_reuse() -> void:

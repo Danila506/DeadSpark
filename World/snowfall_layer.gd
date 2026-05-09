@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-@export var enabled: bool = true
+@export var enabled: bool = false
 @export var snowflake_textures: Array[Texture2D] = [
 	preload("res://World/Assets/snowflake.png"),
 	preload("res://World/Assets/snowflake2.png")
@@ -17,24 +17,24 @@ extends CanvasLayer
 @export var global_wind_speed: float = 0.0
 @export var global_wind_strength: float = 0.0
 
-@export var far_min_fall_speed: float = 20.0
-@export var far_max_fall_speed: float = 48.0
-@export var far_min_scale: float = 0.7
-@export var far_max_scale: float = 1.25
-@export_range(0.05, 1.0, 0.01) var far_min_alpha: float = 0.32
-@export_range(0.05, 1.0, 0.01) var far_max_alpha: float = 0.62
+@export var far_min_fall_speed: float = 55.0
+@export var far_max_fall_speed: float = 110.0
+@export var far_min_scale: float = 1.0
+@export var far_max_scale: float = 1.8
+@export_range(0.05, 1.0, 0.01) var far_min_alpha: float = 0.2
+@export_range(0.05, 1.0, 0.01) var far_max_alpha: float = 0.45
 @export var far_min_sway_amount: float = 5.0
 @export var far_max_sway_amount: float = 20.0
 @export_range(0.0, 1.0, 0.01) var far_rotating_ratio: float = 0.20
 @export var far_min_rotation_speed_deg: float = 2.0
 @export var far_max_rotation_speed_deg: float = 8.0
 
-@export var near_min_fall_speed: float = 54.0
-@export var near_max_fall_speed: float = 126.0
-@export var near_min_scale: float = 1.45
-@export var near_max_scale: float = 2.65
-@export_range(0.05, 1.0, 0.01) var near_min_alpha: float = 0.62
-@export_range(0.05, 1.0, 0.01) var near_max_alpha: float = 0.98
+@export var near_min_fall_speed: float = 130.0
+@export var near_max_fall_speed: float = 240.0
+@export var near_min_scale: float = 1.9
+@export var near_max_scale: float = 3.4
+@export_range(0.05, 1.0, 0.01) var near_min_alpha: float = 0.42
+@export_range(0.05, 1.0, 0.01) var near_max_alpha: float = 0.72
 @export var near_min_sway_amount: float = 14.0
 @export var near_max_sway_amount: float = 48.0
 @export_range(0.0, 1.0, 0.01) var near_rotating_ratio: float = 0.62
@@ -52,6 +52,11 @@ var _bounds_update_elapsed: float = 0.0
 
 
 func _ready() -> void:
+	# Screen-space snowfall: camera/player movement must not affect particle motion.
+	follow_viewport_enabled = false
+	follow_viewport_scale = 1.0
+	offset = Vector2.ZERO
+
 	if not enabled:
 		_clear_gpu_snow()
 		visible = false

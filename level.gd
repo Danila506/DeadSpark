@@ -1,5 +1,7 @@
 extends Node2D
 
+const MOBILE_CONTROLS_SCENE: PackedScene = preload("res://Smartphone/mobile_controls.tscn")
+const MOBILE_PROFILER_OVERLAY_SCRIPT = preload("res://Autoloads/mobile_profiler_overlay.gd")
 
 @export_category("World Bounds")
 @export var player_path: NodePath
@@ -33,11 +35,18 @@ extends Node2D
 
 @export_category("Startup Loading")
 @export var startup_loading_enabled: bool = true
+@export var force_mobile_controls_on_desktop: bool = false
+@export var show_mobile_profiler_overlay: bool = false
 @export var world_generation_root_path: NodePath = NodePath("WorldGeneration")
 @export_range(1, 512, 1) var startup_preload_chunk_budget: int = 24
 @export_range(30, 2000, 1) var startup_preload_max_frames: int = 420
 @export_range(1, 420, 1) var startup_spawner_preload_max_frames: int = 120
 @export_range(1.0, 33.0, 0.5) var startup_preload_frame_time_budget_ms: float = 7.0
+@export var startup_fast_continue_loading_enabled: bool = true
+@export_range(1, 512, 1) var startup_continue_preload_chunk_budget: int = 10
+@export_range(1, 420, 1) var startup_continue_preload_max_frames: int = 64
+@export_range(1, 420, 1) var startup_continue_spawner_preload_max_frames: int = 12
+@export_range(1.0, 33.0, 0.5) var startup_continue_preload_frame_time_budget_ms: float = 2.5
 @export var startup_hidden_nodes: Array[NodePath] = [
 	NodePath("SnowLayer"),
 	NodePath("WoodLayer"),
@@ -54,9 +63,13 @@ var _layer_max_tile_span_by_id := {}
 var _loading_canvas: CanvasLayer
 var _loading_label: Label
 var _startup_paused_generators: Array[Node] = []
+var _startup_is_continue_load: bool = false
+var _mobile_controls: MobileControls
+var _mobile_profiler_overlay: MobileProfilerOverlay
 
 
 func _ready() -> void:
+	_startup_is_continue_load = _consume_continue_load_hint()
 	if startup_loading_enabled:
 		_create_loading_overlay()
 		_set_startup_world_visible(false)
@@ -72,6 +85,9 @@ func _ready() -> void:
 	if startup_loading_enabled:
 		_set_startup_world_visible(true)
 		_destroy_loading_overlay()
+
+	_setup_mobile_controls()
+	_setup_mobile_profiler_overlay()
 
 
 func _create_loading_overlay() -> void:
@@ -158,8 +174,26 @@ func _preload_world_generation() -> void:
 
 	_pause_world_generation_processing(tile_sources)
 	_pause_world_generation_processing(spawner_sources)
-	await _drain_world_generation_sources(tile_sources, "Генерация мира...")
-	await _drain_world_generation_sources(spawner_sources, "Размещение объектов...", startup_spawner_preload_max_frames)
+	await _drain_world_generation_sources(
+		tile_sources,
+		"Генерация мира...",
+		-1,
+		_startup_is_continue_load
+	)
+	if not (_startup_is_continue_load and startup_fast_continue_loading_enabled):
+		await _drain_world_generation_sources(
+			spawner_sources,
+			"Размещение объектов...",
+			startup_spawner_preload_max_frames,
+			false
+		)
+	else:
+		await _drain_world_generation_sources(
+			spawner_sources,
+			"Размещение объектов...",
+			startup_continue_spawner_preload_max_frames,
+			true
+		)
 	for spawner in spawner_sources:
 		if spawner.has_method("revalidate_loaded_spawns"):
 			spawner.call("revalidate_loaded_spawns", false)
@@ -186,14 +220,21 @@ func _resume_world_generation_processing() -> void:
 func _drain_world_generation_sources(
 	sources: Array[Node],
 	loading_text: String,
-	max_frames_override: int = -1
+	max_frames_override: int = -1,
+	use_continue_profile: bool = false
 ) -> void:
 	if sources.is_empty():
 		return
 
 	var max_frames := maxi(1, startup_preload_max_frames if max_frames_override <= 0 else max_frames_override)
 	var total_budget := maxi(1, startup_preload_chunk_budget)
-	var frame_time_budget_usec := int(maxf(1.0, startup_preload_frame_time_budget_ms) * 1000.0)
+	var frame_time_budget_ms := startup_preload_frame_time_budget_ms
+	if use_continue_profile and startup_fast_continue_loading_enabled:
+		if max_frames_override <= 0:
+			max_frames = startup_continue_preload_max_frames
+		total_budget = maxi(1, startup_continue_preload_chunk_budget)
+		frame_time_budget_ms = startup_continue_preload_frame_time_budget_ms
+	var frame_time_budget_usec := int(maxf(1.0, frame_time_budget_ms) * 1000.0)
 	for _frame in range(max_frames):
 		var step_start_usec := Time.get_ticks_usec()
 		var budget_left := total_budget
@@ -215,6 +256,14 @@ func _drain_world_generation_sources(
 			return
 		_set_loading_status("%s (%d)" % [loading_text, pending_total])
 		await get_tree().process_frame
+
+
+func _consume_continue_load_hint() -> bool:
+	if GameSaveManager == null:
+		return false
+	if not GameSaveManager.has_method("consume_startup_is_continue_load"):
+		return false
+	return bool(GameSaveManager.consume_startup_is_continue_load())
 
 
 func _count_pending_world_generation_sources(sources: Array[Node]) -> int:
@@ -251,6 +300,42 @@ func _resolve_player() -> Node2D:
 
 	var from_group := get_tree().get_first_node_in_group("player")
 	return from_group as Node2D
+
+
+func _setup_mobile_controls() -> void:
+	if not _should_use_mobile_controls():
+		return
+	if _mobile_controls != null and is_instance_valid(_mobile_controls):
+		return
+
+	_mobile_controls = MOBILE_CONTROLS_SCENE.instantiate() as MobileControls
+	if _mobile_controls == null:
+		return
+	_mobile_controls.player_path = get_path_to(_player) if _player != null else NodePath("")
+	var inventory_root := get_node_or_null("UI/InventoryRoot")
+	if inventory_root != null:
+		_mobile_controls.inventory_root_path = get_path_to(inventory_root)
+	add_child(_mobile_controls)
+
+
+func _should_use_mobile_controls() -> bool:
+	if force_mobile_controls_on_desktop:
+		return true
+	if OS.has_feature("android") or OS.has_feature("ios") or OS.has_feature("mobile"):
+		return true
+	return false
+
+
+func _setup_mobile_profiler_overlay() -> void:
+	if not show_mobile_profiler_overlay:
+		return
+	if not _should_use_mobile_controls():
+		return
+	if _mobile_profiler_overlay != null and is_instance_valid(_mobile_profiler_overlay):
+		return
+	_mobile_profiler_overlay = MOBILE_PROFILER_OVERLAY_SCRIPT.new() as MobileProfilerOverlay
+	_mobile_profiler_overlay.world_generation_root_path = world_generation_root_path
+	add_child(_mobile_profiler_overlay)
 
 
 func _apply_world_mood_grade() -> void:

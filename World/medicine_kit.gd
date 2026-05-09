@@ -14,7 +14,6 @@ extends Node2D
 	preload("res://Resources/Medicine/healthBox.tres"),
 	preload("res://Resources/Medicine/hemostat.tres"),
 	preload("res://Resources/Medicine/improvised_splint.tres"),
-	preload("res://Resources/Medicine/medicalKit.tres"),
 	preload("res://Resources/Medicine/potassium_iodide.tres"),
 	preload("res://Resources/Medicine/restorer.tres"),
 	preload("res://Resources/Medicine/saline.tres"),

@@ -2,18 +2,6 @@
 
 [ext_resource type="Texture2D" uid="uid://dfn183u0usb0o" path="res://Assets/itemAssets/animation_sprites/weapon/Pistols/fn-s.png" id="1_bhgun"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_68l4d"]
-atlas = ExtResource("1_bhgun")
-region = Rect2(64, 352, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_rq4ta"]
-atlas = ExtResource("1_bhgun")
-region = Rect2(96, 352, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_ssqhr"]
-atlas = ExtResource("1_bhgun")
-region = Rect2(128, 352, 32, 32)
-
 [sub_resource type="AtlasTexture" id="AtlasTexture_vpqgv"]
 atlas = ExtResource("1_bhgun")
 region = Rect2(96, 288, 32, 32)
@@ -110,22 +98,20 @@ region = Rect2(128, 128, 32, 32)
 atlas = ExtResource("1_bhgun")
 region = Rect2(160, 128, 32, 32)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_68l4d"]
+atlas = ExtResource("1_bhgun")
+region = Rect2(64, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rq4ta"]
+atlas = ExtResource("1_bhgun")
+region = Rect2(96, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ssqhr"]
+atlas = ExtResource("1_bhgun")
+region = Rect2(128, 352, 32, 32)
+
 [resource]
 animations = [{
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_68l4d")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_rq4ta")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_ssqhr")
-}],
-"loop": true,
-"name": &"Action",
-"speed": 5.0
-}, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_vpqgv")
@@ -257,6 +243,20 @@ animations = [{
 "loop": true,
 "name": &"Up",
 "speed": 11.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_68l4d")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rq4ta")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ssqhr")
+}],
+"loop": true,
+"name": &"Using",
+"speed": 5.0
 }, {
 "frames": [],
 "loop": true,

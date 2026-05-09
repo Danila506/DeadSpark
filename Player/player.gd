@@ -42,6 +42,7 @@ var disease_time_left: float = 0.0
 @export var min_exhausted_animation_multiplier: float = 0.55
 @export var carry_weight_soft_limit: float = 25.0
 @export var carry_weight_hard_limit: float = 45.0
+@export_range(0.05, 1.0, 0.01) var carry_weight_update_interval_sec: float = 0.20
 @export_range(0.05, 1.0, 0.01) var overloaded_speed_multiplier: float = 0.55
 @export_range(1.0, 5.0, 0.05) var overloaded_stamina_drain_multiplier: float = 2.25
 @export_range(0.0, 1.0, 0.01) var overloaded_stamina_recovery_multiplier: float = 0.45
@@ -114,6 +115,7 @@ var is_stealth: bool = false
 var current_noise_level: float = 1.0
 var current_carry_weight: float = 0.0
 var current_encumbrance_ratio: float = 0.0
+var _carry_weight_refresh_timer: float = 0.0
 
 @export var bleeding_effect_animation_name: String = "Bleeding"
 @export var bleeding_trail_interval_sec: float = 0.20
@@ -168,6 +170,7 @@ func _ready() -> void:
 	_update_stealth_state()
 	walk_snow_sfx = _resolve_walk_snow_sfx()
 	_setup_walk_snow_sfx()
+	_update_carry_weight_state()
 	stats_changed.emit()
 	_collect_equipment_visual_slots()
 	_connect_inventory_signals()
@@ -199,19 +202,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		var key_event: InputEventKey = event as InputEventKey
 
 		if key_event.physical_keycode == KEY_E:
-			if inventory_root != null and "is_inventory_open" in inventory_root and inventory_root.is_inventory_open:
+			if try_primary_interaction():
 				get_viewport().set_input_as_handled()
 				return
-			if _trigger_primary_interaction():
-				get_viewport().set_input_as_handled()
-				return
-			if inventory_root != null and inventory_root.has_method("pickup_first_nearby_item"):
-				if inventory_root.pickup_first_nearby_item():
-					get_viewport().set_input_as_handled()
-					return
 
 		if key_event.physical_keycode == KEY_F:
-			if _trigger_secondary_interaction():
+			if try_secondary_interaction():
 				get_viewport().set_input_as_handled()
 				return
 
@@ -240,20 +236,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			_force_refresh_animation()
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if is_dead:
 		return
 
-	_update_carry_weight_state()
+	_update_carry_weight_state_if_due(delta)
 	_update_stealth_state()
-	movement_loop(_delta)
+	movement_loop(delta)
 
 
 func _process(delta: float) -> void:
 	if is_dead:
 		return
 
-	_update_carry_weight_state()
 	_update_needs(delta)
 	_update_stamina(delta)
 	_update_timed_action(delta)
@@ -291,6 +286,7 @@ func _connect_inventory_signals() -> void:
 
 
 func _on_equipment_changed(_slot_type: int, _item: ItemData) -> void:
+	_update_carry_weight_state()
 	_refresh_equipment_visuals()
 	_force_refresh_animation()
 
@@ -369,6 +365,10 @@ func _get_equipment_animation_name(frames: SpriteFrames, requested_animation: St
 		return ""
 	if frames.has_animation(requested_animation):
 		return requested_animation
+	if requested_animation == "Using" and frames.has_animation("Action"):
+		return "Action"
+	if requested_animation == "Action" and frames.has_animation("Using"):
+		return "Using"
 	if requested_animation.ends_with("_weapon"):
 		var base_idle_animation: String = requested_animation.trim_suffix("_weapon")
 		if frames.has_animation(base_idle_animation):
@@ -843,16 +843,26 @@ func _get_stealth_noise_multiplier() -> float:
 	return clamp(stealth_noise_multiplier, 0.05, 1.0)
 
 
+func _update_carry_weight_state_if_due(delta: float) -> void:
+	_carry_weight_refresh_timer -= delta
+	if _carry_weight_refresh_timer > 0.0:
+		return
+	_carry_weight_refresh_timer = maxf(carry_weight_update_interval_sec, 0.05)
+	_update_carry_weight_state()
+
+
 func _update_carry_weight_state() -> void:
 	if InventoryManager == null or not InventoryManager.has_method("get_total_carried_weight"):
 		current_carry_weight = 0.0
 		current_encumbrance_ratio = 0.0
+		_carry_weight_refresh_timer = maxf(carry_weight_update_interval_sec, 0.05)
 		return
 
 	current_carry_weight = max(float(InventoryManager.get_total_carried_weight()), 0.0)
 	var soft_limit: float = max(carry_weight_soft_limit, 0.0)
 	var hard_limit: float = max(carry_weight_hard_limit, soft_limit + 0.01)
 	current_encumbrance_ratio = clamp((current_carry_weight - soft_limit) / (hard_limit - soft_limit), 0.0, 1.0)
+	_carry_weight_refresh_timer = maxf(carry_weight_update_interval_sec, 0.05)
 
 
 func _get_encumbrance_speed_multiplier() -> float:
@@ -923,6 +933,20 @@ func _trigger_secondary_interaction() -> bool:
 
 func _trigger_primary_interaction() -> bool:
 	return interaction_controller != null and interaction_controller.trigger_primary_interaction()
+
+
+func try_primary_interaction() -> bool:
+	if inventory_root != null and "is_inventory_open" in inventory_root and inventory_root.is_inventory_open:
+		return true
+	if _trigger_primary_interaction():
+		return true
+	if inventory_root != null and inventory_root.has_method("pickup_first_nearby_item"):
+		return bool(inventory_root.pickup_first_nearby_item())
+	return false
+
+
+func try_secondary_interaction() -> bool:
+	return _trigger_secondary_interaction()
 
 
 func _update_bleeding_trail(delta: float) -> void:

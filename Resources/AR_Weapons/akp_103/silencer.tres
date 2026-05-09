@@ -1,12 +1,12 @@
 [gd_resource type="Resource" format=3 uid="uid://bs7sffg60ghpv"]
 
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="1_cqig2"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="1_cqig2"]
 [ext_resource type="Texture2D" uid="uid://ch1qe3sf4eeff" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/silencer_akp_103_Inv.png" id="2_t1oe2"]
 [ext_resource type="Texture2D" uid="uid://82awnmjm7buc" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/silencer_akp_103_OnWeapon.png" id="3_nln0y"]
 [ext_resource type="Texture2D" uid="uid://dfxg87k7h88xk" path="res://Assets/itemAssets/on_world_icon/AR_Weapon/akp_103/silencer_akp_103_Wrd.png" id="4_cxdhw"]
 [ext_resource type="Texture2D" uid="uid://b3e877amj8wcv" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/Handle_akp_103OnWeapon.png" id="4_j0phk"]
 [ext_resource type="Texture2D" uid="uid://ddlynm63fe8nf" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_103/scope_Hexagon_VX25_OnWeapon.png" id="4_t1oe2"]
-[ext_resource type="Resource" uid="uid://c81ye2fo7ai7f" path="res://Resources/AR_Weapons/akp_103/akp_103.tres" id="5_weapon"]
+[ext_resource type="Resource" uid="uid://bbcej4nry8e6l" path="res://Resources/AR_Weapons/akp_103/akp_103.tres" id="5_weapon"]
 
 [resource]
 script = ExtResource("1_cqig2")

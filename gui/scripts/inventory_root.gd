@@ -23,7 +23,19 @@ const MALINA_ITEM: ItemData = preload("res://Resources/Food/malina.tres")
 const TOMATE_ITEM: ItemData = preload("res://Resources/Food/tomate.tres")
 const PEPPER_ITEM: ItemData = preload("res://Resources/Food/pepper.tres")
 const WOLF_MEAT_ITEM: ItemData = preload("res://Resources/Food/wolf_meat.tres")
-const MEDICAL_KIT_ITEM: ItemData = preload("res://Resources/Medicine/medicalKit.tres")
+const MATCHES_ITEM: ItemData = preload("res://Resources/Misc/matches.tres")
+const ROPE_ITEM: ItemData = preload("res://Resources/Misc/rope.tres")
+const LIGHTER_ITEM: ItemData = preload("res://Resources/Misc/lighter.tres")
+const CIGARETTES_PACK_ITEM: ItemData = preload("res://Resources/Misc/cigarettes_pack.tres")
+const GAS_CYLINDER_ITEM: ItemData = preload("res://Resources/Misc/gas_cylinder.tres")
+const BATTERIES_ITEM: ItemData = preload("res://Resources/Misc/batteries.tres")
+const ELECTRICAL_TAPE_ITEM: ItemData = preload("res://Resources/Misc/electrical_tape.tres")
+const BURLAP_FABRIC_ITEM: ItemData = preload("res://Resources/Misc/burlap_fabric.tres")
+const GAS_BURNER_ITEM: ItemData = preload("res://Resources/Misc/gas_burner.tres")
+const SEWING_KIT_ITEM: ItemData = preload("res://Resources/Misc/sewing_kit.tres")
+const GLUE_ITEM: ItemData = preload("res://Resources/Misc/glue.tres")
+const WEAPON_CLEANING_KIT_ITEM: ItemData = preload("res://Resources/Misc/weapon_cleaning_kit.tres")
+const GEIGER_COUNTER_ITEM: ItemData = preload("res://Resources/Misc/geiger_counter.tres")
 const TWO_CRAFT_TEXTURE: Texture2D = preload("res://gui/Craft/twoCraft.png")
 const THREE_CRAFT_TEXTURE: Texture2D = preload("res://gui/Craft/threeCraft.png")
 const TWO_CRAFT_OUTLINE_TEXTURE: Texture2D = preload("res://gui/Craft/twoCraftOutline.png")
@@ -41,6 +53,10 @@ const CRAFT_CATEGORY_BUILD: StringName = &"build"
 @export var craft_recipe_list_position: Vector2 = Vector2(148, 120)
 @export var craft_recipe_list_size: Vector2 = Vector2(376, 414)
 @export var craft_scroll_texture_travel_distance: float = 350.0
+@export var mobile_safe_margin: Vector2 = Vector2(32.0, 32.0)
+@export_range(0.5, 1.0, 0.01) var mobile_min_inventory_scale: float = 0.72
+@export_range(0.2, 1.0, 0.05) var mobile_long_press_seconds: float = 0.45
+@export var mobile_touch_drag_cancel_distance: float = 18.0
 
 @onready var inventory_content: Control = $InventoryContent
 @onready var nav_inv: Control = $InventoryContent/NavInv
@@ -118,6 +134,10 @@ var craft_detail_description_label: Label = null
 var craft_detail_button: Button = null
 var active_craft_category: StringName = CRAFT_CATEGORY_ALL
 var craft_category_buttons: Dictionary = {}
+var mobile_touch_slot: InventorySlot = null
+var mobile_touch_start_position: Vector2 = Vector2.ZERO
+var mobile_touch_time_left: float = 0.0
+var mobile_touch_long_press_triggered: bool = false
 
 
 func _ready() -> void:
@@ -132,7 +152,7 @@ func _ready() -> void:
 	inventory_grid.add_theme_constant_override("v_separation", 10)
 
 	_setup_storage_panel(jacket_storage_panel, jacket_storage_grid)
-	_setup_storage_panel(heavy_armour_storage_panel, heavy_armour_storage_grid)
+	_setup_storage_panel(heavy_armour_storage_panel, heavy_armour_storage_grid, 3)
 	_setup_storage_panel(trousers_storage_panel, trousers_storage_grid)
 	_setup_storage_panel(bag_storage_panel, bag_storage_grid)
 	storage_slots_by_type[ItemData.ItemType.Jacket] = []
@@ -154,6 +174,8 @@ func _ready() -> void:
 	_collect_equipment_slots()
 	_connect_equipment_slots()
 	_setup_equipment_slot_visuals()
+	_apply_mobile_inventory_layout()
+	set_process(true)
 
 	if not NearbyItemsManager.nearby_items_changed.is_connected(_on_nearby_items_changed):
 		NearbyItemsManager.nearby_items_changed.connect(_on_nearby_items_changed)
@@ -167,6 +189,14 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	if craft_scroll_texture_dragging:
+		if event is InputEventScreenDrag:
+			_drag_craft_scroll_texture((event as InputEventScreenDrag).position.y)
+			get_viewport().set_input_as_handled()
+			return
+		if event is InputEventScreenTouch and not (event as InputEventScreenTouch).pressed:
+			craft_scroll_texture_dragging = false
+			get_viewport().set_input_as_handled()
+			return
 		if event is InputEventMouseMotion:
 			_drag_craft_scroll_texture((event as InputEventMouseMotion).global_position.y)
 			get_viewport().set_input_as_handled()
@@ -182,6 +212,12 @@ func _input(event: InputEvent) -> void:
 			_start_craft_scroll_texture_drag(scroll_mouse_button.global_position.y)
 			get_viewport().set_input_as_handled()
 			return
+	if event is InputEventScreenTouch:
+		var scroll_touch: InputEventScreenTouch = event as InputEventScreenTouch
+		if scroll_touch.pressed and _is_screen_position_over_craft_scroll_texture(scroll_touch.position):
+			_start_craft_scroll_texture_drag(scroll_touch.position.y)
+			get_viewport().set_input_as_handled()
+			return
 
 	if event.is_action_pressed("inventory_toggle"):
 		toggle_inventory()
@@ -190,6 +226,7 @@ func _input(event: InputEvent) -> void:
 
 	if not is_inventory_open:
 		inventory_drag_active = false
+		_cancel_mobile_slot_touch()
 		return
 
 	if event is InputEventMouseButton:
@@ -202,14 +239,48 @@ func _input(event: InputEvent) -> void:
 			else:
 				inventory_drag_active = false
 		return
+	if event is InputEventScreenTouch:
+		var touch_event: InputEventScreenTouch = event as InputEventScreenTouch
+		if not touch_event.pressed and mobile_touch_slot != null:
+			_finish_mobile_slot_touch()
+			return
+		if touch_event.pressed and _is_screen_position_in_inventory_drag_zone(touch_event.position):
+			inventory_drag_active = true
+			inventory_drag_offset = inventory_content.global_position - touch_event.position
+			get_viewport().set_input_as_handled()
+		else:
+			inventory_drag_active = false
+		return
 
 	if event is InputEventMouseMotion and inventory_drag_active:
 		inventory_content.global_position = get_global_mouse_position() + inventory_drag_offset
 		_clamp_inventory_content_to_viewport()
 		get_viewport().set_input_as_handled()
+	if event is InputEventScreenDrag and inventory_drag_active:
+		inventory_content.global_position = (event as InputEventScreenDrag).position + inventory_drag_offset
+		_clamp_inventory_content_to_viewport()
+		get_viewport().set_input_as_handled()
+	if event is InputEventScreenDrag and mobile_touch_slot != null:
+		var slot_drag := event as InputEventScreenDrag
+		if slot_drag.position.distance_to(mobile_touch_start_position) > mobile_touch_drag_cancel_distance:
+			_cancel_mobile_slot_touch()
+
+
+func _process(delta: float) -> void:
+	if mobile_touch_slot == null or mobile_touch_long_press_triggered:
+		return
+	mobile_touch_time_left -= delta
+	if mobile_touch_time_left > 0.0:
+		return
+	mobile_touch_long_press_triggered = true
+	_handle_slot_primary_press(mobile_touch_slot)
 
 
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED:
+		_apply_mobile_inventory_layout.call_deferred()
+		return
+
 	if what == Node.NOTIFICATION_DRAG_BEGIN:
 		var data: Variant = get_viewport().gui_get_drag_data()
 		if typeof(data) == TYPE_DICTIONARY and data.has("item"):
@@ -242,6 +313,7 @@ func toggle_inventory() -> void:
 func open_inventory() -> void:
 	is_inventory_open = true
 	inventory_content.visible = true
+	_apply_mobile_inventory_layout()
 	_clamp_inventory_content_to_viewport()
 	_set_active_nav_button(inv_btn)
 	set_loot_context_active(loot_context_active, active_loot_context)
@@ -466,8 +538,8 @@ func _setup_nearby_slot(slot: InventorySlot) -> void:
 	slot.show_background_in_container = true
 
 
-func _setup_storage_panel(panel: Control, grid: GridContainer) -> void:
-	grid.columns = 2
+func _setup_storage_panel(panel: Control, grid: GridContainer, columns: int = 2) -> void:
+	grid.columns = max(columns, 1)
 	grid.add_theme_constant_override("h_separation", 4)
 	grid.add_theme_constant_override("v_separation", 8)
 	panel.visible = false
@@ -506,7 +578,13 @@ func _setup_craft_recipes() -> void:
 		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": WOOD_ITEM, "count": 2}, {"item": STONE_ITEM, "count": 2}], "result": {"item": AXE_ITEM, "count": 1}},
 		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": AXE_ITEM, "count": 1}, {"item": WOOD_ITEM, "count": 1}], "result": {"item": CLEAVER_ITEM, "count": 1}},
 		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": POTASSIUM_IODIDE_ITEM, "count": 1}, {"item": SALINE_ITEM, "count": 1}], "result": {"item": RESTORER_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_FOOD, "ingredients": [{"item": WOLF_MEAT_ITEM, "count": 1}, {"item": PEPPER_ITEM, "count": 1}, {"item": TOMATE_ITEM, "count": 1}], "result": {"item": MEDICAL_KIT_ITEM, "count": 1}}
+		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": WOOD_ITEM, "count": 1}, {"item": MATCHES_ITEM, "count": 1}], "result": {"item": GAS_BURNER_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": GAS_CYLINDER_ITEM, "count": 1}, {"item": GAS_BURNER_ITEM, "count": 1}], "result": {"item": LIGHTER_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": BURLAP_FABRIC_ITEM, "count": 1}, {"item": GLUE_ITEM, "count": 1}], "result": {"item": ROPE_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": BURLAP_FABRIC_ITEM, "count": 1}, {"item": ROPE_ITEM, "count": 1}], "result": {"item": SEWING_KIT_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": BATTERIES_ITEM, "count": 1}, {"item": ELECTRICAL_TAPE_ITEM, "count": 1}], "result": {"item": GEIGER_COUNTER_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": GLUE_ITEM, "count": 1}, {"item": BURLAP_FABRIC_ITEM, "count": 1}, {"item": ELECTRICAL_TAPE_ITEM, "count": 1}], "result": {"item": WEAPON_CLEANING_KIT_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": CIGARETTES_PACK_ITEM, "count": 1}, {"item": MATCHES_ITEM, "count": 1}], "result": {"item": LIGHTER_ITEM, "count": 1}}
 	]
 
 
@@ -859,6 +937,17 @@ func _on_craft_scroll_texture_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and craft_scroll_texture_dragging:
 		var mouse_motion: InputEventMouseMotion = event as InputEventMouseMotion
 		_drag_craft_scroll_texture(mouse_motion.global_position.y)
+		get_viewport().set_input_as_handled()
+	if event is InputEventScreenTouch:
+		var touch: InputEventScreenTouch = event as InputEventScreenTouch
+		if touch.pressed:
+			_start_craft_scroll_texture_drag(touch.position.y)
+		else:
+			craft_scroll_texture_dragging = false
+		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventScreenDrag and craft_scroll_texture_dragging:
+		_drag_craft_scroll_texture((event as InputEventScreenDrag).position.y)
 		get_viewport().set_input_as_handled()
 
 
@@ -1898,13 +1987,14 @@ func _get_drop_offset_for_player(player: Node) -> Vector2:
 
 func _setup_equipment_slot_visuals() -> void:
 	for slot in equipment_slots:
-		if slot.slot_type == ItemData.ItemType.Jacket:
+		if slot.slot_type == ItemData.ItemType.Jacket or slot.slot_type == ItemData.ItemType.HeavyArmour:
 			slot.stretch_icon_to_slot = false
 			slot.icon_size = Vector2(52, 52)
 			slot.icon_h_align = InventorySlot.IconHAlign.CENTER
 			slot.icon_v_align = InventorySlot.IconVAlign.TOP
 			slot.icon_rotation_degrees = 0.0
 			slot.icon_padding = 0.0
+			slot.icon_offset = Vector2(0, -16) if slot.slot_type == ItemData.ItemType.HeavyArmour else Vector2.ZERO
 			slot._apply_visual_mode()
 		elif slot.slot_type == ItemData.ItemType.Trousers:
 			slot.stretch_icon_to_slot = false
@@ -2026,6 +2116,13 @@ func _refresh_storage_provider_ui(slot_type: int, panel: Control) -> void:
 
 
 func _on_slot_gui_input(event: InputEvent, slot: InventorySlot) -> void:
+	if event is InputEventScreenTouch:
+		var touch_event: InputEventScreenTouch = event as InputEventScreenTouch
+		if touch_event.pressed:
+			_start_mobile_slot_touch(slot, touch_event.position)
+		elif mobile_touch_slot == slot:
+			_finish_mobile_slot_touch()
+		return
 	if not (event is InputEventMouseButton):
 		return
 
@@ -2048,6 +2145,18 @@ func _on_slot_gui_input(event: InputEvent, slot: InventorySlot) -> void:
 	if mouse_event.button_index != MOUSE_BUTTON_LEFT:
 		return
 
+	_handle_slot_primary_press(slot)
+
+
+func _handle_slot_primary_press(slot: InventorySlot) -> void:
+	if slot == null or slot.item_data == null:
+		_hide_action_buttons()
+		return
+
+	if slot.slot_mode == InventorySlot.SlotMode.NEARBY:
+		_hide_action_buttons()
+		return
+
 	if _try_show_remove_scope_button_for_weapon(slot):
 		return
 
@@ -2068,6 +2177,89 @@ func _on_slot_gui_input(event: InputEvent, slot: InventorySlot) -> void:
 	consume_slot = slot
 	consume_button.position = slot.global_position - inventory_content.global_position + Vector2(0.0, slot.size.y + 6.0)
 	consume_button.visible = true
+
+
+func _start_mobile_slot_touch(slot: InventorySlot, screen_position: Vector2) -> void:
+	if slot == null or slot.item_data == null:
+		_cancel_mobile_slot_touch()
+		_hide_action_buttons()
+		return
+	mobile_touch_slot = slot
+	mobile_touch_start_position = screen_position
+	mobile_touch_time_left = mobile_long_press_seconds
+	mobile_touch_long_press_triggered = false
+	get_viewport().set_input_as_handled()
+
+
+func _finish_mobile_slot_touch() -> void:
+	var slot := mobile_touch_slot
+	var was_long_press := mobile_touch_long_press_triggered
+	_cancel_mobile_slot_touch()
+	if slot == null or not is_instance_valid(slot):
+		return
+	if was_long_press:
+		get_viewport().set_input_as_handled()
+		return
+	if _quick_use_or_equip_slot(slot):
+		get_viewport().set_input_as_handled()
+		return
+	_handle_slot_primary_press(slot)
+	get_viewport().set_input_as_handled()
+
+
+func _cancel_mobile_slot_touch() -> void:
+	mobile_touch_slot = null
+	mobile_touch_time_left = 0.0
+	mobile_touch_long_press_triggered = false
+
+
+func _quick_use_or_equip_slot(slot: InventorySlot) -> bool:
+	if slot == null or slot.item_data == null:
+		return false
+	if slot.slot_mode == InventorySlot.SlotMode.NEARBY:
+		if slot.world_item != null and is_instance_valid(slot.world_item):
+			return _pickup_world_item(slot.world_item)
+		return false
+
+	var item: ItemData = slot.item_data
+	if item.storage_category == ItemData.StorageCategory.FOOD:
+		consume_slot = slot
+		_consume_selected_food()
+		return true
+	if item.storage_category == ItemData.StorageCategory.MEDICAL:
+		use_medical_slot = slot
+		_use_selected_medical()
+		return true
+	if item.is_ammo_item:
+		equip_ammo_slot = slot
+		_equip_selected_ammo()
+		return true
+	if item.is_scope_attachment or item.is_weapon_attachment:
+		install_scope_slot = slot
+		_install_selected_scope()
+		return true
+	if slot.slot_mode == InventorySlot.SlotMode.CONTAINER and _try_equip_container_slot_to_empty_equipment(slot):
+		return true
+	return false
+
+
+func _try_equip_container_slot_to_empty_equipment(slot: InventorySlot) -> bool:
+	if slot == null or slot.item_data == null:
+		return false
+	var binding: Dictionary = _decode_storage_binding(slot.container_index)
+	var provider: ItemData = binding.get("provider", null)
+	var slot_index: int = int(binding.get("slot_index", -1))
+	if provider == null or slot_index < 0 or slot_index >= provider.runtime_storage_items.size():
+		return false
+	var item: ItemData = provider.runtime_storage_items[slot_index]
+	if item == null:
+		return false
+	if not _try_place_item_in_empty_equipment(item):
+		return false
+	provider.runtime_storage_items[slot_index] = null
+	_hide_action_buttons()
+	refresh_ui()
+	return true
 
 
 func _handle_slot_right_click(slot: InventorySlot) -> void:
@@ -2657,6 +2849,53 @@ func _is_mouse_in_inventory_drag_zone() -> bool:
 	return true
 
 
+func _is_screen_position_in_inventory_drag_zone(screen_position: Vector2) -> bool:
+	if drag_anchor == null or not is_inventory_open or not drag_anchor.visible:
+		return false
+
+	var local_position := drag_anchor.get_global_transform().affine_inverse() * screen_position
+	return Rect2(Vector2.ZERO, drag_anchor.size).has_point(local_position)
+
+
+func _is_screen_position_over_craft_scroll_texture(screen_position: Vector2) -> bool:
+	return _is_mouse_over_craft_scroll_texture(screen_position)
+
+
+func _is_mobile_inventory_layout_enabled() -> bool:
+	return OS.has_feature("android") or OS.has_feature("ios") or OS.has_feature("mobile")
+
+
+func _apply_mobile_inventory_layout() -> void:
+	if inventory_content == null or not _is_mobile_inventory_layout_enabled():
+		return
+
+	var viewport_size: Vector2 = get_viewport_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+
+	var content_size: Vector2 = inventory_content.size
+	if content_size.x <= 0.0 or content_size.y <= 0.0:
+		return
+
+	var safe_margin := Vector2(
+		clamp(mobile_safe_margin.x, 0.0, viewport_size.x * 0.2),
+		clamp(mobile_safe_margin.y, 0.0, viewport_size.y * 0.2)
+	)
+	var available_size: Vector2 = Vector2(
+		max(viewport_size.x - safe_margin.x * 2.0, 1.0),
+		max(viewport_size.y - safe_margin.y * 2.0, 1.0)
+	)
+	var target_scale: float = minf(available_size.x / content_size.x, available_size.y / content_size.y)
+	if target_scale >= mobile_min_inventory_scale:
+		target_scale = minf(target_scale, 1.0)
+	else:
+		target_scale = clamp(target_scale, 0.5, 1.0)
+
+	inventory_content.scale = Vector2(target_scale, target_scale)
+	var scaled_size: Vector2 = content_size * target_scale
+	inventory_content.global_position = safe_margin + (available_size - scaled_size) * 0.5
+
+
 func _is_drag_blocked_by_control(control: Control) -> bool:
 	var current: Node = control
 	while current != null:
@@ -2674,12 +2913,15 @@ func _is_drag_blocked_by_control(control: Control) -> bool:
 func _clamp_inventory_content_to_viewport() -> void:
 	if inventory_content == null:
 		return
+	if _is_mobile_inventory_layout_enabled() and not is_inventory_open:
+		return
 
 	var viewport_size: Vector2 = get_viewport_rect().size
+	var safe_margin: Vector2 = mobile_safe_margin if _is_mobile_inventory_layout_enabled() else Vector2.ZERO
 	var inventory_size: Vector2 = inventory_content.size * inventory_content.scale.abs()
-	var max_x: float = max(viewport_size.x - inventory_size.x, 0.0)
-	var max_y: float = max(viewport_size.y - inventory_size.y, 0.0)
+	var max_x: float = max(viewport_size.x - safe_margin.x - inventory_size.x, safe_margin.x)
+	var max_y: float = max(viewport_size.y - safe_margin.y - inventory_size.y, safe_margin.y)
 	inventory_content.global_position = Vector2(
-		clamp(inventory_content.global_position.x, 0.0, max_x),
-		clamp(inventory_content.global_position.y, 0.0, max_y)
+		clamp(inventory_content.global_position.x, safe_margin.x, max_x),
+		clamp(inventory_content.global_position.y, safe_margin.y, max_y)
 	)

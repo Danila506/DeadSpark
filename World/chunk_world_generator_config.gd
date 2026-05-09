@@ -1,6 +1,8 @@
 extends Resource
 class_name ChunkWorldGeneratorConfig
 
+const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
+
 @export var enabled: bool = true
 @export var tile_map_path: NodePath
 @export var player_path: NodePath
@@ -8,14 +10,15 @@ class_name ChunkWorldGeneratorConfig
 @export_category("Chunk Settings")
 @export_range(4, 256, 1) var chunk_size_tiles: int = 16
 @export_range(1, 12, 1) var load_radius_chunks: int = 3
-@export_range(1, 64, 1) var world_chunks_x: int = 8
-@export_range(1, 64, 1) var world_chunks_y: int = 8
+@export_range(1, 64, 1) var world_chunks_x: int = DEFAULT_WORLD_CHUNKS_AXIS
+@export_range(1, 64, 1) var world_chunks_y: int = DEFAULT_WORLD_CHUNKS_AXIS
 @export var clear_existing_on_start: bool = true
 @export var preserve_editor_tiles: bool = false
 @export var load_entire_world_on_start: bool = false
 @export var unload_enabled: bool = false
-@export var update_interval_sec: float = 0.20
+@export var update_interval_sec: float = 0.08
 @export_range(1, 32, 1) var max_chunk_operations_per_update: int = 1
+@export_range(0.25, 16.0, 0.25) var generation_step_time_budget_ms: float = 1.5
 
 @export_category("Generation")
 @export var world_seed: int = 1337

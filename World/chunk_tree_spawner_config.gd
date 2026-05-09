@@ -1,10 +1,13 @@
 extends Resource
 class_name ChunkTreeSpawnerConfig
 
+const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
+
 @export var enabled: bool = true
 @export var spawner_id: String = ""
 @export var player_path: NodePath
 @export var spawn_parent_path: NodePath
+@export var clear_generated_in_spawn_parent_on_start: bool = false
 @export var tree_scene: PackedScene
 @export var tree_scenes: Array[PackedScene] = []
 @export var tree_scene_weights: Array[float] = []
@@ -13,12 +16,15 @@ class_name ChunkTreeSpawnerConfig
 @export_range(4, 256, 1) var chunk_size_tiles: int = 16
 @export var tile_size_px: Vector2 = Vector2(60.0, 60.0)
 @export_range(1, 12, 1) var load_radius_chunks: int = 1
-@export_range(1, 64, 1) var world_chunks_x: int = 8
-@export_range(1, 64, 1) var world_chunks_y: int = 8
+@export_range(1, 64, 1) var world_chunks_x: int = DEFAULT_WORLD_CHUNKS_AXIS
+@export_range(1, 64, 1) var world_chunks_y: int = DEFAULT_WORLD_CHUNKS_AXIS
 @export var load_entire_world_on_start: bool = false
 @export var unload_enabled: bool = true
-@export var update_interval_sec: float = 0.20
+@export var update_interval_sec: float = 0.08
 @export_range(1, 32, 1) var max_chunk_operations_per_update: int = 1
+@export_range(1, 512, 1) var max_spawn_candidates_per_update: int = 24
+@export_range(1, 128, 1) var max_spawn_nodes_per_update: int = 2
+@export_range(0.25, 16.0, 0.25) var spawn_step_time_budget_ms: float = 1.5
 @export var revalidate_enabled: bool = false
 @export var revalidate_interval_sec: float = 0.6
 @export_range(1, 32, 1) var revalidate_chunk_budget_per_pass: int = 2

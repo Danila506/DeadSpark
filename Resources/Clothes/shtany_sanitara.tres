@@ -1,0 +1,238 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bl621o1vqjsk6"]
+
+[ext_resource type="Texture2D" uid="uid://l3uc67w1hink" path="res://Assets/itemAssets/animation_sprites/clothes/штаны санитара.png" id="1_gccd3"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="3_item_data"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ioj4d"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(64, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_y80cq"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(96, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ots4h"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(128, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nj7mc"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(160, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_q5w4e"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(64, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6mvs0"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(160, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6wmtr"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(128, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gnay2"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(96, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_46a34"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(160, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wvqc4"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(128, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_londi"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(96, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ggqaq"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(64, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7tqfr"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(64, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ny3co"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(96, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_or48d"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(128, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jnoty"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(160, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5ug8h"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(64, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mm8yv"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(96, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hkdln"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(128, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dwwdf"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(160, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_obvop"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(64, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a7fhd"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(96, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6ipt6"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(128, 352, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_vtle1"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ioj4d")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_y80cq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ots4h")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nj7mc")
+}],
+"loop": true,
+"name": &"Down",
+"speed": 11.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_q5w4e")
+}],
+"loop": true,
+"name": &"Idle_down",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6mvs0")
+}],
+"loop": true,
+"name": &"Idle_left",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6wmtr")
+}],
+"loop": true,
+"name": &"Idle_right",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gnay2")
+}],
+"loop": true,
+"name": &"Idle_up",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_46a34")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wvqc4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_londi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ggqaq")
+}],
+"loop": true,
+"name": &"Left",
+"speed": 11.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7tqfr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ny3co")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_or48d")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jnoty")
+}],
+"loop": true,
+"name": &"Right",
+"speed": 11.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5ug8h")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mm8yv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hkdln")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dwwdf")
+}],
+"loop": true,
+"name": &"Up",
+"speed": 11.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_obvop")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_a7fhd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6ipt6")
+}],
+"loop": true,
+"name": &"Using",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a6136"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(371, 54, 21, 26)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hn0ia"]
+atlas = ExtResource("1_gccd3")
+region = Rect2(374, 88, 14, 8)
+
+[resource]
+script = ExtResource("3_item_data")
+storage_category = 2
+can_be_stored_in_clothing = false
+item_name = "Штаны санитара"
+world_icon = SubResource("AtlasTexture_hn0ia")
+inventory_icon = SubResource("AtlasTexture_a6136")
+item_type = 5
+equipped_frames = SubResource("SpriteFrames_vtle1")
+extra_storage_slots = 2
+can_store_items = true

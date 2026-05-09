@@ -1,0 +1,70 @@
+[gd_scene format=3 uid="uid://dwsjbxuseq06n"]
+
+[ext_resource type="Texture2D" uid="uid://dajmhnecqolt0" path="res://Player/ActionBar/outlineActionBar.png" id="1_vtvg7"]
+[ext_resource type="Texture2D" uid="uid://dko3w0d1rftw7" path="res://Player/ActionBar/actionBar.png" id="2_atmy2"]
+[ext_resource type="Texture2D" uid="uid://yoehgaxlmxhl" path="res://Animals/Deer/dieDeerOutline.png" id="3_mvoa7"]
+[ext_resource type="Texture2D" uid="uid://bbax3rd6gs41d" path="res://Animals/Deer/flayedDeer.png" id="4_p7qlo"]
+[ext_resource type="Texture2D" uid="uid://0j13lplxkkri" path="res://Animals/Deer/dieDeer.png" id="5_h6y1n"]
+[ext_resource type="Script" uid="uid://cfecgsgs2b18r" path="res://Animals/Deer/deer.gd" id="6_deer_script"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ocuje"]
+radius = 216.0
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_nmet0"]
+radius = 23.529411
+height = 47.058823
+
+[node name="Deer" type="CharacterBody2D" unique_id=464897203]
+script = ExtResource("6_deer_script")
+
+[node name="DangeonZone" type="Area2D" parent="." unique_id=1476252322]
+visible = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DangeonZone" unique_id=702167825]
+shape = SubResource("CircleShape2D_ocuje")
+
+[node name="ActionBarRoot" type="Control" parent="." unique_id=1774127450]
+layout_mode = 3
+anchors_preset = 0
+offset_left = -26.0
+offset_top = -40.0
+offset_right = 9.0
+offset_bottom = -30.0
+
+[node name="ActionBarFill" type="TextureProgressBar" parent="ActionBarRoot" unique_id=1343644340]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 41.0
+offset_bottom = 13.0
+value = 100.0
+texture_under = ExtResource("1_vtvg7")
+texture_progress = ExtResource("2_atmy2")
+texture_progress_offset = Vector2(1, 1)
+
+[node name="DieDeerOutline" type="Sprite2D" parent="." unique_id=1709376753]
+position = Vector2(0, -10)
+texture = ExtResource("3_mvoa7")
+
+[node name="FlayedDeer" type="Sprite2D" parent="." unique_id=1193154490]
+position = Vector2(0, -10)
+texture = ExtResource("4_p7qlo")
+
+[node name="DieDeer" type="Sprite2D" parent="." unique_id=87291473]
+position = Vector2(0, -10)
+texture = ExtResource("5_h6y1n")
+
+[node name="InteractLabel" type="Label" parent="." unique_id=1944001001]
+visible = false
+offset_left = -62.0
+offset_top = -84.0
+offset_right = 66.0
+offset_bottom = -61.0
+theme_override_font_sizes/font_size = 16
+text = "[F] - освежевать"
+horizontal_alignment = 1
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=388009970]
+position = Vector2(0, -2)
+scale = Vector2(0.565, 0.17)
+shape = SubResource("CapsuleShape2D_nmet0")

@@ -149,8 +149,12 @@ func should_fire_now() -> bool:
 		return false
 
 	if controller.current_weapon.pellets_per_shot > 1:
+		if controller.has_method("_is_shoot_input_just_pressed"):
+			return controller._is_shoot_input_just_pressed()
 		return Input.is_action_just_pressed("shoot")
 
+	if controller.has_method("_is_shoot_input_active"):
+		return controller._is_shoot_input_active()
 	return Input.is_action_pressed("shoot")
 
 

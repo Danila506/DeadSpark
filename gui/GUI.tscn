@@ -221,7 +221,6 @@ texture_normal = SubResource("AtlasTexture_cqpw8")
 texture_pressed = SubResource("AtlasTexture_mhyt1")
 
 [node name="NavInv" type="Control" parent="InventoryRoot/InventoryContent" unique_id=790611624]
-visible = false
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
@@ -485,10 +484,10 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_r58ew")
 
 [node name="HeavyArmourStorageGrid" type="GridContainer" parent="InventoryRoot/InventoryContent/NavInv/HeavyArmour/HeavyArmourStoragePanel" unique_id=889200107]
 layout_mode = 0
-offset_left = -23.0
-offset_top = 46.0
-offset_right = 206.0
-offset_bottom = 120.0
+offset_left = -2.0
+offset_top = 59.0
+offset_right = 187.0
+offset_bottom = 113.0
 columns = 3
 
 [node name="HeavyArmour" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/HeavyArmour" unique_id=1082863665]
@@ -626,7 +625,7 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_r58ew")
 [node name="ClothingStorageGrid" type="GridContainer" parent="InventoryRoot/InventoryContent/NavInv/Jacket/ClothingStoragePanel" unique_id=289705300]
 layout_mode = 0
 offset_left = 2.0
-offset_top = 64.0
+offset_top = 63.0
 offset_right = 187.0
 offset_bottom = 117.0
 columns = 2

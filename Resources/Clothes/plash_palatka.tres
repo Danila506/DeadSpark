@@ -1,0 +1,238 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b8rraayxeofqj"]
+
+[ext_resource type="Texture2D" uid="uid://d0264ysx6ywrs" path="res://Assets/itemAssets/animation_sprites/clothes/плащ полатка.png" id="1_v3vn0"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="3_3rdvb"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lobij"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(64, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v5l75"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(96, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ukf71"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(128, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_erixl"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(160, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pgxj5"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(64, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mv5io"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(160, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w5rwi"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(128, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_itr55"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(96, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e6kxr"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(160, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eliqi"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(128, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6kan7"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(96, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fqj8l"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(64, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6p6ye"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(64, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eiqog"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(96, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a806p"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(128, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wo3c8"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(160, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_slsyv"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(64, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dj6ub"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(96, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fro6t"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(128, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_byhl6"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(160, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0ofvj"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(64, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_awik2"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(96, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7cprr"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(128, 352, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_wyhrp"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lobij")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_v5l75")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ukf71")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_erixl")
+}],
+"loop": true,
+"name": &"Down",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pgxj5")
+}],
+"loop": true,
+"name": &"Idle_down",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mv5io")
+}],
+"loop": true,
+"name": &"Idle_left",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w5rwi")
+}],
+"loop": true,
+"name": &"Idle_right",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_itr55")
+}],
+"loop": true,
+"name": &"Idle_up",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_e6kxr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_eliqi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6kan7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fqj8l")
+}],
+"loop": true,
+"name": &"Left",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6p6ye")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_eiqog")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_a806p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wo3c8")
+}],
+"loop": true,
+"name": &"Right",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_slsyv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dj6ub")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fro6t")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_byhl6")
+}],
+"loop": true,
+"name": &"Up",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0ofvj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_awik2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7cprr")
+}],
+"loop": true,
+"name": &"Using",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v3vn0"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(383, 162, 27, 29)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ydjk7"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(391, 201, 15, 6)
+
+[resource]
+script = ExtResource("3_3rdvb")
+storage_category = 2
+can_be_stored_in_clothing = false
+item_name = "Плащ палатка"
+world_icon = SubResource("AtlasTexture_ydjk7")
+inventory_icon = SubResource("AtlasTexture_v3vn0")
+item_type = 3
+equipped_frames = SubResource("SpriteFrames_wyhrp")
+extra_storage_slots = 2
+can_store_items = true

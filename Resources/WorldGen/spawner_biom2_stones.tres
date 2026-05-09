@@ -5,6 +5,7 @@
 
 [resource]
 script = ExtResource("1")
+enabled = false
 spawner_id = "biom2_stones"
 player_path = NodePath("../../Y-Sort_Objects/Player2")
 spawn_parent_path = NodePath("../../Y-Sort_Objects/Biom2/Stones")

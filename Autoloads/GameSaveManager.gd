@@ -13,6 +13,7 @@ var _has_pending_load: bool = false
 var _pending_world_nodes: Dictionary = {}
 var _pending_world_pickups: Array = []
 var _has_active_world_seed: bool = false
+var _startup_is_continue_load: bool = false
 var _world_generation_state: Dictionary = {
 	"seed": DEFAULT_WORLD_SEED,
 	"generator_version": WORLD_GENERATOR_VERSION,
@@ -54,6 +55,7 @@ func save_game(path: String = SAVE_FILE_PATH) -> int:
 
 func start_new_game(scene_path: String = FALLBACK_LEVEL_PATH, path: String = SAVE_FILE_PATH) -> int:
 	_reset_runtime_state_for_new_game()
+	_startup_is_continue_load = false
 	_set_world_generation_seed(_generate_world_seed())
 
 	var save_payload: Dictionary = {
@@ -90,6 +92,7 @@ func load_game(path: String = SAVE_FILE_PATH) -> int:
 
 	var schema_version: int = int(save_payload.get("schema_version", 0))
 	var has_runtime_state: bool = schema_version >= 2
+	_startup_is_continue_load = has_runtime_state
 	var reload_same_scene_for_generation: bool = _should_reload_same_scene_for_generation(save_payload)
 	if has_runtime_state:
 		_queue_runtime_state(save_payload)
@@ -108,6 +111,12 @@ func load_game(path: String = SAVE_FILE_PATH) -> int:
 
 	get_tree().change_scene_to_file(scene_path)
 	return OK
+
+
+func consume_startup_is_continue_load() -> bool:
+	var value := _startup_is_continue_load
+	_startup_is_continue_load = false
+	return value
 
 
 func register_persistent_node(node: Node) -> void:

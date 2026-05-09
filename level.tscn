@@ -318,6 +318,12 @@ texture = ExtResource("14_fedht")
 20:52/0 = 0
 20:52/0/y_sort_origin = 22
 20:52/0/physics_layer_0/polygon_0/points = PackedVector2Array(-64.5, -6, -65, 18.5, -57.5, 27, 38, 27.5, 58, 15.5, 59, 2.5, 37, -6.5)
+54:4/size_in_atlas = Vector2i(2, 4)
+54:4/0 = 0
+54:4/0/physics_layer_0/polygon_0/points = PackedVector2Array(-12.5, -19, -8.5, -20.5, -7.5, -24.5, -5.5, -26, -3, -24.5, -0.5, -22, 0.5, -16, 4, -15.5, 4, 30.5, -0.5, 29.5, -4.5, 26.5, -9, 26, -12.5, 24)
+56:5/size_in_atlas = Vector2i(6, 2)
+56:5/0 = 0
+56:5/0/physics_layer_0/polygon_0/points = PackedVector2Array(-21.5, -11, 20.5, -13.5, 25.5, -6, 27, 3.5, -39.5, 11, -40, 5, -44, 2, -44, -9.5)
 
 [sub_resource type="TileSet" id="TileSet_ait7k"]
 physics_layer_0/collision_layer = 1
@@ -455,6 +461,7 @@ sources/0 = SubResource("TileSetAtlasSource_oaehd")
 script = ExtResource("1_u52ul")
 world_bounds_generator_path = NodePath("WorldGeneration/ChunkWorldGenerator")
 world_mood_targets = Array[NodePath]([NodePath("SnowLayer"), NodePath("WoodLayer"), NodePath("RoadLayer"), NodePath(""), NodePath("Y-Sort_Objects"), NodePath("Snowfall")])
+force_mobile_controls_on_desktop = true
 
 [node name="WorldGeneration" parent="." unique_id=13881982 instance=ExtResource("40_worldgen")]
 
@@ -477,7 +484,10 @@ y_sort_enabled = true
 script = ExtResource("8_i2t4f")
 pickup_scene = ExtResource("6_km5ld")
 spawn_count = 10
-spawn_starter_items_near_player = true
+spawn_all_possible_items_near_player = true
+spawn_all_item_resources_from_resources = true
+spawn_all_near_player_spacing = 74.0
+spawn_all_near_player_offset = Vector2(420, 0)
 
 [node name="SpawnPoint" type="Marker2D" parent="Y-Sort_Objects/ItemSpawner" unique_id=514738099]
 position = Vector2(405, 388)
@@ -564,6 +574,12 @@ y_sort_enabled = true
 y_sort_enabled = true
 
 [node name="GeneratedForesterHouses" type="Node2D" parent="Y-Sort_Objects" unique_id=270480005]
+y_sort_enabled = true
+
+[node name="Animals" type="Node2D" parent="Y-Sort_Objects" unique_id=270480006]
+y_sort_enabled = true
+
+[node name="Deer" type="Node2D" parent="Y-Sort_Objects/Animals" unique_id=270480007]
 y_sort_enabled = true
 
 [node name="Enemies" type="Node2D" parent="Y-Sort_Objects" unique_id=1883979021]

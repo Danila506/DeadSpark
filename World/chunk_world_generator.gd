@@ -3,6 +3,7 @@ extends Node
 const META_GENERATED_CELLS: StringName = &"world_generation_generated_cells"
 const META_PRESERVE_EDITOR_TILES: StringName = &"world_generation_preserve_editor_tiles"
 const META_PROTECTED_CELLS: StringName = &"world_generation_protected_cells"
+const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 
 @export var enabled: bool = true
 @export var tile_map_path: NodePath
@@ -12,14 +13,15 @@ const META_PROTECTED_CELLS: StringName = &"world_generation_protected_cells"
 @export_category("Chunk Settings")
 @export_range(4, 256, 1) var chunk_size_tiles: int = 16
 @export_range(1, 12, 1) var load_radius_chunks: int = 3
-@export_range(1, 64, 1) var world_chunks_x: int = 8
-@export_range(1, 64, 1) var world_chunks_y: int = 8
+@export_range(1, 64, 1) var world_chunks_x: int = DEFAULT_WORLD_CHUNKS_AXIS
+@export_range(1, 64, 1) var world_chunks_y: int = DEFAULT_WORLD_CHUNKS_AXIS
 @export var clear_existing_on_start: bool = true
 @export var preserve_editor_tiles: bool = false
 @export var load_entire_world_on_start: bool = false
 @export var unload_enabled: bool = false
 @export var update_interval_sec: float = 0.20
 @export_range(1, 32, 1) var max_chunk_operations_per_update: int = 1
+@export_range(0.25, 16.0, 0.25) var generation_step_time_budget_ms: float = 1.5
 
 @export_category("Generation")
 @export var world_seed: int = 1337
@@ -192,6 +194,10 @@ func _ready() -> void:
 		_clear_existing_cells()
 
 	_update_visible_chunks(true)
+	_prewarm_initial_visible_generation()
+	if load_entire_world_on_start and not unload_enabled:
+		_prewarm_full_generation()
+		set_process(false)
 
 
 func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
@@ -208,6 +214,7 @@ func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
 	unload_enabled = cfg.unload_enabled
 	update_interval_sec = cfg.update_interval_sec
 	max_chunk_operations_per_update = cfg.max_chunk_operations_per_update
+	generation_step_time_budget_ms = cfg.generation_step_time_budget_ms
 	world_seed = cfg.world_seed
 	randomize_seed_on_start = cfg.randomize_seed_on_start
 	fill_probability = cfg.fill_probability
@@ -341,8 +348,12 @@ func _rebuild_chunk_work_queues(center_chunk: Vector2i) -> void:
 
 func _process_chunk_work_queues(chunk_budget: int) -> void:
 	var operations_left := maxi(1, chunk_budget)
+	var step_start_usec := Time.get_ticks_usec()
+	var time_budget_usec := int(maxf(generation_step_time_budget_ms, 0.25) * 1000.0)
 
 	while operations_left > 0 and not _pending_load_chunks.is_empty():
+		if Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
+			return
 		var chunk := _pending_load_chunks.pop_front() as Vector2i
 		if _required_chunks.has(chunk) and not _loaded_chunks.has(chunk):
 			var load_start_usec := Time.get_ticks_usec()
@@ -356,6 +367,8 @@ func _process_chunk_work_queues(chunk_budget: int) -> void:
 		return
 
 	while operations_left > 0 and not _pending_unload_chunks.is_empty():
+		if Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
+			return
 		var chunk := _pending_unload_chunks.pop_front() as Vector2i
 		if not _required_chunks.has(chunk) and _loaded_chunks.has(chunk):
 			var unload_start_usec := Time.get_ticks_usec()
@@ -1399,6 +1412,8 @@ func _clear_overlapping_layers(cells: Array[Vector2i]) -> int:
 	if _overlap_clear_layers.is_empty() or cells.is_empty():
 		return 0
 	var erased_count := 0
+	var erased_origins_by_layer := {}
+	var layer_by_id := {}
 	var radius: int = maxi(0, overlap_clear_radius_tiles)
 	for cell in cells:
 		var world_rect := _get_world_cell_rect(cell, Vector2i.ONE)
@@ -1406,7 +1421,9 @@ func _clear_overlapping_layers(cells: Array[Vector2i]) -> int:
 			var layer := layer_item as TileMapLayer
 			if layer == null:
 				continue
-			var erased_origins := {}
+			var layer_id := int(layer.get_instance_id())
+			var erased_origins: Dictionary = erased_origins_by_layer.get(layer_id, {})
+			layer_by_id[layer_id] = layer
 			for target_cell in _get_layer_cells_in_world_rect(layer, world_rect, radius):
 				var erase_cell := _get_overlap_erase_cell(layer, target_cell)
 				if erase_cell == Vector2i(999999, 999999):
@@ -1416,9 +1433,14 @@ func _clear_overlapping_layers(cells: Array[Vector2i]) -> int:
 				if layer.get_cell_source_id(erase_cell) == -1:
 					continue
 				layer.erase_cell(erase_cell)
-				_unmark_layer_generated_origin(layer, erase_cell)
 				erased_origins[erase_cell] = true
 				erased_count += 1
+			erased_origins_by_layer[layer_id] = erased_origins
+	for layer_id in erased_origins_by_layer.keys():
+		var layer := layer_by_id.get(layer_id, null) as TileMapLayer
+		if layer == null:
+			continue
+		_unmark_layer_generated_origins(layer, erased_origins_by_layer[layer_id] as Dictionary)
 	return erased_count
 
 
@@ -1773,6 +1795,12 @@ func _get_overlap_erase_cell(layer: TileMapLayer, cell: Vector2i) -> Vector2i:
 
 
 func _unmark_layer_generated_origin(layer: TileMapLayer, origin: Vector2i) -> void:
+	_unmark_layer_generated_origins(layer, {origin: true})
+
+
+func _unmark_layer_generated_origins(layer: TileMapLayer, origins: Dictionary) -> void:
+	if origins.is_empty():
+		return
 	var generated_cells: Variant = layer.get_meta(META_GENERATED_CELLS, {})
 	if not (generated_cells is Dictionary):
 		return
@@ -1780,7 +1808,7 @@ func _unmark_layer_generated_origin(layer: TileMapLayer, origin: Vector2i) -> vo
 	for key in cells.keys():
 		var generated_cell := key as Vector2i
 		var generated_origin: Variant = cells.get(generated_cell, generated_cell)
-		if generated_cell == origin or (generated_origin is Vector2i and generated_origin == origin):
+		if origins.has(generated_cell) or (generated_origin is Vector2i and origins.has(generated_origin)):
 			cells.erase(generated_cell)
 	layer.set_meta(META_GENERATED_CELLS, cells)
 
@@ -1955,6 +1983,26 @@ func force_generate_step(chunk_budget: int = -1) -> void:
 		_rebuild_chunk_work_queues(center_chunk)
 
 	_process_chunk_work_queues(maxi(1, budget))
+
+
+func _prewarm_full_generation() -> void:
+	var guard := 0
+	var max_iterations := maxi(world_chunks_x * world_chunks_y * 16, 512)
+	while has_generation_pending() and guard < max_iterations:
+		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 32))
+		guard += 1
+	if _generation_meta_dirty:
+		_sync_generation_layer_meta()
+
+
+func _prewarm_initial_visible_generation() -> void:
+	var guard := 0
+	var max_iterations := 128
+	while has_generation_pending() and guard < max_iterations:
+		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 24))
+		guard += 1
+	if _generation_meta_dirty:
+		_sync_generation_layer_meta()
 
 
 func _resolve_generation_seed(config_seed: int) -> int:

@@ -18,6 +18,8 @@ func start_timed_action(duration: float, on_complete: Callable, _label: String =
 	player.action_elapsed = 0.0
 	player.action_complete_callback = on_complete
 	player.current_action_animation = action_animation_name.strip_edges()
+	if player.current_action_animation.is_empty():
+		player.current_action_animation = "Using"
 	show_action_bar(player.action_duration)
 	player._force_refresh_animation()
 	return true

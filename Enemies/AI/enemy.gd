@@ -159,6 +159,7 @@ func _ready() -> void:
 	_register_combat_groups()
 	_update_health_bar_ui()
 	_setup_damage_hitboxes()
+	_disable_unused_passive_areas()
 
 	navigation_agent.target_desired_distance = config.nav_target_desired_distance
 	navigation_agent.path_desired_distance = config.nav_path_desired_distance
@@ -536,12 +537,14 @@ func enforce_melee_attack_spacing() -> bool:
 
 
 func stop_move() -> void:
+	var was_moving: bool = _has_move_target or _move_speed > 0.0 or _obstacle_bypass_time_left > 0.0
 	_has_move_target = false
 	_move_speed = 0.0
 	_obstacle_bypass_time_left = 0.0
-	navigation_agent.target_position = global_position
-	_last_nav_target_position = global_position
-	_has_last_nav_target_position = true
+	if was_moving or not _has_last_nav_target_position:
+		navigation_agent.target_position = global_position
+		_last_nav_target_position = global_position
+		_has_last_nav_target_position = true
 	_path_update_left = 0.0
 	_post_shot_move_timer = 0.0
 	_post_shot_stand_timer = 0.0
@@ -851,6 +854,19 @@ func _setup_damage_hitboxes() -> void:
 			hitbox_area.add_to_group(&"damage_hitbox")
 		if not hitbox_area.has_meta(&"damage_zone"):
 			hitbox_area.set_meta(&"damage_zone", String(DamageZones.resolve_zone_from_area(hitbox_area)))
+
+
+func _disable_unused_passive_areas() -> void:
+	var legacy_danger_zone: Area2D = get_node_or_null("DangeonZone") as Area2D
+	if legacy_danger_zone == null:
+		return
+	legacy_danger_zone.monitoring = false
+	legacy_danger_zone.monitorable = false
+	legacy_danger_zone.collision_layer = 0
+	legacy_danger_zone.collision_mask = 0
+	var shape: CollisionShape2D = legacy_danger_zone.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if shape != null:
+		shape.disabled = true
 
 
 func _collect_damage_hitboxes() -> Array[Area2D]:

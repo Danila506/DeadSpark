@@ -1,0 +1,145 @@
+[gd_scene format=3 uid="uid://d8s3hp0n5sn4"]
+
+[ext_resource type="Script" uid="uid://bufgycaqi0c0e" path="res://Smartphone/mobile_controls.gd" id="1_mobile_controls"]
+[ext_resource type="Texture2D" uid="uid://hmjiustbcu5o" path="res://Smartphone/ReloadBtn.png" id="2_reload_btn"]
+[ext_resource type="Texture2D" uid="uid://b3bpck8r52wkg" path="res://Smartphone/InventoryBtn.png" id="3_inventory_btn"]
+[ext_resource type="Texture2D" uid="uid://b4fpj70nsccv6" path="res://Smartphone/switchWeapon.png" id="3_l7cma"]
+[ext_resource type="Texture2D" uid="uid://0pv22p1c4tyx" path="res://Smartphone/ActionBtn.png" id="4_action_btn"]
+[ext_resource type="Texture2D" uid="uid://8b3aggg1uunv" path="res://Smartphone/ScopeBtn.png" id="6_nb1or"]
+[ext_resource type="Texture2D" uid="uid://cjw6j23r6y22v" path="res://Smartphone/StealthBtn.png" id="7_x5sb4"]
+
+[node name="MobileControls" type="CanvasLayer" unique_id=1609691871]
+script = ExtResource("1_mobile_controls")
+
+[node name="Root" type="Control" parent="." unique_id=1737185888]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="MoveTouchZone" type="Control" parent="Root" unique_id=384055827]
+layout_mode = 1
+anchor_right = 0.5
+anchor_bottom = 1.0
+
+[node name="MoveStick" type="Panel" parent="Root" unique_id=1665217119]
+custom_minimum_size = Vector2(184, 184)
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 188.0
+offset_top = -328.0
+offset_right = 372.0
+offset_bottom = -144.0
+
+[node name="Knob" type="ColorRect" parent="Root/MoveStick" unique_id=1177406980]
+layout_mode = 0
+offset_left = 42.0
+offset_top = 42.0
+offset_right = 138.0
+offset_bottom = 134.0
+mouse_filter = 2
+color = Color(0.82, 0.88, 0.93, 0.58)
+
+[node name="ReloadButton" type="TextureButton" parent="Root" unique_id=975129749]
+custom_minimum_size = Vector2(76, 76)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -256.0
+offset_top = -408.0
+offset_right = -150.0
+offset_bottom = -309.0
+grow_horizontal = 0
+grow_vertical = 0
+tooltip_text = "Перезарядка"
+focus_mode = 0
+texture_normal = ExtResource("2_reload_btn")
+texture_pressed = ExtResource("2_reload_btn")
+texture_hover = ExtResource("2_reload_btn")
+
+[node name="SwitchWeaponButton" type="TextureButton" parent="Root" unique_id=36436688]
+custom_minimum_size = Vector2(76, 76)
+layout_mode = 1
+offset_left = 1448.0
+offset_top = 887.0
+offset_right = 1598.0
+offset_bottom = 1037.0
+texture_normal = ExtResource("3_l7cma")
+texture_pressed = ExtResource("3_l7cma")
+texture_hover = ExtResource("3_l7cma")
+
+[node name="ActionButton" type="TextureButton" parent="Root" unique_id=644914969]
+custom_minimum_size = Vector2(76, 76)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -848.0
+offset_top = 928.0
+offset_right = 406.0
+offset_bottom = 2182.0
+grow_horizontal = 0
+grow_vertical = 0
+tooltip_text = "Действие"
+focus_mode = 0
+texture_normal = ExtResource("4_action_btn")
+texture_pressed = ExtResource("4_action_btn")
+texture_hover = ExtResource("4_action_btn")
+
+[node name="InventoryButton" type="TextureButton" parent="Root" unique_id=1215484414]
+custom_minimum_size = Vector2(76, 76)
+layout_mode = 1
+offset_left = 16.0
+offset_top = 920.0
+offset_right = 166.0
+offset_bottom = 1070.0
+tooltip_text = "Инвентарь"
+focus_mode = 0
+texture_normal = ExtResource("3_inventory_btn")
+texture_pressed = ExtResource("3_inventory_btn")
+texture_hover = ExtResource("3_inventory_btn")
+
+[node name="ScopeButton" type="TextureButton" parent="Root" unique_id=654149758]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -272.0
+offset_top = -192.0
+offset_right = -122.0
+offset_bottom = -42.0
+grow_horizontal = 0
+grow_vertical = 0
+texture_normal = ExtResource("6_nb1or")
+texture_pressed = ExtResource("6_nb1or")
+texture_hover = ExtResource("6_nb1or")
+
+[node name="StealthButton" type="TextureButton" parent="Root" unique_id=1061113324]
+custom_minimum_size = Vector2(76, 76)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -1904.0
+offset_top = -720.0
+offset_right = -1754.0
+offset_bottom = -570.0
+grow_horizontal = 0
+grow_vertical = 0
+texture_normal = ExtResource("7_x5sb4")
+texture_pressed = ExtResource("7_x5sb4")
+texture_hover = ExtResource("7_x5sb4")

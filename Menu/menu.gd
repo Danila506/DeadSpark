@@ -6,11 +6,35 @@ const DONATE_URL: String = "https://boosty.to/deadspark/donate"
 
 @onready var continue_button: Button = $CenterContainer/MenuPanel/VBox/Continue
 @onready var soundtrack_player: AudioStreamPlayer = $SoundTrack
+@onready var background_rect: ColorRect = $Background
+@onready var glow_top_rect: ColorRect = $GlowTop
+@onready var center_container: CenterContainer = $CenterContainer
 
 
 func _ready() -> void:
 	_disable_soundtrack_for_headless()
+	_fit_menu_to_viewport()
+	if not get_viewport().size_changed.is_connected(_fit_menu_to_viewport):
+		get_viewport().size_changed.connect(_fit_menu_to_viewport)
 	_update_continue_button_state()
+
+
+func _fit_menu_to_viewport() -> void:
+	var viewport_size: Vector2 = get_viewport_rect().size
+	if viewport_size == Vector2.ZERO:
+		return
+
+	if background_rect != null:
+		background_rect.position = Vector2.ZERO
+		background_rect.size = viewport_size
+
+	if glow_top_rect != null:
+		glow_top_rect.position = Vector2.ZERO
+		glow_top_rect.size = Vector2(viewport_size.x, maxf(viewport_size.y * 0.46, 1.0))
+
+	if center_container != null:
+		center_container.position = Vector2.ZERO
+		center_container.size = viewport_size
 
 
 func _on_new_game_pressed() -> void:

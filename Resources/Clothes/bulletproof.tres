@@ -2,7 +2,7 @@
 
 [ext_resource type="Texture2D" uid="uid://h1ua6g5c0fyw" path="res://Assets/itemAssets/animation_sprites/clothes/bulletproof.png" id="1_1bq4u"]
 [ext_resource type="Texture2D" uid="uid://drdahe2j8n6lt" path="res://Assets/itemAssets/inventory_icon/Clothes/bulletproofInv.png" id="1_8yq8i"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="1_157le"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="1_157le"]
 [ext_resource type="Texture2D" uid="uid://bwssaeesjbfta" path="res://Assets/itemAssets/on_world_icon/Clothes/bulletproofWrd.png" id="3_1bq4u"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_6pogt"]
@@ -84,6 +84,18 @@ region = Rect2(128, 128, 32, 32)
 [sub_resource type="AtlasTexture" id="AtlasTexture_qpoj2"]
 atlas = ExtResource("1_1bq4u")
 region = Rect2(160, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_q5h0x"]
+atlas = ExtResource("1_1bq4u")
+region = Rect2(64, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6dvnp"]
+atlas = ExtResource("1_1bq4u")
+region = Rect2(96, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5k5vb"]
+atlas = ExtResource("1_1bq4u")
+region = Rect2(128, 352, 32, 32)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_8yq8i"]
 animations = [{
@@ -185,6 +197,20 @@ animations = [{
 }],
 "loop": true,
 "name": &"Up",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_q5h0x")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6dvnp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5k5vb")
+}],
+"loop": true,
+"name": &"Using",
 "speed": 5.0
 }, {
 "frames": [],

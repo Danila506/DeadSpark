@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://cqgvlw4isebjk"]
 
 [ext_resource type="Texture2D" uid="uid://bwh5prqxtdm3q" path="res://Assets/itemAssets/animation_sprites/clothes/futbolka_ispravl.png" id="1_qmgi5"]
-[ext_resource type="Script" uid="uid://caml33j8nxvfl" path="res://items/scripts/item_data.gd" id="3_iwxse"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="3_iwxse"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_qmgi5"]
 atlas = ExtResource("1_qmgi5")
@@ -82,6 +82,18 @@ region = Rect2(128, 128, 32, 32)
 [sub_resource type="AtlasTexture" id="AtlasTexture_0or1r"]
 atlas = ExtResource("1_qmgi5")
 region = Rect2(160, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8g314"]
+atlas = ExtResource("1_qmgi5")
+region = Rect2(64, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5lxky"]
+atlas = ExtResource("1_qmgi5")
+region = Rect2(96, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_88n60"]
+atlas = ExtResource("1_qmgi5")
+region = Rect2(128, 352, 32, 32)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_qmgi5"]
 animations = [{
@@ -183,6 +195,20 @@ animations = [{
 }],
 "loop": true,
 "name": &"Up",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8g314")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5lxky")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_88n60")
+}],
+"loop": true,
+"name": &"Using",
 "speed": 5.0
 }, {
 "frames": [],
