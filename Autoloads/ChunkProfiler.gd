@@ -2,7 +2,7 @@ extends Node
 
 @export var enabled: bool = false
 @export var log_all_operations: bool = false
-@export var spike_threshold_ms: float = 8.0
+@export var spike_threshold_ms: float = 50.0
 @export var destructive_operation_threshold: int = 9999
 
 
@@ -29,6 +29,19 @@ func record_chunk_operation(source_name: String, action: String, chunk: Vector2i
 		" nodes_spawned=", int(stats.get("nodes_spawned", 0)),
 		" nodes_freed=", nodes_freed,
 		" revalidated_removed=", int(stats.get("revalidated_removed", 0)),
+		" kind=", str(stats.get("generation_kind", "")),
+		" steps=", int(stats.get("scheduler_steps", 0)),
+		" attempts=", int(stats.get("spawn_attempts", 0)),
+		" expensive_checks=", int(stats.get("expensive_checks", 0)),
+		" checks_ms=", snappedf(float(stats.get("spawn_checks_usec", 0)) / 1000.0, 0.01),
+		" large_structure_candidates=", int(stats.get("large_structure_candidates", 0)),
+		" large_structure_rejected=", int(stats.get("large_structure_rejected", 0)),
+		" large_structure_checks_usec=", int(stats.get("large_structure_checks_usec", 0)),
+		" large_structure_checks_ms=", snappedf(float(stats.get("large_structure_checks_usec", 0)) / 1000.0, 0.01),
+		" instantiate_ms=", snappedf(float(stats.get("instantiate_usec", 0)) / 1000.0, 0.01),
+		" add_child_ms=", snappedf(float(stats.get("add_child_usec", 0)) / 1000.0, 0.01),
+		" register_ms=", snappedf(float(stats.get("register_usec", 0)) / 1000.0, 0.01),
+		" overlap_ms=", snappedf(float(stats.get("overlap_clear_usec", 0)) / 1000.0, 0.01),
 		" pending_load=", int(stats.get("pending_load", 0)),
 		" pending_unload=", int(stats.get("pending_unload", 0)),
 		" loaded=", int(stats.get("loaded_chunks", 0))

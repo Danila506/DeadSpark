@@ -7,6 +7,11 @@ extends Node
 var _cooldown_left: float = 0.0
 
 
+func _ready() -> void:
+	if enabled:
+		print("[STUTTER_MONITOR] enabled threshold_ms=", spike_threshold_ms)
+
+
 func _process(delta: float) -> void:
 	if not enabled:
 		return
@@ -32,3 +37,15 @@ func _process(delta: float) -> void:
 		" nodes=", node_count,
 		" orphan_nodes=", orphan_node_count
 	)
+	var scheduler := get_node_or_null("/root/WorldGenerationScheduler")
+	if scheduler != null and scheduler.has_method("get_debug_info"):
+		var info: Dictionary = scheduler.call("get_debug_info")
+		var last_frame: Dictionary = info.get("last_frame", {})
+		print(
+			"[STUTTER_SCHEDULER] queue=", int(info.get("queue_size", 0)),
+			" tasks_run=", int(last_frame.get("tasks_run", 0)),
+			" scheduler_ms=", snappedf(float(last_frame.get("elapsed_ms", 0.0)), 0.01),
+			" node_ops=", int(last_frame.get("node_spawn_ops_used", 0))
+		)
+		if scheduler.has_method("get_recent_task_summary"):
+			print("[STUTTER_SCHEDULER] ", scheduler.call("get_recent_task_summary"))

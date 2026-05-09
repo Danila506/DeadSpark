@@ -83,6 +83,7 @@ region = Rect2(213, 8, 46, 30)
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_khlg7"]
 
 [node name="GUI" type="CanvasLayer" unique_id=127416507]
+layer = 90
 
 [node name="InventoryRoot" type="Control" parent="." unique_id=1734319671]
 layout_mode = 3

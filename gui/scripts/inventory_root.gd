@@ -138,6 +138,9 @@ var mobile_touch_slot: InventorySlot = null
 var mobile_touch_start_position: Vector2 = Vector2.ZERO
 var mobile_touch_time_left: float = 0.0
 var mobile_touch_long_press_triggered: bool = false
+var mobile_touch_index: int = -1
+var mobile_drag_active: bool = false
+var mobile_drag_data: Dictionary = {}
 
 
 func _ready() -> void:
@@ -241,8 +244,8 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventScreenTouch:
 		var touch_event: InputEventScreenTouch = event as InputEventScreenTouch
-		if not touch_event.pressed and mobile_touch_slot != null:
-			_finish_mobile_slot_touch()
+		if not touch_event.pressed and _event_matches_mobile_touch(touch_event.index):
+			_finish_mobile_slot_touch(touch_event.position)
 			return
 		if touch_event.pressed and _is_screen_position_in_inventory_drag_zone(touch_event.position):
 			inventory_drag_active = true
@@ -262,12 +265,18 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	if event is InputEventScreenDrag and mobile_touch_slot != null:
 		var slot_drag := event as InputEventScreenDrag
+		if not _event_matches_mobile_touch(slot_drag.index):
+			return
+		if mobile_drag_active:
+			get_viewport().set_input_as_handled()
+			return
 		if slot_drag.position.distance_to(mobile_touch_start_position) > mobile_touch_drag_cancel_distance:
-			_cancel_mobile_slot_touch()
+			_start_mobile_slot_drag(slot_drag.position)
+			get_viewport().set_input_as_handled()
 
 
 func _process(delta: float) -> void:
-	if mobile_touch_slot == null or mobile_touch_long_press_triggered:
+	if mobile_touch_slot == null or mobile_touch_long_press_triggered or mobile_drag_active:
 		return
 	mobile_touch_time_left -= delta
 	if mobile_touch_time_left > 0.0:
@@ -285,6 +294,7 @@ func _notification(what: int) -> void:
 		var data: Variant = get_viewport().gui_get_drag_data()
 		if typeof(data) == TYPE_DICTIONARY and data.has("item"):
 			drag_in_progress_data = (data as Dictionary).duplicate()
+			_cancel_mobile_slot_touch()
 
 	elif what == Node.NOTIFICATION_DRAG_END:
 		if drag_in_progress_data.is_empty():
@@ -296,6 +306,7 @@ func _notification(what: int) -> void:
 			_drop_dragged_item_to_world(drag_in_progress_data)
 
 		drag_in_progress_data.clear()
+		_cancel_mobile_slot_touch()
 		refresh_ui()
 
 
@@ -2118,10 +2129,11 @@ func _refresh_storage_provider_ui(slot_type: int, panel: Control) -> void:
 func _on_slot_gui_input(event: InputEvent, slot: InventorySlot) -> void:
 	if event is InputEventScreenTouch:
 		var touch_event: InputEventScreenTouch = event as InputEventScreenTouch
+		var screen_position: Vector2 = _get_screen_position_for_slot_event(slot, touch_event.position)
 		if touch_event.pressed:
-			_start_mobile_slot_touch(slot, touch_event.position)
+			_start_mobile_slot_touch(slot, screen_position, touch_event.index)
 		elif mobile_touch_slot == slot:
-			_finish_mobile_slot_touch()
+			_finish_mobile_slot_touch(screen_position)
 		return
 	if not (event is InputEventMouseButton):
 		return
@@ -2179,7 +2191,7 @@ func _handle_slot_primary_press(slot: InventorySlot) -> void:
 	consume_button.visible = true
 
 
-func _start_mobile_slot_touch(slot: InventorySlot, screen_position: Vector2) -> void:
+func _start_mobile_slot_touch(slot: InventorySlot, screen_position: Vector2, touch_index: int = -1) -> void:
 	if slot == null or slot.item_data == null:
 		_cancel_mobile_slot_touch()
 		_hide_action_buttons()
@@ -2188,14 +2200,23 @@ func _start_mobile_slot_touch(slot: InventorySlot, screen_position: Vector2) -> 
 	mobile_touch_start_position = screen_position
 	mobile_touch_time_left = mobile_long_press_seconds
 	mobile_touch_long_press_triggered = false
+	mobile_touch_index = touch_index
+	mobile_drag_active = false
+	mobile_drag_data.clear()
 	get_viewport().set_input_as_handled()
 
 
-func _finish_mobile_slot_touch() -> void:
+func _finish_mobile_slot_touch(screen_position: Vector2 = Vector2.ZERO) -> void:
 	var slot := mobile_touch_slot
 	var was_long_press := mobile_touch_long_press_triggered
+	var was_dragging := mobile_drag_active
+	var drag_data := mobile_drag_data.duplicate()
 	_cancel_mobile_slot_touch()
 	if slot == null or not is_instance_valid(slot):
+		return
+	if was_dragging:
+		_finish_mobile_slot_drag(screen_position, drag_data)
+		get_viewport().set_input_as_handled()
 		return
 	if was_long_press:
 		get_viewport().set_input_as_handled()
@@ -2211,6 +2232,83 @@ func _cancel_mobile_slot_touch() -> void:
 	mobile_touch_slot = null
 	mobile_touch_time_left = 0.0
 	mobile_touch_long_press_triggered = false
+	mobile_touch_index = -1
+	mobile_drag_active = false
+	mobile_drag_data.clear()
+
+
+func _event_matches_mobile_touch(touch_index: int) -> bool:
+	return mobile_touch_index == -1 or mobile_touch_index == touch_index
+
+
+func _start_mobile_slot_drag(screen_position: Vector2) -> void:
+	if mobile_touch_slot == null or not is_instance_valid(mobile_touch_slot) or mobile_touch_slot.item_data == null:
+		_cancel_mobile_slot_touch()
+		return
+
+	mobile_drag_active = true
+	mobile_touch_long_press_triggered = true
+	mobile_drag_data = _build_drag_data_for_slot(mobile_touch_slot)
+	drag_in_progress_data.clear()
+	_hide_action_buttons()
+
+
+func _build_drag_data_for_slot(slot: InventorySlot) -> Dictionary:
+	return {
+		"source_slot": slot,
+		"source_mode": slot.slot_mode,
+		"item": slot.item_data,
+		"world_item": slot.world_item,
+		"nearby_index": slot.nearby_index,
+		"container_index": slot.container_index
+	}
+
+
+func _finish_mobile_slot_drag(screen_position: Vector2, drag_data: Dictionary) -> void:
+	if drag_data.is_empty():
+		return
+
+	var target_slot: InventorySlot = _find_inventory_slot_at_screen_position(screen_position)
+	if target_slot != null and target_slot._can_drop_data(Vector2.ZERO, drag_data):
+		_on_slot_drop_requested(target_slot, drag_data)
+		return
+
+	_drop_dragged_item_to_world(drag_data)
+	refresh_ui()
+
+
+func _find_inventory_slot_at_screen_position(screen_position: Vector2) -> InventorySlot:
+	return _find_inventory_slot_at_screen_position_recursive(inventory_content, screen_position)
+
+
+func _find_inventory_slot_at_screen_position_recursive(node: Node, screen_position: Vector2) -> InventorySlot:
+	for i in range(node.get_child_count() - 1, -1, -1):
+		var child: Node = node.get_child(i)
+		var found_slot: InventorySlot = _find_inventory_slot_at_screen_position_recursive(child, screen_position)
+		if found_slot != null:
+			return found_slot
+
+	if node is InventorySlot:
+		var slot := node as InventorySlot
+		if slot.is_visible_in_tree():
+			var local_position: Vector2 = slot.get_global_transform().affine_inverse() * screen_position
+			if Rect2(Vector2.ZERO, slot.size).has_point(local_position):
+				return slot
+
+	return null
+
+
+func _is_screen_position_inside_inventory_content(screen_position: Vector2) -> bool:
+	if inventory_content == null or not inventory_content.is_visible_in_tree():
+		return false
+	var local_position: Vector2 = inventory_content.get_global_transform().affine_inverse() * screen_position
+	return Rect2(Vector2.ZERO, inventory_content.size).has_point(local_position)
+
+
+func _get_screen_position_for_slot_event(slot: InventorySlot, event_position: Vector2) -> Vector2:
+	if slot != null and Rect2(Vector2.ZERO, slot.size).has_point(event_position):
+		return slot.get_global_transform() * event_position
+	return event_position
 
 
 func _quick_use_or_equip_slot(slot: InventorySlot) -> bool:

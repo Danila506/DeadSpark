@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://bbax3rd6gs41d" path="res://Animals/Deer/flayedDeer.png" id="4_p7qlo"]
 [ext_resource type="Texture2D" uid="uid://0j13lplxkkri" path="res://Animals/Deer/dieDeer.png" id="5_h6y1n"]
 [ext_resource type="Script" uid="uid://cfecgsgs2b18r" path="res://Animals/Deer/deer.gd" id="6_deer_script"]
+[ext_resource type="SpriteFrames" uid="uid://igboii0x84mf" path="res://Resources/Animals/Deer/deer_frames.tres" id="7_deer_frames"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ocuje"]
 radius = 216.0
@@ -16,6 +17,11 @@ height = 47.058823
 
 [node name="Deer" type="CharacterBody2D" unique_id=464897203]
 script = ExtResource("6_deer_script")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1659253301]
+position = Vector2(0, -10)
+sprite_frames = ExtResource("7_deer_frames")
+animation = &"Idle_down"
 
 [node name="DangeonZone" type="Area2D" parent="." unique_id=1476252322]
 visible = false

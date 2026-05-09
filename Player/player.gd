@@ -17,7 +17,7 @@ var is_bleeding: bool = false
 var is_fractured: bool = false
 var is_diseased: bool = false
 
-@export var water_drain_amount: float = 8.0
+@export var water_drain_amount: float = 4.0
 @export var water_drain_interval: float = 6.0
 var water_timer: float = 0.0
 

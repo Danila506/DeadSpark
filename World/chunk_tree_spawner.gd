@@ -33,7 +33,12 @@ static var _global_reserved_footprint_grid: Dictionary = {}
 @export_range(1, 32, 1) var max_chunk_operations_per_update: int = 1
 @export_range(1, 512, 1) var max_spawn_candidates_per_update: int = 24
 @export_range(1, 128, 1) var max_spawn_nodes_per_update: int = 2
+@export_range(0, 512, 1) var max_total_spawn_attempts_per_chunk: int = 0
+@export_range(1, 64, 1) var max_expensive_spawn_checks_per_update: int = 4
 @export_range(0.25, 16.0, 0.25) var spawn_step_time_budget_ms: float = 1.5
+@export var large_structure_mode: bool = false
+@export_range(1, 9, 1) var large_structure_candidates_per_chunk: int = 9
+@export_range(0.0, 480.0, 1.0) var large_structure_candidate_jitter_px: float = 120.0
 @export var revalidate_enabled: bool = false
 @export var revalidate_interval_sec: float = 0.6
 @export_range(1, 32, 1) var revalidate_chunk_budget_per_pass: int = 2
@@ -76,6 +81,8 @@ var _loaded_chunks := {}
 var _required_chunks := {}
 var _pending_load_chunks: Array[Vector2i] = []
 var _pending_unload_chunks: Array[Vector2i] = []
+var _scheduled_spawn_chunks := {}
+var _scheduled_unload_chunks := {}
 var _spawned_trees_by_chunk := {}
 var _last_center_chunk := Vector2i(999999, 999999)
 var _update_timer: float = 0.0
@@ -87,6 +94,7 @@ var _spawn_positions_by_chunk := {}
 var _spawn_position_grid := {}
 var _layer_max_tile_span_by_id := {}
 var _layer_cell_span_cache := {}
+var _layer_effective_tile_cache := {}
 var _revalidate_chunk_cursor: int = 0
 var _last_chunk_profile_stats: Dictionary = {}
 var _active_spawn_job: Dictionary = {}
@@ -154,6 +162,9 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	var scheduler := _get_generation_scheduler()
+	if scheduler != null and scheduler.has_method("cancel_owner_tasks"):
+		scheduler.call("cancel_owner_tasks", self)
 	_cancel_active_spawn_job()
 	_release_loaded_spawn_reservations()
 
@@ -178,7 +189,12 @@ func _apply_config(cfg: ChunkTreeSpawnerConfig) -> void:
 	max_chunk_operations_per_update = cfg.max_chunk_operations_per_update
 	max_spawn_candidates_per_update = cfg.max_spawn_candidates_per_update
 	max_spawn_nodes_per_update = cfg.max_spawn_nodes_per_update
+	max_total_spawn_attempts_per_chunk = cfg.max_total_spawn_attempts_per_chunk
+	max_expensive_spawn_checks_per_update = cfg.max_expensive_spawn_checks_per_update
 	spawn_step_time_budget_ms = cfg.spawn_step_time_budget_ms
+	large_structure_mode = cfg.large_structure_mode
+	large_structure_candidates_per_chunk = cfg.large_structure_candidates_per_chunk
+	large_structure_candidate_jitter_px = cfg.large_structure_candidate_jitter_px
 	revalidate_enabled = cfg.revalidate_enabled
 	revalidate_interval_sec = cfg.revalidate_interval_sec
 	revalidate_chunk_budget_per_pass = cfg.revalidate_chunk_budget_per_pass
@@ -266,6 +282,7 @@ func _rebuild_chunk_work_queues(center_chunk: Vector2i) -> void:
 	_required_chunks.clear()
 	_pending_load_chunks.clear()
 	_pending_unload_chunks.clear()
+	_layer_effective_tile_cache.clear()
 	var has_active_job := not _active_spawn_job.is_empty()
 	var active_chunk := Vector2i(999999, 999999)
 	if has_active_job:
@@ -307,33 +324,117 @@ func _process_chunk_work_queues(chunk_budget: int) -> void:
 		var active_chunk: Vector2i = _active_spawn_job.get("chunk", Vector2i(999999, 999999)) as Vector2i
 		if not _required_chunks.has(active_chunk):
 			_cancel_active_spawn_job()
-		elif _process_active_spawn_job():
-			operations_left -= 1
 		else:
+			_enqueue_generation_task(active_chunk, "spawn")
 			return
 
 	if unload_enabled:
 		while operations_left > 0 and not _pending_unload_chunks.is_empty():
 			var chunk := _pending_unload_chunks.pop_front() as Vector2i
 			if not _required_chunks.has(chunk) and _loaded_chunks.has(chunk):
-				var unload_start_usec := Time.get_ticks_usec()
-				_unload_chunk_trees(chunk)
-				_loaded_chunks.erase(chunk)
-				_profile_chunk_operation("unload", chunk, unload_start_usec, _last_chunk_profile_stats)
-				operations_left -= 1
+				if _enqueue_generation_task(chunk, "unload"):
+					operations_left -= 1
 
 	while operations_left > 0 and not _pending_load_chunks.is_empty():
 		var chunk := _pending_load_chunks.pop_front() as Vector2i
 		if _required_chunks.has(chunk) and not _loaded_chunks.has(chunk):
 			_start_spawn_chunk_job(chunk)
-			if _process_active_spawn_job():
-				operations_left -= 1
-			else:
-				return
+			_enqueue_generation_task(chunk, "spawn")
+			operations_left -= 1
+			return
 
 	if not unload_enabled:
 		_pending_unload_chunks.clear()
 		return
+
+
+func _enqueue_generation_task(chunk: Vector2i, action: String) -> bool:
+	var scheduler := _get_generation_scheduler()
+	if scheduler == null:
+		_run_generation_task_without_scheduler(chunk, action)
+		return true
+
+	var key := _make_scheduler_task_key(chunk, action)
+	if action == "spawn":
+		if _scheduled_spawn_chunks.has(chunk):
+			return true
+		_scheduled_spawn_chunks[chunk] = true
+	elif action == "unload":
+		if _scheduled_unload_chunks.has(chunk):
+			return true
+		_scheduled_unload_chunks[chunk] = true
+
+	var priority := _chunk_distance_squared(chunk, _last_center_chunk)
+	var payload := {
+		"action": action,
+		"chunk": chunk,
+		"uses_node_spawn_budget": action == "spawn"
+	}
+	return bool(scheduler.call("enqueue_task", self, key, priority, payload))
+
+
+func _run_scheduled_generation_task(payload: Dictionary, budget: Dictionary) -> Dictionary:
+	var action := str(payload.get("action", ""))
+	var chunk: Vector2i = payload.get("chunk", Vector2i.ZERO) as Vector2i
+	if action == "spawn":
+		if not _required_chunks.has(chunk):
+			if not _active_spawn_job.is_empty():
+				var cancel_chunk: Vector2i = _active_spawn_job.get("chunk", Vector2i(999999, 999999)) as Vector2i
+				if cancel_chunk == chunk:
+					_cancel_active_spawn_job()
+			_scheduled_spawn_chunks.erase(chunk)
+			return {"done": true}
+		if _active_spawn_job.is_empty():
+			if _loaded_chunks.has(chunk):
+				_scheduled_spawn_chunks.erase(chunk)
+				return {"done": true}
+			_start_spawn_chunk_job(chunk)
+		var active_chunk: Vector2i = _active_spawn_job.get("chunk", Vector2i(999999, 999999)) as Vector2i
+		if active_chunk != chunk:
+			return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+		var result := _process_active_spawn_job(budget)
+		if bool(result.get("done", false)):
+			_scheduled_spawn_chunks.erase(chunk)
+			return result
+		result["payload"] = payload
+		result["priority"] = _chunk_distance_squared(chunk, _last_center_chunk)
+		return result
+
+	if action == "unload":
+		_scheduled_unload_chunks.erase(chunk)
+		if _required_chunks.has(chunk) or not _loaded_chunks.has(chunk):
+			return {"done": true}
+		var unload_start_usec := Time.get_ticks_usec()
+		_unload_chunk_trees(chunk)
+		_loaded_chunks.erase(chunk)
+		_profile_chunk_operation("unload", chunk, unload_start_usec, _last_chunk_profile_stats)
+		return {"done": true}
+
+	return {"done": true}
+
+
+func _run_generation_task_without_scheduler(chunk: Vector2i, action: String) -> void:
+	if action == "spawn":
+		var guard := 0
+		if _active_spawn_job.is_empty():
+			_start_spawn_chunk_job(chunk)
+		while not _active_spawn_job.is_empty() and guard < 256:
+			if bool(_process_active_spawn_job({"node_spawn_ops_left": max_spawn_nodes_per_update}).get("done", false)):
+				break
+			guard += 1
+	elif action == "unload":
+		var unload_start_usec := Time.get_ticks_usec()
+		_unload_chunk_trees(chunk)
+		_loaded_chunks.erase(chunk)
+		_profile_chunk_operation("unload", chunk, unload_start_usec, _last_chunk_profile_stats)
+
+
+func _make_scheduler_task_key(chunk: Vector2i, action: String) -> String:
+	return "%d:%s:%d,%d" % [int(get_instance_id()), action, chunk.x, chunk.y]
+
+
+func _get_generation_scheduler() -> Node:
+	return get_node_or_null("/root/WorldGenerationScheduler")
 
 
 func _sort_chunks_near_center(chunks: Array[Vector2i], center_chunk: Vector2i) -> void:
@@ -361,8 +462,18 @@ func _start_spawn_chunk_job(chunk: Vector2i) -> void:
 		"revalidated_removed": 0
 	}
 	var base_cell := chunk * chunk_size_tiles
-	var random_cells := _build_chunk_random_cell_order(base_cell)
+	var random_cells: Array = []
+	if large_structure_mode:
+		random_cells = _build_large_structure_candidates(chunk)
+	else:
+		random_cells = _build_chunk_random_cell_order(base_cell)
 	var target_min_trees := clampi(min_trees_per_chunk, 0, chunk_cell_count)
+	var attempts_limit := _get_spawn_attempts_limit(chunk_cell_count, target_min_trees)
+	if large_structure_mode:
+		attempts_limit = random_cells.size()
+		stats["large_structure_candidates"] = random_cells.size()
+		stats["large_structure_rejected"] = 0
+		stats["large_structure_checks_usec"] = 0
 	_active_spawn_job = {
 		"chunk": chunk,
 		"base_cell": base_cell,
@@ -374,7 +485,7 @@ func _start_spawn_chunk_job(chunk: Vector2i) -> void:
 		"phase": SPAWN_JOB_PHASE_RANDOM,
 		"next_index": 0,
 		"target_min_trees": target_min_trees,
-		"attempts_limit": maxi(target_min_trees, chunk_cell_count),
+		"attempts_limit": attempts_limit,
 		"stats": stats,
 		"start_usec": Time.get_ticks_usec(),
 		"work_usec": 0,
@@ -382,13 +493,13 @@ func _start_spawn_chunk_job(chunk: Vector2i) -> void:
 	}
 
 
-func _process_active_spawn_job() -> bool:
+func _process_active_spawn_job(budget: Dictionary = {}) -> Dictionary:
 	if _active_spawn_job.is_empty():
-		return false
+		return {"done": true}
 
 	if bool(_active_spawn_job.get("skip", false)):
 		_finish_active_spawn_job()
-		return true
+		return {"done": true}
 
 	var chunk: Vector2i = _active_spawn_job.get("chunk", Vector2i.ZERO) as Vector2i
 	var base_cell: Vector2i = _active_spawn_job.get("base_cell", chunk * chunk_size_tiles) as Vector2i
@@ -404,17 +515,39 @@ func _process_active_spawn_job() -> bool:
 	var stats: Dictionary = _active_spawn_job.get("stats", {})
 	var chunk_cell_count := chunk_size_tiles * chunk_size_tiles
 	var max_attempts := maxi(1, max_spawn_candidates_per_update)
+	if large_structure_mode:
+		max_attempts = maxi(1, large_structure_candidates_per_chunk)
 	var max_spawned := maxi(1, max_spawn_nodes_per_update)
+	if budget.has("node_spawn_ops_left"):
+		max_spawned = mini(max_spawned, maxi(0, int(budget.get("node_spawn_ops_left", max_spawned))))
+	if max_spawned <= 0:
+		return {"done": false, "node_spawn_ops_used": 0}
 	var time_budget_usec := int(maxf(spawn_step_time_budget_ms, 0.25) * 1000.0)
+	if budget.has("frame_start_usec") and budget.has("time_budget_usec"):
+		var frame_elapsed := Time.get_ticks_usec() - int(budget.get("frame_start_usec", Time.get_ticks_usec()))
+		time_budget_usec = mini(time_budget_usec, maxi(0, int(budget.get("time_budget_usec", time_budget_usec)) - frame_elapsed))
+		if time_budget_usec <= 0:
+			return {"done": false, "node_spawn_ops_used": 0}
 	var step_start_usec := Time.get_ticks_usec()
 	var attempts_this_step := 0
 	var spawned_this_step := 0
+	var expensive_checks_this_step := 0
 
-	while attempts_this_step < max_attempts and spawned_this_step < max_spawned:
+	var expensive_check_limit := _get_expensive_checks_limit()
+	while attempts_this_step < max_attempts and spawned_this_step < max_spawned and expensive_checks_this_step < expensive_check_limit:
 		if Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
 			break
 
 		if phase == SPAWN_JOB_PHASE_RANDOM and next_index >= random_cells.size():
+			if large_structure_mode:
+				break
+			phase = SPAWN_JOB_PHASE_FALLBACK
+			next_index = 0
+			continue
+
+		if phase == SPAWN_JOB_PHASE_RANDOM and next_index >= attempts_limit:
+			if large_structure_mode:
+				break
 			phase = SPAWN_JOB_PHASE_FALLBACK
 			next_index = 0
 			continue
@@ -424,19 +557,32 @@ func _process_active_spawn_job() -> bool:
 				break
 
 		var cell := Vector2i.ZERO
+		var world_pos := Vector2.ZERO
 		if phase == SPAWN_JOB_PHASE_RANDOM:
-			cell = random_cells[next_index] as Vector2i
+			if large_structure_mode:
+				var candidate: Dictionary = random_cells[next_index] as Dictionary
+				cell = candidate.get("cell", Vector2i.ZERO) as Vector2i
+				world_pos = candidate.get("world_pos", Vector2.ZERO) as Vector2
+			else:
+				cell = random_cells[next_index] as Vector2i
+				world_pos = Vector2((cell.x + 0.5) * tile_size_px.x, (cell.y + 0.5) * tile_size_px.y)
 			next_index += 1
 			attempts_this_step += 1
 			if _roll(cell) > spawn_probability:
+				if large_structure_mode:
+					stats["large_structure_rejected"] = int(stats.get("large_structure_rejected", 0)) + 1
 				continue
 		else:
 			cell = _fallback_cell(base_cell, next_index)
+			world_pos = Vector2((cell.x + 0.5) * tile_size_px.x, (cell.y + 0.5) * tile_size_px.y)
 			next_index += 1
 			attempts_this_step += 1
 
-		var n := _spawn_tree_at_cell(cell, chunk, placed, chunk_spawn_positions, chunk_spawn_cells)
+		var n := _spawn_tree_at_candidate(cell, world_pos, chunk, placed, chunk_spawn_positions, chunk_spawn_cells, stats)
+		expensive_checks_this_step += 1
 		if n == null:
+			if large_structure_mode:
+				stats["large_structure_rejected"] = int(stats.get("large_structure_rejected", 0)) + 1
 			continue
 		nodes.append(n)
 		chunk_spawn_positions.append(n.global_position)
@@ -447,10 +593,14 @@ func _process_active_spawn_job() -> bool:
 		stats["nodes_spawned"] = int(stats.get("nodes_spawned", 0)) + 1
 
 	if phase == SPAWN_JOB_PHASE_RANDOM and next_index >= random_cells.size():
-		phase = SPAWN_JOB_PHASE_FALLBACK
-		next_index = 0
+		if not large_structure_mode:
+			phase = SPAWN_JOB_PHASE_FALLBACK
+			next_index = 0
 
 	var step_elapsed_usec := Time.get_ticks_usec() - step_start_usec
+	stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+	stats["spawn_attempts"] = int(stats.get("spawn_attempts", 0)) + attempts_this_step
+	stats["expensive_checks"] = int(stats.get("expensive_checks", 0)) + expensive_checks_this_step
 	_active_spawn_job["nodes"] = nodes
 	_active_spawn_job["chunk_spawn_positions"] = chunk_spawn_positions
 	_active_spawn_job["chunk_spawn_cells"] = chunk_spawn_cells
@@ -460,12 +610,76 @@ func _process_active_spawn_job() -> bool:
 	_active_spawn_job["stats"] = stats
 	_active_spawn_job["work_usec"] = int(_active_spawn_job.get("work_usec", 0)) + step_elapsed_usec
 
+	if large_structure_mode and phase == SPAWN_JOB_PHASE_RANDOM and next_index >= attempts_limit:
+		_finish_active_spawn_job()
+		return {"done": true, "node_spawn_ops_used": spawned_this_step}
+
 	if phase == SPAWN_JOB_PHASE_FALLBACK:
 		if placed >= target_min_trees or spawn_probability <= 0.0 or next_index >= attempts_limit:
 			_finish_active_spawn_job()
-			return true
+			return {"done": true, "node_spawn_ops_used": spawned_this_step}
 
-	return false
+	return {"done": false, "node_spawn_ops_used": spawned_this_step}
+
+
+func _get_spawn_attempts_limit(chunk_cell_count: int, target_min_trees: int) -> int:
+	if large_structure_mode:
+		return clampi(large_structure_candidates_per_chunk, 1, 9)
+	if max_total_spawn_attempts_per_chunk > 0:
+		return maxi(target_min_trees, mini(max_total_spawn_attempts_per_chunk, chunk_cell_count))
+	if footprint_size_px.x > 0.0 and footprint_size_px.y > 0.0 and target_min_trees <= 0:
+		var probability_attempts := ceili(float(chunk_cell_count) * clampf(spawn_probability, 0.0, 1.0) * 2.0)
+		return clampi(maxi(16, probability_attempts), 1, chunk_cell_count)
+	return maxi(target_min_trees, chunk_cell_count)
+
+
+func _get_expensive_checks_limit() -> int:
+	if large_structure_mode:
+		return maxi(1, large_structure_candidates_per_chunk)
+	if footprint_size_px.x > 0.0 and footprint_size_px.y > 0.0 and min_trees_per_chunk <= 0:
+		return 1
+	return maxi(1, max_expensive_spawn_checks_per_update)
+
+
+func _build_large_structure_candidates(chunk: Vector2i) -> Array[Dictionary]:
+	var count := clampi(large_structure_candidates_per_chunk, 1, 9)
+	var chunk_size_px := Vector2(float(chunk_size_tiles) * tile_size_px.x, float(chunk_size_tiles) * tile_size_px.y)
+	var chunk_origin_px := Vector2(float(chunk.x) * chunk_size_px.x, float(chunk.y) * chunk_size_px.y)
+	var anchors: Array[Vector2] = [
+		Vector2(0.5, 0.5),
+		Vector2(0.25, 0.25),
+		Vector2(0.75, 0.25),
+		Vector2(0.25, 0.75),
+		Vector2(0.75, 0.75),
+		Vector2(0.5, 0.25),
+		Vector2(0.75, 0.5),
+		Vector2(0.5, 0.75),
+		Vector2(0.25, 0.5)
+	]
+	var candidates: Array[Dictionary] = []
+	for i in range(count):
+		var anchor := anchors[i]
+		var world_pos := chunk_origin_px + Vector2(anchor.x * chunk_size_px.x, anchor.y * chunk_size_px.y)
+		world_pos += _large_structure_candidate_jitter(chunk, i)
+		world_pos.x = clampf(world_pos.x, chunk_origin_px.x + tile_size_px.x * 0.5, chunk_origin_px.x + chunk_size_px.x - tile_size_px.x * 0.5)
+		world_pos.y = clampf(world_pos.y, chunk_origin_px.y + tile_size_px.y * 0.5, chunk_origin_px.y + chunk_size_px.y - tile_size_px.y * 0.5)
+		var cell := Vector2i(floori(world_pos.x / tile_size_px.x), floori(world_pos.y / tile_size_px.y))
+		candidates.append({
+			"cell": cell,
+			"world_pos": world_pos
+		})
+	return candidates
+
+
+func _large_structure_candidate_jitter(chunk: Vector2i, candidate_index: int) -> Vector2:
+	var jitter := maxf(large_structure_candidate_jitter_px, 0.0)
+	if jitter <= 0.0:
+		return Vector2.ZERO
+	var hx := _hash_cell(chunk.x * 31 + candidate_index, chunk.y * 17 - candidate_index, world_seed + 43133)
+	var hy := _hash_cell(chunk.x * 13 - candidate_index, chunk.y * 29 + candidate_index, world_seed + 91961)
+	var nx := float(hx % 20001) / 10000.0 - 1.0
+	var ny := float(hy % 20001) / 10000.0 - 1.0
+	return Vector2(nx * jitter, ny * jitter)
 
 
 func _build_chunk_random_cell_order(chunk_origin: Vector2i) -> Array[Vector2i]:
@@ -490,10 +704,10 @@ func _build_chunk_random_cell_order(chunk_origin: Vector2i) -> Array[Vector2i]:
 
 
 func _seed_for_chunk_shuffle(chunk_origin: Vector2i) -> int:
-	var seed := _hash_cell(chunk_origin.x, chunk_origin.y, world_seed + 11939)
-	if seed == 0:
-		seed = 1
-	return seed
+	var shuffle_seed := _hash_cell(chunk_origin.x, chunk_origin.y, world_seed + 11939)
+	if shuffle_seed == 0:
+		shuffle_seed = 1
+	return shuffle_seed
 
 
 func _xorshift32(value: int) -> int:
@@ -518,6 +732,7 @@ func _finish_active_spawn_job() -> void:
 	_spawned_trees_by_chunk[chunk] = nodes
 	_spawn_positions_by_chunk[chunk] = chunk_spawn_positions
 	_loaded_chunks[chunk] = true
+	_scheduled_spawn_chunks.erase(chunk)
 	_last_chunk_profile_stats = stats
 	_active_spawn_job.clear()
 	_profile_chunk_operation("spawn", chunk, profile_start_usec, stats)
@@ -526,6 +741,8 @@ func _finish_active_spawn_job() -> void:
 func _cancel_active_spawn_job() -> void:
 	if _active_spawn_job.is_empty():
 		return
+	var chunk: Vector2i = _active_spawn_job.get("chunk", Vector2i(999999, 999999)) as Vector2i
+	_scheduled_spawn_chunks.erase(chunk)
 	var nodes: Array = _active_spawn_job.get("nodes", [])
 	for item in nodes:
 		var node := item as Node
@@ -558,30 +775,54 @@ func _spawn_tree_at_cell(
 	chunk: Vector2i,
 	placed_index: int,
 	chunk_spawn_positions: Array,
-	chunk_spawn_cells: Dictionary
+	chunk_spawn_cells: Dictionary,
+	stats: Dictionary
 ) -> Node2D:
-	if chunk_spawn_cells.has(cell):
-		return null
 	var world_pos := Vector2((cell.x + 0.5) * tile_size_px.x, (cell.y + 0.5) * tile_size_px.y)
+	return _spawn_tree_at_candidate(cell, world_pos, chunk, placed_index, chunk_spawn_positions, chunk_spawn_cells, stats)
+
+
+func _spawn_tree_at_candidate(
+	cell: Vector2i,
+	world_pos: Vector2,
+	chunk: Vector2i,
+	placed_index: int,
+	chunk_spawn_positions: Array,
+	chunk_spawn_cells: Dictionary,
+	stats: Dictionary
+) -> Node2D:
+	var checks_start_usec := Time.get_ticks_usec()
+	if chunk_spawn_cells.has(cell):
+		_record_spawn_check_time(stats, checks_start_usec)
+		return null
 	if not _is_allowed_by_biome_layers(world_pos):
+		_record_spawn_check_time(stats, checks_start_usec)
 		return null
 	if _overlaps_blocked(world_pos):
+		_record_spawn_check_time(stats, checks_start_usec)
 		return null
 	if _overlaps_world_collision(world_pos):
+		_record_spawn_check_time(stats, checks_start_usec)
 		return null
 	if _too_close_to_other_spawns(world_pos, chunk_spawn_positions):
+		_record_spawn_check_time(stats, checks_start_usec)
 		return null
 
 	var candidate_rect: Rect2 = _get_candidate_spawn_rect(world_pos)
 	if _is_globally_occupied(candidate_rect):
+		_record_spawn_check_time(stats, checks_start_usec)
 		return null
 	var scene := _pick_tree_scene(cell, chunk, placed_index)
 	if scene == null:
+		_record_spawn_check_time(stats, checks_start_usec)
 		return null
 	var reservation_key: String = _make_spawn_reservation_key(chunk, cell)
 	_reserve_global_footprint(reservation_key, candidate_rect)
+	_record_spawn_check_time(stats, checks_start_usec)
 
+	var instantiate_start_usec := Time.get_ticks_usec()
 	var tree := scene.instantiate()
+	stats["instantiate_usec"] = int(stats.get("instantiate_usec", 0)) + (Time.get_ticks_usec() - instantiate_start_usec)
 	if not (tree is Node2D):
 		_release_global_footprint(reservation_key)
 		if tree != null:
@@ -591,11 +832,22 @@ func _spawn_tree_at_cell(
 	node.global_position = world_pos
 	node.set_meta(GENERATED_FOOTPRINT_META, candidate_rect)
 	_prepare_generated_node(node, chunk, cell, scene)
+	var add_child_start_usec := Time.get_ticks_usec()
 	_spawn_parent.add_child(node)
+	stats["add_child_usec"] = int(stats.get("add_child_usec", 0)) + (Time.get_ticks_usec() - add_child_start_usec)
 	_bind_global_reservation_to_node(node, reservation_key)
 	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
+		var register_start_usec := Time.get_ticks_usec()
 		GameSaveManager.register_persistent_node(node)
+		stats["register_usec"] = int(stats.get("register_usec", 0)) + (Time.get_ticks_usec() - register_start_usec)
 	return node
+
+
+func _record_spawn_check_time(stats: Dictionary, start_usec: int) -> void:
+	var elapsed_usec := Time.get_ticks_usec() - start_usec
+	stats["spawn_checks_usec"] = int(stats.get("spawn_checks_usec", 0)) + elapsed_usec
+	if large_structure_mode:
+		stats["large_structure_checks_usec"] = int(stats.get("large_structure_checks_usec", 0)) + elapsed_usec
 
 
 func _unload_chunk_trees(chunk: Vector2i) -> void:
@@ -770,13 +1022,20 @@ func _rebuild_spawn_position_grid() -> void:
 
 func _is_allowed_by_biome_layers(world_pos: Vector2) -> bool:
 	var lake_guard_radius := maxi(1, forbidden_layer_radius_tiles)
-	if _lake_layer != null and _spawn_footprint_has_layer_tile(_lake_layer, world_pos, lake_guard_radius):
-		return false
+	if _lake_layer != null:
+		if _layer_has_tile_at_world(_lake_layer, world_pos):
+			return false
+		if _spawn_footprint_has_layer_tile(_lake_layer, world_pos, lake_guard_radius):
+			return false
 	if _spawn_only_layer != null and not _layer_has_tile_at_world(_spawn_only_layer, world_pos):
 		return false
 	for layer in _forbidden_layers:
 		var forbidden_layer := layer as TileMapLayer
-		if forbidden_layer != null and _spawn_footprint_has_layer_tile(forbidden_layer, world_pos, forbidden_layer_radius_tiles):
+		if forbidden_layer == null:
+			continue
+		if _layer_has_tile_at_world(forbidden_layer, world_pos):
+			return false
+		if _spawn_footprint_has_layer_tile(forbidden_layer, world_pos, forbidden_layer_radius_tiles):
 			return false
 	return true
 
@@ -837,6 +1096,9 @@ func _spawn_footprint_has_layer_tile(layer: TileMapLayer, world_pos: Vector2, ra
 	if footprint_size_px.x <= 0.0 or footprint_size_px.y <= 0.0:
 		return _layer_has_tile_near_world(layer, world_pos, radius_tiles)
 
+	if _uses_sampled_footprint_layer_check():
+		return _sample_spawn_footprint_has_layer_tile(layer, world_pos, radius_tiles)
+
 	var footprint_rect := _get_spawn_footprint_rect(world_pos)
 	var start_cell := layer.local_to_map(layer.to_local(footprint_rect.position))
 	var end_cell := layer.local_to_map(layer.to_local(footprint_rect.end))
@@ -852,14 +1114,65 @@ func _spawn_footprint_has_layer_tile(layer: TileMapLayer, world_pos: Vector2, ra
 	return false
 
 
+func _uses_sampled_footprint_layer_check() -> bool:
+	return large_structure_mode or footprint_size_px.x * footprint_size_px.y >= 120000.0
+
+
+func _sample_spawn_footprint_has_layer_tile(layer: TileMapLayer, world_pos: Vector2, radius_tiles: int) -> bool:
+	var footprint_rect := _get_spawn_footprint_rect(world_pos).abs()
+	var samples := _get_footprint_sample_points(footprint_rect)
+	var r := maxi(0, radius_tiles)
+	for sample in samples:
+		var center := layer.local_to_map(layer.to_local(sample))
+		for oy in range(-r, r + 1):
+			for ox in range(-r, r + 1):
+				if _layer_has_effective_tile_at_cell(layer, center + Vector2i(ox, oy)):
+					return true
+	return false
+
+
+func _get_footprint_sample_points(rect: Rect2) -> Array[Vector2]:
+	var result: Array[Vector2] = []
+	var center := rect.get_center()
+	result.append(center)
+	result.append(rect.position)
+	result.append(Vector2(rect.end.x, rect.position.y))
+	result.append(Vector2(rect.position.x, rect.end.y))
+	result.append(rect.end)
+	result.append(Vector2(center.x, rect.position.y))
+	result.append(Vector2(rect.end.x, center.y))
+	result.append(Vector2(center.x, rect.end.y))
+	result.append(Vector2(rect.position.x, center.y))
+	if large_structure_mode:
+		result.append(Vector2(lerpf(rect.position.x, rect.end.x, 0.25), center.y))
+		result.append(Vector2(lerpf(rect.position.x, rect.end.x, 0.75), center.y))
+		result.append(Vector2(center.x, lerpf(rect.position.y, rect.end.y, 0.25)))
+		result.append(Vector2(center.x, lerpf(rect.position.y, rect.end.y, 0.75)))
+		return result
+
+	var x_step := rect.size.x / 4.0
+	var y_step := rect.size.y / 4.0
+	for i in range(1, 4):
+		result.append(Vector2(rect.position.x + x_step * float(i), rect.position.y))
+		result.append(Vector2(rect.position.x + x_step * float(i), rect.end.y))
+		result.append(Vector2(rect.position.x, rect.position.y + y_step * float(i)))
+		result.append(Vector2(rect.end.x, rect.position.y + y_step * float(i)))
+	return result
+
+
 func _layer_has_effective_tile_at_cell(layer: TileMapLayer, cell: Vector2i) -> bool:
 	if layer == null:
 		return false
+	var cache_key := "%d:%d:%d" % [int(layer.get_instance_id()), cell.x, cell.y]
+	if _layer_effective_tile_cache.has(cache_key):
+		return bool(_layer_effective_tile_cache[cache_key])
 	if layer.get_cell_source_id(cell) != -1:
+		_layer_effective_tile_cache[cache_key] = true
 		return true
 
 	var max_span := _get_layer_max_tile_span(layer)
 	if max_span.x <= 1 and max_span.y <= 1:
+		_layer_effective_tile_cache[cache_key] = false
 		return false
 
 	for oy in range(max_span.y):
@@ -869,7 +1182,9 @@ func _layer_has_effective_tile_at_cell(layer: TileMapLayer, cell: Vector2i) -> b
 				continue
 			var span := _get_layer_cell_tile_span(layer, origin)
 			if ox < span.x and oy < span.y:
+				_layer_effective_tile_cache[cache_key] = true
 				return true
+	_layer_effective_tile_cache[cache_key] = false
 	return false
 
 
@@ -933,9 +1248,13 @@ func _is_chunk_allowed_for_biome(chunk: Vector2i) -> bool:
 	if biome_half_split_enabled:
 		if biome_half_split_vertical:
 			var half_x := _world_min_chunk.x + int(floor(world_chunks_x / 2.0))
-			return chunk.x < half_x if biome_half_split_upper_or_left else chunk.x >= half_x
+			if biome_half_split_upper_or_left:
+				return chunk.x < half_x
+			return chunk.x >= half_x
 		var half_y := _world_min_chunk.y + int(floor(world_chunks_y / 2.0))
-		return chunk.y < half_y if biome_half_split_upper_or_left else chunk.y >= half_y
+		if biome_half_split_upper_or_left:
+			return chunk.y < half_y
+		return chunk.y >= half_y
 
 	if not biome_partition_enabled:
 		return true
@@ -949,12 +1268,14 @@ func _is_chunk_allowed_for_biome(chunk: Vector2i) -> bool:
 
 
 func has_generation_pending() -> bool:
-	return not _active_spawn_job.is_empty() or not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty()
+	return not _active_spawn_job.is_empty() or not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty() or not _scheduled_spawn_chunks.is_empty() or not _scheduled_unload_chunks.is_empty()
 
 
 func get_pending_generation_chunk_count() -> int:
-	var active_count := 1 if not _active_spawn_job.is_empty() else 0
-	return active_count + _pending_load_chunks.size() + _pending_unload_chunks.size()
+	var active_count := 0
+	if not _active_spawn_job.is_empty():
+		active_count = 1
+	return active_count + _pending_load_chunks.size() + _pending_unload_chunks.size() + _scheduled_spawn_chunks.size() + _scheduled_unload_chunks.size()
 
 
 func force_generate_step(chunk_budget: int = -1) -> void:
@@ -971,6 +1292,9 @@ func force_generate_step(chunk_budget: int = -1) -> void:
 		_rebuild_chunk_work_queues(center_chunk)
 
 	_process_chunk_work_queues(maxi(1, budget))
+	var scheduler := _get_generation_scheduler()
+	if scheduler != null and scheduler.has_method("process_generation_frame"):
+		scheduler.call("process_generation_frame", spawn_step_time_budget_ms, max_spawn_nodes_per_update, maxi(1, budget))
 
 
 func _prewarm_full_generation() -> void:
@@ -978,6 +1302,9 @@ func _prewarm_full_generation() -> void:
 	var max_iterations := maxi(world_chunks_x * world_chunks_y * 32, 1024)
 	while has_generation_pending() and guard < max_iterations:
 		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 32))
+		var scheduler := _get_generation_scheduler()
+		if scheduler != null and scheduler.has_method("process_generation_frame"):
+			scheduler.call("process_generation_frame", spawn_step_time_budget_ms, max_spawn_nodes_per_update, 32)
 		guard += 1
 
 
@@ -986,6 +1313,9 @@ func _prewarm_initial_visible_generation() -> void:
 	var max_iterations := 160
 	while has_generation_pending() and guard < max_iterations:
 		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 24))
+		var scheduler := _get_generation_scheduler()
+		if scheduler != null and scheduler.has_method("process_generation_frame"):
+			scheduler.call("process_generation_frame", spawn_step_time_budget_ms, max_spawn_nodes_per_update, 24)
 		guard += 1
 
 
@@ -1051,7 +1381,9 @@ func _revalidate_spawn_chunk(chunk: Vector2i) -> void:
 
 func _ensure_global_spawn_registry() -> void:
 	var scene_root: Node = get_tree().current_scene
-	var scene_id: int = int(scene_root.get_instance_id()) if scene_root != null else 0
+	var scene_id: int = 0
+	if scene_root != null:
+		scene_id = int(scene_root.get_instance_id())
 	if _global_registry_scene_id == scene_id:
 		return
 	_global_registry_scene_id = scene_id
@@ -1335,7 +1667,9 @@ func get_debug_world_generation_info() -> Dictionary:
 		"revalidate_enabled": revalidate_enabled,
 		"spawn_positions_by_chunk": _spawn_positions_by_chunk.duplicate(true),
 		"spawn_scene_counts": _collect_spawn_scene_counts(),
-		"blocked_world_positions": _blocked_world_positions.duplicate()
+		"blocked_world_positions": _blocked_world_positions.duplicate(),
+		"scheduled_spawn_chunks": _scheduled_spawn_chunks.keys(),
+		"scheduled_unload_chunks": _scheduled_unload_chunks.keys()
 	}
 
 

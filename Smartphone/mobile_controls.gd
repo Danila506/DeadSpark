@@ -20,8 +20,8 @@ const SWITCH_WEAPON_BUTTON_TEXTURE: Texture2D = preload("res://Smartphone/switch
 @export var auto_fire_enabled: bool = true
 @export var aim_touch_zone_enabled: bool = true
 @export var aim_touch_zone_fire_enabled: bool = true
-@export_range(0.0, 0.9, 0.05) var aim_touch_zone_left_edge_ratio: float = 0.5
-@export_range(0.1, 0.8, 0.05) var move_touch_zone_right_edge_ratio: float = 0.5
+@export_range(0.0, 0.9, 0.05) var aim_touch_zone_left_edge_ratio: float = 0.3
+@export_range(0.1, 0.8, 0.05) var move_touch_zone_right_edge_ratio: float = 0.3
 @export var aim_cursor_screen_margin_px: float = 42.0
 
 var _player: Node

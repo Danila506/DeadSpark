@@ -461,7 +461,7 @@ sources/0 = SubResource("TileSetAtlasSource_oaehd")
 script = ExtResource("1_u52ul")
 world_bounds_generator_path = NodePath("WorldGeneration/ChunkWorldGenerator")
 world_mood_targets = Array[NodePath]([NodePath("SnowLayer"), NodePath("WoodLayer"), NodePath("RoadLayer"), NodePath(""), NodePath("Y-Sort_Objects"), NodePath("Snowfall")])
-force_mobile_controls_on_desktop = true
+force_mobile_controls_on_desktop = false
 
 [node name="WorldGeneration" parent="." unique_id=13881982 instance=ExtResource("40_worldgen")]
 

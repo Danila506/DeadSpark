@@ -106,6 +106,8 @@ var _loaded_chunks := {}
 var _required_chunks := {}
 var _pending_load_chunks: Array[Vector2i] = []
 var _pending_unload_chunks: Array[Vector2i] = []
+var _scheduled_load_chunks := {}
+var _scheduled_unload_chunks := {}
 var _last_center_chunk := Vector2i(999999, 999999)
 var _update_timer: float = 0.0
 var _world_min_chunk: Vector2i
@@ -198,6 +200,12 @@ func _ready() -> void:
 	if load_entire_world_on_start and not unload_enabled:
 		_prewarm_full_generation()
 		set_process(false)
+
+
+func _exit_tree() -> void:
+	var scheduler := _get_generation_scheduler()
+	if scheduler != null and scheduler.has_method("cancel_owner_tasks"):
+		scheduler.call("cancel_owner_tasks", self)
 
 
 func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
@@ -348,34 +356,205 @@ func _rebuild_chunk_work_queues(center_chunk: Vector2i) -> void:
 
 func _process_chunk_work_queues(chunk_budget: int) -> void:
 	var operations_left := maxi(1, chunk_budget)
-	var step_start_usec := Time.get_ticks_usec()
-	var time_budget_usec := int(maxf(generation_step_time_budget_ms, 0.25) * 1000.0)
 
 	while operations_left > 0 and not _pending_load_chunks.is_empty():
-		if Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
-			return
 		var chunk := _pending_load_chunks.pop_front() as Vector2i
 		if _required_chunks.has(chunk) and not _loaded_chunks.has(chunk):
-			var load_start_usec := Time.get_ticks_usec()
-			_generate_chunk(chunk)
-			_loaded_chunks[chunk] = true
-			_profile_chunk_operation("generate", chunk, load_start_usec, _last_chunk_profile_stats)
-			operations_left -= 1
+			if _enqueue_generation_task(chunk, "generate"):
+				operations_left -= 1
 
 	if not unload_enabled:
 		_pending_unload_chunks.clear()
 		return
 
 	while operations_left > 0 and not _pending_unload_chunks.is_empty():
-		if Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
-			return
 		var chunk := _pending_unload_chunks.pop_front() as Vector2i
 		if not _required_chunks.has(chunk) and _loaded_chunks.has(chunk):
-			var unload_start_usec := Time.get_ticks_usec()
+			if _enqueue_generation_task(chunk, "unload"):
+				operations_left -= 1
+
+
+func _enqueue_generation_task(chunk: Vector2i, action: String) -> bool:
+	var scheduler := _get_generation_scheduler()
+	if scheduler == null:
+		_run_chunk_operation_now(chunk, action)
+		return true
+
+	var key := _make_scheduler_task_key(chunk, action)
+	if action == "generate":
+		if _scheduled_load_chunks.has(chunk):
+			return true
+		_scheduled_load_chunks[chunk] = true
+	elif action == "unload":
+		if _scheduled_unload_chunks.has(chunk):
+			return true
+		_scheduled_unload_chunks[chunk] = true
+
+	var priority := _chunk_distance_squared(chunk, _last_center_chunk)
+	var payload := {
+		"action": action,
+		"chunk": chunk,
+		"uses_node_spawn_budget": false,
+		"start_usec": Time.get_ticks_usec()
+	}
+	return bool(scheduler.call("enqueue_task", self, key, priority, payload))
+
+
+func _run_scheduled_generation_task(payload: Dictionary, budget: Dictionary) -> Dictionary:
+	var action := str(payload.get("action", ""))
+	var chunk: Vector2i = payload.get("chunk", Vector2i.ZERO) as Vector2i
+	if action == "generate":
+		if _loaded_chunks.has(chunk):
+			_scheduled_load_chunks.erase(chunk)
+			return {"done": true}
+		if not _required_chunks.has(chunk) and unload_enabled:
+			var cancel_placed_cells: Array = payload.get("placed_cells", [])
+			if int(payload.get("cursor", 0)) > 0 or not cancel_placed_cells.is_empty():
+				_unload_chunk(chunk)
+			_scheduled_load_chunks.erase(chunk)
+			return {"done": true}
+		if use_terrain_connect:
+			_scheduled_load_chunks.erase(chunk)
+			_run_chunk_operation_now(chunk, action)
+			return {"done": true}
+		var generate_result := _process_incremental_generate_chunk_task(chunk, payload, budget)
+		if bool(generate_result.get("done", false)):
+			_scheduled_load_chunks.erase(chunk)
+		return generate_result
+	elif action == "unload":
+		_scheduled_unload_chunks.erase(chunk)
+		if _required_chunks.has(chunk) or not _loaded_chunks.has(chunk):
+			return {"done": true}
+	else:
+		return {"done": true}
+
+	_run_chunk_operation_now(chunk, action)
+	return {"done": true}
+
+
+func _process_incremental_generate_chunk_task(chunk: Vector2i, payload: Dictionary, budget: Dictionary) -> Dictionary:
+	if not _is_chunk_allowed_for_biome(chunk):
+		if unload_enabled:
 			_unload_chunk(chunk)
-			_loaded_chunks.erase(chunk)
-			_profile_chunk_operation("unload", chunk, unload_start_usec, _last_chunk_profile_stats)
-			operations_left -= 1
+		else:
+			_last_chunk_profile_stats = {
+				"cells_set": 0,
+				"cells_erased": 0,
+				"overlap_erased": 0
+			}
+		_loaded_chunks[chunk] = true
+		var skipped_start_usec := int(payload.get("start_usec", Time.get_ticks_usec()))
+		_profile_chunk_operation("generate", chunk, skipped_start_usec, _last_chunk_profile_stats)
+		return {"done": true}
+
+	var stats: Dictionary = payload.get("stats", {
+		"cells_set": 0,
+		"cells_erased": 0,
+		"overlap_erased": 0,
+		"generation_kind": "tile_incremental"
+	})
+	var occupied: Dictionary = payload.get("occupied", {})
+	var placed_cells: Array = payload.get("placed_cells", [])
+	var placed_count := int(payload.get("placed_count", 0))
+	var cursor := int(payload.get("cursor", 0))
+	var origin := chunk * chunk_size_tiles
+	var total_cells := chunk_size_tiles * chunk_size_tiles
+	var step_start_usec := Time.get_ticks_usec()
+	var time_budget_usec := int(maxf(generation_step_time_budget_ms, 0.25) * 1000.0)
+	if budget.has("frame_start_usec") and budget.has("time_budget_usec"):
+		var frame_elapsed_usec := Time.get_ticks_usec() - int(budget.get("frame_start_usec", Time.get_ticks_usec()))
+		time_budget_usec = mini(time_budget_usec, maxi(0, int(budget.get("time_budget_usec", time_budget_usec)) - frame_elapsed_usec))
+	if time_budget_usec <= 0:
+		payload["stats"] = stats
+		payload["occupied"] = occupied
+		payload["placed_cells"] = placed_cells
+		payload["placed_count"] = placed_count
+		payload["cursor"] = cursor
+		return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+	while cursor < total_cells:
+		if Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
+			stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+			payload["stats"] = stats
+			payload["occupied"] = occupied
+			payload["placed_cells"] = placed_cells
+			payload["placed_count"] = placed_count
+			payload["cursor"] = cursor
+			return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+		var local_x := cursor % chunk_size_tiles
+		var local_y := int(floor(float(cursor) / float(chunk_size_tiles)))
+		cursor += 1
+		var cell := origin + Vector2i(local_x, local_y)
+		var fill_prob := fill_probability
+		if _is_near_prefer_layer(cell):
+			fill_prob = clampf(fill_prob + prefer_layer_fill_bonus, 0.0, 1.0)
+		if _cell_fill_roll(cell) > fill_prob:
+			if not _is_protected_cell(cell):
+				stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
+			continue
+
+		var atlas := _pick_tile(cell)
+		var local_cell := Vector2i(local_x, local_y)
+		if _is_blocked_by_avoid_layer(cell):
+			if not _is_protected_cell(cell):
+				stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
+			continue
+		if _try_place_tile(chunk, origin, local_cell, cell, atlas, occupied):
+			placed_count += 1
+			placed_cells.append(cell)
+			stats["cells_set"] = int(stats["cells_set"]) + 1
+		else:
+			if not _is_protected_cell(cell):
+				stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
+
+	if ensure_non_empty_chunk and fill_probability > 0.0 and placed_count == 0 and not bool(payload.get("fallback_done", false)):
+		var fallback_cell := _pick_fallback_cell(origin)
+		var fallback_local := fallback_cell - origin
+		var fallback_atlas := _pick_tile(fallback_cell)
+		if _try_place_tile(chunk, origin, fallback_local, fallback_cell, fallback_atlas, occupied):
+			placed_cells.append(fallback_cell)
+			stats["cells_set"] = int(stats["cells_set"]) + 1
+		payload["fallback_done"] = true
+
+	var placed_cells_typed: Array[Vector2i] = []
+	for placed_cell in placed_cells:
+		placed_cells_typed.append(placed_cell as Vector2i)
+	var overlap_start_usec := Time.get_ticks_usec()
+	stats["overlap_erased"] = int(stats.get("overlap_erased", 0)) + _clear_overlapping_layers(placed_cells_typed)
+	stats["overlap_clear_usec"] = int(stats.get("overlap_clear_usec", 0)) + (Time.get_ticks_usec() - overlap_start_usec)
+	stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+	_sync_generation_layer_meta_if_dirty()
+	_last_chunk_profile_stats = stats
+	_loaded_chunks[chunk] = true
+	var start_usec := int(payload.get("start_usec", Time.get_ticks_usec()))
+	_profile_chunk_operation("generate", chunk, start_usec, _last_chunk_profile_stats)
+	return {"done": true}
+
+
+func _run_chunk_operation_now(chunk: Vector2i, action: String) -> void:
+	var start_usec := Time.get_ticks_usec()
+	if action == "generate":
+		_generate_chunk(chunk)
+		if not _last_chunk_profile_stats.has("generation_kind"):
+			var generation_kind := "tile_direct"
+			if use_terrain_connect:
+				generation_kind = "terrain_connect"
+			_last_chunk_profile_stats["generation_kind"] = generation_kind
+		_loaded_chunks[chunk] = true
+		_profile_chunk_operation("generate", chunk, start_usec, _last_chunk_profile_stats)
+	elif action == "unload":
+		_unload_chunk(chunk)
+		_loaded_chunks.erase(chunk)
+		_profile_chunk_operation("unload", chunk, start_usec, _last_chunk_profile_stats)
+
+
+func _make_scheduler_task_key(chunk: Vector2i, action: String) -> String:
+	return "%d:%s:%d,%d" % [int(get_instance_id()), action, chunk.x, chunk.y]
+
+
+func _get_generation_scheduler() -> Node:
+	return get_node_or_null("/root/WorldGenerationScheduler")
 
 
 func _sort_chunks_near_center(chunks: Array[Vector2i], center_chunk: Vector2i) -> void:
@@ -513,7 +692,9 @@ func _erase_cell_if_present(cell: Vector2i, unmark_generated: bool) -> int:
 		_tile_map.erase_cell(cell)
 	if unmark_generated:
 		_unmark_generated_cell(cell)
-	return 1 if had_cell else 0
+	if had_cell:
+		return 1
+	return 0
 
 
 func _pick_tile(cell: Vector2i) -> Vector2i:
@@ -573,9 +754,13 @@ func _is_chunk_allowed_for_biome(chunk: Vector2i) -> bool:
 	if biome_half_split_enabled:
 		if biome_half_split_vertical:
 			var half_x := _world_min_chunk.x + int(floor(world_chunks_x / 2.0))
-			return chunk.x < half_x if biome_half_split_upper_or_left else chunk.x >= half_x
+			if biome_half_split_upper_or_left:
+				return chunk.x < half_x
+			return chunk.x >= half_x
 		var half_y := _world_min_chunk.y + int(floor(world_chunks_y / 2.0))
-		return chunk.y < half_y if biome_half_split_upper_or_left else chunk.y >= half_y
+		if biome_half_split_upper_or_left:
+			return chunk.y < half_y
+		return chunk.y >= half_y
 
 	if not biome_partition_enabled:
 		return true
@@ -1961,11 +2146,11 @@ func get_world_bounds_rect() -> Rect2:
 
 
 func has_generation_pending() -> bool:
-	return not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty()
+	return not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty() or not _scheduled_load_chunks.is_empty() or not _scheduled_unload_chunks.is_empty()
 
 
 func get_pending_generation_chunk_count() -> int:
-	return _pending_load_chunks.size() + _pending_unload_chunks.size()
+	return _pending_load_chunks.size() + _pending_unload_chunks.size() + _scheduled_load_chunks.size() + _scheduled_unload_chunks.size()
 
 
 func force_generate_step(chunk_budget: int = -1) -> void:
@@ -1983,6 +2168,9 @@ func force_generate_step(chunk_budget: int = -1) -> void:
 		_rebuild_chunk_work_queues(center_chunk)
 
 	_process_chunk_work_queues(maxi(1, budget))
+	var scheduler := _get_generation_scheduler()
+	if scheduler != null and scheduler.has_method("process_generation_frame"):
+		scheduler.call("process_generation_frame", generation_step_time_budget_ms, 0, maxi(1, budget))
 
 
 func _prewarm_full_generation() -> void:
@@ -1990,6 +2178,9 @@ func _prewarm_full_generation() -> void:
 	var max_iterations := maxi(world_chunks_x * world_chunks_y * 16, 512)
 	while has_generation_pending() and guard < max_iterations:
 		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 32))
+		var scheduler := _get_generation_scheduler()
+		if scheduler != null and scheduler.has_method("process_generation_frame"):
+			scheduler.call("process_generation_frame", generation_step_time_budget_ms, 0, 32)
 		guard += 1
 	if _generation_meta_dirty:
 		_sync_generation_layer_meta()
@@ -2000,6 +2191,9 @@ func _prewarm_initial_visible_generation() -> void:
 	var max_iterations := 128
 	while has_generation_pending() and guard < max_iterations:
 		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 24))
+		var scheduler := _get_generation_scheduler()
+		if scheduler != null and scheduler.has_method("process_generation_frame"):
+			scheduler.call("process_generation_frame", generation_step_time_budget_ms, 0, 24)
 		guard += 1
 	if _generation_meta_dirty:
 		_sync_generation_layer_meta()
@@ -2057,7 +2251,9 @@ func get_debug_world_generation_info() -> Dictionary:
 		"unload_enabled": unload_enabled,
 		"protected_cells": _protected_cells.keys(),
 		"generated_cells": _generated_cells.keys(),
-		"blocked_world_positions": _blocked_world_positions.duplicate()
+		"blocked_world_positions": _blocked_world_positions.duplicate(),
+		"scheduled_load_chunks": _scheduled_load_chunks.keys(),
+		"scheduled_unload_chunks": _scheduled_unload_chunks.keys()
 	}
 
 
