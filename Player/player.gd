@@ -54,6 +54,9 @@ var disease_time_left: float = 0.0
 @export var incoming_melee_source_groups: Array[StringName] = [&"enemy"]
 @export var incoming_explosion_source_groups: Array[StringName] = []
 @export var incoming_default_damage_type: int = ItemData.DamageType.GENERIC
+@export_category("Network Smoothing")
+@export_range(0.02, 0.30, 0.005) var net_snapshot_interp_delay_sec: float = 0.10
+@export_range(0.10, 1.00, 0.01) var net_snapshot_max_buffer_sec: float = 0.50
 
 var is_dead: bool = false
 var facing_direction: String = "down"
@@ -126,8 +129,25 @@ var _net_input_vector: Vector2 = Vector2.ZERO
 var _net_input_seq: int = 0
 var _net_last_applied_input_seq: int = -1
 var _net_last_server_ack_seq: int = -1
+var _net_snapshot_buffer: Array[Dictionary] = []
+var _net_server_time_offset_sec: float = 0.0
+var _net_server_time_offset_initialized: bool = false
 var _net_vitals_sync_timer: float = 0.0
 var _collision_exception_refresh_timer: float = 0.0
+var _net_equipment_sync_timer: float = 0.0
+var _net_state_sync_timer_by_peer: Dictionary = {}
+var _net_state_tick_elapsed_sec: float = 0.0
+var _net_vitals_tick_elapsed_sec: float = 0.0
+var _net_equipment_tick_elapsed_sec: float = 0.0
+var _net_remote_active_weapon_slot: int = ItemData.ItemType.AR_Weapon
+var _net_remote_equipped_paths: Dictionary = {}
+var _net_item_definition_cache: Dictionary = {}
+var _net_last_sent_equipment_signature: String = ""
+var _pause_menu_layer: CanvasLayer = null
+var _pause_menu_root: Control = null
+var _pause_menu_panel: PanelContainer = null
+var _pause_continue_button: Button = null
+var _pause_main_menu_button: Button = null
 
 @export var bleeding_effect_animation_name: String = "Bleeding"
 @export var bleeding_trail_interval_sec: float = 0.20
@@ -154,7 +174,14 @@ const NET_RECONCILE_SNAP_DISTANCE: float = 42.0
 const NET_INPUT_ACTIONS_PRIMARY: Array[StringName] = [&"move_left", &"move_right", &"move_up", &"move_down"]
 const NET_INPUT_ACTIONS_FALLBACK: Array[StringName] = [&"left", &"right", &"up", &"down"]
 const NET_VITALS_SYNC_INTERVAL_SEC: float = 0.10
+const NET_EQUIPMENT_SYNC_INTERVAL_SEC: float = 0.25
+const NET_STATE_SYNC_INTERVAL_NEAR_SEC: float = 0.033
+const NET_STATE_SYNC_INTERVAL_FAR_SEC: float = 0.10
+const NET_STATE_SYNC_FAR_DISTANCE_PX: float = 1400.0
 const COLLISION_EXCEPTION_REFRESH_INTERVAL_SEC: float = 1.0
+const NET_SNAPSHOT_POS_SCALE: float = 10.0
+const NET_SNAPSHOT_VEL_SCALE: float = 10.0
+const NET_SNAPSHOT_HEALTH_SCALE: float = 100.0
 const LOW_WATER_HINT_TEXT: String = "Я хочу пить"
 const LOW_FOOD_HINT_TEXT: String = "Я хочу есть"
 const LOW_WATER_HINT_COLOR: Color = Color(0.45, 0.8, 1.0, 1.0)
@@ -210,7 +237,24 @@ func _ready() -> void:
 		call_deferred("_enable_network_updates_after_spawn_sync")
 	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node") and _is_local_control_enabled():
 		GameSaveManager.register_persistent_node(self)
+	if NetworkManager != null and NetworkManager.has_signal("network_tick"):
+		if not NetworkManager.network_tick.is_connected(_on_network_tick):
+			NetworkManager.network_tick.connect(_on_network_tick)
 	call_deferred("_refresh_non_blocking_collision_exceptions")
+
+
+func _exit_tree() -> void:
+	if NetworkManager != null and NetworkManager.has_signal("network_tick"):
+		if NetworkManager.network_tick.is_connected(_on_network_tick):
+			NetworkManager.network_tick.disconnect(_on_network_tick)
+	get_tree().paused = false
+	if _pause_menu_layer != null and is_instance_valid(_pause_menu_layer):
+		_pause_menu_layer.queue_free()
+	_pause_menu_layer = null
+	_pause_menu_root = null
+	_pause_menu_panel = null
+	_pause_continue_button = null
+	_pause_main_menu_button = null
 
 
 func _resolve_walk_snow_sfx() -> AudioStreamPlayer:
@@ -228,7 +272,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
-		call_deferred("_go_to_menu")
+		call_deferred("_toggle_pause_menu")
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -276,6 +320,8 @@ func _physics_process(delta: float) -> void:
 			_collision_exception_refresh_timer = COLLISION_EXCEPTION_REFRESH_INTERVAL_SEC
 			_refresh_non_blocking_collision_exceptions()
 		if NetworkManager != null and NetworkManager.is_server():
+			if peer_id > 1 and not _is_network_peer_still_connected(peer_id):
+				return
 			if is_dead:
 				return
 			_update_carry_weight_state_if_due(delta)
@@ -284,7 +330,6 @@ func _physics_process(delta: float) -> void:
 			if _is_local_network_player():
 				server_input = _get_network_input_vector()
 			_apply_network_movement(delta, server_input)
-			rpc("rpc_server_sync_state", peer_id, global_position, velocity, _net_last_applied_input_seq)
 			return
 
 		if _is_local_network_player():
@@ -300,7 +345,11 @@ func _physics_process(delta: float) -> void:
 			return
 
 		global_position = global_position.lerp(_net_target_position, minf(12.0 * delta, 1.0))
-		velocity = _net_target_velocity
+		_apply_remote_snapshot_interpolation()
+		if velocity.length() <= 0.01:
+			idle()
+		else:
+			update_move_animation(velocity.normalized())
 		return
 
 	if is_dead:
@@ -312,12 +361,6 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
-	if _is_networked_game() and NetworkManager != null and NetworkManager.is_server():
-		_net_vitals_sync_timer -= delta
-		if _net_vitals_sync_timer <= 0.0:
-			_net_vitals_sync_timer = NET_VITALS_SYNC_INTERVAL_SEC
-			rpc("rpc_sync_vitals", peer_id, health, is_dead)
-
 	if not _is_local_control_enabled():
 		return
 	if is_dead:
@@ -329,6 +372,18 @@ func _process(delta: float) -> void:
 	_update_low_need_hints(delta)
 	_update_status_hint_visual(delta)
 	_update_bleeding_trail(delta)
+
+
+func _on_network_tick(tick_delta_sec: float, _tick_id: int) -> void:
+	if not _is_networked_game() or NetworkManager == null or not NetworkManager.is_server():
+		return
+	if is_dead:
+		return
+
+	_net_state_tick_elapsed_sec += tick_delta_sec
+	if _net_state_tick_elapsed_sec >= 0.001:
+		_broadcast_player_snapshot_interest(_net_state_tick_elapsed_sec)
+		_net_state_tick_elapsed_sec = 0.0
 
 
 func _update_needs(delta: float) -> void:
@@ -366,6 +421,9 @@ func _on_equipment_changed(_slot_type: int, _item: ItemData) -> void:
 
 
 func _refresh_equipment_visuals() -> void:
+	if _is_networked_game() and not _is_local_network_player():
+		_apply_remote_equipment_visuals()
+		return
 	var active_weapon_slot: int = InventoryManager.get_active_weapon_slot()
 	_last_equipment_active_weapon_slot = active_weapon_slot
 	_last_equipment_animation = ""
@@ -390,6 +448,8 @@ func _refresh_equipment_visuals() -> void:
 
 
 func _sync_equipment_animation(animation_name: String) -> void:
+	if _is_networked_game() and not _is_local_network_player():
+		return
 	var active_weapon_slot: int = InventoryManager.get_active_weapon_slot()
 	var melee_attack_active: bool = weapon_controller != null and weapon_controller.has_method("is_melee_attack_anim_active") and weapon_controller.is_melee_attack_anim_active()
 	var equipment_state_changed: bool = animation_name != _last_equipment_animation or active_weapon_slot != _last_equipment_active_weapon_slot
@@ -663,6 +723,113 @@ func _go_to_menu(save_before_exit: bool = true) -> void:
 	if save_before_exit and GameSaveManager != null and GameSaveManager.has_method("save_game"):
 		GameSaveManager.save_game()
 	get_tree().change_scene_to_file("res://Menu/Menu.tscn")
+
+
+func _toggle_pause_menu() -> void:
+	if get_tree().paused and _pause_menu_root != null and _pause_menu_root.visible:
+		_close_pause_menu()
+		return
+	_open_pause_menu()
+
+
+func _open_pause_menu() -> void:
+	_ensure_pause_menu()
+	if _pause_menu_root == null:
+		return
+	_pause_menu_root.visible = true
+	get_tree().paused = true
+
+
+func _close_pause_menu() -> void:
+	get_tree().paused = false
+	if _pause_menu_root != null:
+		_pause_menu_root.visible = false
+
+
+func _ensure_pause_menu() -> void:
+	if _pause_menu_layer != null and is_instance_valid(_pause_menu_layer):
+		return
+
+	_pause_menu_layer = CanvasLayer.new()
+	_pause_menu_layer.name = "PauseMenuLayer"
+	_pause_menu_layer.layer = 150
+	_pause_menu_layer.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	get_tree().root.add_child(_pause_menu_layer)
+
+	_pause_menu_root = Control.new()
+	_pause_menu_root.name = "PauseMenuRoot"
+	_pause_menu_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_menu_root.offset_left = 0.0
+	_pause_menu_root.offset_top = 0.0
+	_pause_menu_root.offset_right = 0.0
+	_pause_menu_root.offset_bottom = 0.0
+	_pause_menu_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_menu_root.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	_pause_menu_layer.add_child(_pause_menu_root)
+
+	var shade := ColorRect.new()
+	shade.name = "PauseShade"
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.offset_left = 0.0
+	shade.offset_top = 0.0
+	shade.offset_right = 0.0
+	shade.offset_bottom = 0.0
+	shade.color = Color(0.03, 0.04, 0.05, 0.72)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_menu_root.add_child(shade)
+
+	var center := CenterContainer.new()
+	center.name = "Center"
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.offset_left = 0.0
+	center.offset_top = 0.0
+	center.offset_right = 0.0
+	center.offset_bottom = 0.0
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_menu_root.add_child(center)
+
+	_pause_menu_panel = PanelContainer.new()
+	_pause_menu_panel.name = "Panel"
+	_pause_menu_panel.custom_minimum_size = Vector2(320.0, 220.0)
+	_pause_menu_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	center.add_child(_pause_menu_panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.name = "Buttons"
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 12)
+	_pause_menu_panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Пауза"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 34)
+	vbox.add_child(title)
+
+	_pause_continue_button = Button.new()
+	_pause_continue_button.text = "Продолжить"
+	_pause_continue_button.custom_minimum_size = Vector2(230.0, 52.0)
+	_pause_continue_button.focus_mode = Control.FOCUS_NONE
+	_pause_continue_button.pressed.connect(_on_pause_continue_pressed)
+	vbox.add_child(_pause_continue_button)
+
+	_pause_main_menu_button = Button.new()
+	_pause_main_menu_button.text = "В главное меню"
+	_pause_main_menu_button.custom_minimum_size = Vector2(230.0, 52.0)
+	_pause_main_menu_button.focus_mode = Control.FOCUS_NONE
+	_pause_main_menu_button.pressed.connect(_on_pause_main_menu_pressed)
+	vbox.add_child(_pause_main_menu_button)
+
+	_pause_menu_root.visible = false
+
+
+func _on_pause_continue_pressed() -> void:
+	_close_pause_menu()
+
+
+func _on_pause_main_menu_pressed() -> void:
+	_close_pause_menu()
+	_go_to_menu(true)
 
 
 func add_water(amount: float) -> void:
@@ -1136,6 +1303,7 @@ func rpc_server_sync_state(state_peer_id: int, server_position: Vector2, server_
 	_net_last_remote_position = server_position
 	_net_target_position = server_position
 	_net_target_velocity = clamped_velocity
+	_push_remote_snapshot(server_position, clamped_velocity)
 
 	if _is_local_network_player():
 		_net_last_server_ack_seq = maxi(_net_last_server_ack_seq, ack_input_seq)
@@ -1143,6 +1311,87 @@ func rpc_server_sync_state(state_peer_id: int, server_position: Vector2, server_
 		if correction.length() > NET_RECONCILE_SNAP_DISTANCE:
 			global_position = server_position
 			velocity = clamped_velocity
+
+
+@rpc("any_peer", "unreliable")
+func rpc_sync_player_snapshot(payload: Dictionary) -> void:
+	if not _is_networked_game():
+		return
+	if NetworkManager == null or NetworkManager.is_server():
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	if sender_id != 1:
+		return
+
+	var state_peer_id: int = int(payload.get("pid", 0))
+	if state_peer_id != peer_id:
+		return
+
+	var server_time_sec: float = float(payload.get("t", Time.get_ticks_msec())) / 1000.0
+	var now_sec: float = float(Time.get_ticks_msec()) / 1000.0
+	var measured_offset: float = now_sec - server_time_sec
+	if not _net_server_time_offset_initialized:
+		_net_server_time_offset_sec = measured_offset
+		_net_server_time_offset_initialized = true
+	else:
+		_net_server_time_offset_sec = lerpf(_net_server_time_offset_sec, measured_offset, 0.08)
+
+	var server_position := Vector2(
+		_dequantize_scalar(int(payload.get("px", 0)), NET_SNAPSHOT_POS_SCALE),
+		_dequantize_scalar(int(payload.get("py", 0)), NET_SNAPSHOT_POS_SCALE)
+	)
+	var server_velocity := Vector2(
+		_dequantize_scalar(int(payload.get("vx", 0)), NET_SNAPSHOT_VEL_SCALE),
+		_dequantize_scalar(int(payload.get("vy", 0)), NET_SNAPSHOT_VEL_SCALE)
+	).limit_length(NET_MAX_SPEED)
+
+	var proposed_delta: Vector2 = server_position - _net_last_remote_position
+	if proposed_delta.length() > NET_MAX_POSITION_DELTA_PER_UPDATE:
+		server_position = _net_last_remote_position + proposed_delta.normalized() * NET_MAX_POSITION_DELTA_PER_UPDATE
+
+	_net_last_remote_position = server_position
+	_net_target_position = server_position
+	_net_target_velocity = server_velocity
+	_push_remote_snapshot(server_position, server_velocity, server_time_sec)
+
+	if _is_local_network_player():
+		var ack_input_seq: int = int(payload.get("ack", -1))
+		_net_last_server_ack_seq = maxi(_net_last_server_ack_seq, ack_input_seq)
+		var correction: Vector2 = server_position - global_position
+		if correction.length() > NET_RECONCILE_SNAP_DISTANCE:
+			global_position = server_position
+			velocity = server_velocity
+
+	health = clamp(
+		_dequantize_scalar(int(payload.get("hp", _quantize_scalar(health, NET_SNAPSHOT_HEALTH_SCALE))), NET_SNAPSHOT_HEALTH_SCALE),
+		0.0,
+		max_health
+	)
+	stats_changed.emit()
+	var server_is_dead: bool = bool(payload.get("dead", false))
+	if server_is_dead and not is_dead:
+		if _is_local_network_player():
+			die()
+		else:
+			is_dead = true
+
+	_net_remote_active_weapon_slot = int(payload.get("aws", _net_remote_active_weapon_slot))
+	if not _is_local_network_player():
+		var equipment_payload: Variant = payload.get("eq", {})
+		if equipment_payload is Dictionary and not (equipment_payload as Dictionary).is_empty():
+			var eq := equipment_payload as Dictionary
+			_net_remote_equipped_paths = {
+				ItemData.ItemType.AR_Weapon: String(eq.get("ar", "")),
+				ItemData.ItemType.Pistols: String(eq.get("pi", "")),
+				ItemData.ItemType.MeleeWeapon: String(eq.get("me", "")),
+				ItemData.ItemType.T_shirts: String(eq.get("ts", "")),
+				ItemData.ItemType.Jacket: String(eq.get("ja", "")),
+				ItemData.ItemType.HeavyArmour: String(eq.get("ha", "")),
+				ItemData.ItemType.Trousers: String(eq.get("tr", "")),
+				ItemData.ItemType.Bag: String(eq.get("ba", "")),
+				ItemData.ItemType.Cap: String(eq.get("ca", ""))
+			}
+			_refresh_equipment_visuals()
 
 
 func _get_network_input_vector() -> Vector2:
@@ -1163,6 +1412,55 @@ func _get_network_input_vector() -> Vector2:
 	return Vector2.ZERO
 
 
+func _push_remote_snapshot(server_position: Vector2, server_velocity: Vector2, server_time_sec: float = -1.0) -> void:
+	var now_sec: float = float(Time.get_ticks_msec()) / 1000.0
+	var snapshot_time_sec: float = server_time_sec if server_time_sec > 0.0 else now_sec
+	_net_snapshot_buffer.append({
+		"t": snapshot_time_sec,
+		"p": server_position,
+		"v": server_velocity
+	})
+	var min_time: float = now_sec - maxf(net_snapshot_max_buffer_sec, 0.10)
+	while _net_snapshot_buffer.size() > 2 and float(_net_snapshot_buffer[0].get("t", 0.0)) < min_time:
+		_net_snapshot_buffer.remove_at(0)
+
+
+func _apply_remote_snapshot_interpolation() -> void:
+	if _is_local_network_player():
+		velocity = _net_target_velocity
+		return
+	if _net_snapshot_buffer.size() < 2:
+		global_position = global_position.lerp(_net_target_position, 0.35)
+		velocity = _net_target_velocity
+		return
+
+	var render_time: float = float(Time.get_ticks_msec()) / 1000.0 - _net_server_time_offset_sec - clampf(net_snapshot_interp_delay_sec, 0.02, 0.30)
+	var a: Dictionary = _net_snapshot_buffer[0]
+	var b: Dictionary = _net_snapshot_buffer[1]
+	for i in range(_net_snapshot_buffer.size() - 1):
+		var left: Dictionary = _net_snapshot_buffer[i]
+		var right: Dictionary = _net_snapshot_buffer[i + 1]
+		var left_t: float = float(left.get("t", 0.0))
+		var right_t: float = float(right.get("t", left_t + 0.001))
+		if render_time >= left_t and render_time <= right_t:
+			a = left
+			b = right
+			break
+		if render_time > right_t:
+			a = right
+			b = right
+
+	var at: float = float(a.get("t", 0.0))
+	var bt: float = float(b.get("t", at + 0.001))
+	var alpha: float = 1.0 if is_equal_approx(bt, at) else clamp((render_time - at) / max(bt - at, 0.0001), 0.0, 1.0)
+	var ap: Vector2 = a.get("p", _net_target_position) as Vector2
+	var bp: Vector2 = b.get("p", _net_target_position) as Vector2
+	var av: Vector2 = a.get("v", _net_target_velocity) as Vector2
+	var bv: Vector2 = b.get("v", _net_target_velocity) as Vector2
+	global_position = ap.lerp(bp, alpha)
+	velocity = av.lerp(bv, alpha)
+
+
 func _has_network_input_actions(actions: Array[StringName]) -> bool:
 	for action_name: StringName in actions:
 		if not InputMap.has_action(action_name):
@@ -1174,6 +1472,310 @@ func _is_local_network_player() -> bool:
 	if not _is_networked_game() or NetworkManager == null:
 		return false
 	return peer_id == NetworkManager.get_local_peer_id()
+
+
+func _is_network_peer_still_connected(target_peer_id: int) -> bool:
+	if multiplayer == null or multiplayer.multiplayer_peer == null:
+		return false
+	if target_peer_id <= 1:
+		return true
+	var peers: PackedInt32Array = multiplayer.get_peers()
+	return peers.has(target_peer_id)
+
+
+func _get_ready_client_peers() -> PackedInt32Array:
+	var result: PackedInt32Array = []
+	if not _is_networked_game() or NetworkManager == null or not NetworkManager.is_server():
+		return result
+	return NetworkManager.get_ready_client_peers()
+
+
+func _broadcast_server_sync_state_interest(
+	state_peer_id: int,
+	server_position: Vector2,
+	server_velocity: Vector2,
+	ack_input_seq: int,
+	delta: float
+) -> void:
+	var ready_peers: PackedInt32Array = _get_ready_client_peers()
+	if ready_peers.is_empty():
+		_net_state_sync_timer_by_peer.clear()
+		return
+
+	var alive_keys: Dictionary = {}
+	for target_peer_id in ready_peers:
+		var target_player := _get_player_node_by_peer_id(target_peer_id)
+		var interval_sec: float = NET_STATE_SYNC_INTERVAL_NEAR_SEC
+		if target_player != null:
+			var distance_to_target: float = global_position.distance_to(target_player.global_position)
+			if distance_to_target >= NET_STATE_SYNC_FAR_DISTANCE_PX:
+				interval_sec = NET_STATE_SYNC_INTERVAL_FAR_SEC
+
+		var timer_left: float = float(_net_state_sync_timer_by_peer.get(target_peer_id, 0.0)) - delta
+		if timer_left <= 0.0:
+			rpc_id(target_peer_id, "rpc_server_sync_state", state_peer_id, server_position, server_velocity, ack_input_seq)
+			timer_left = interval_sec
+		_net_state_sync_timer_by_peer[target_peer_id] = timer_left
+		alive_keys[target_peer_id] = true
+
+	for cached_peer_id in _net_state_sync_timer_by_peer.keys():
+		if not alive_keys.has(cached_peer_id):
+			_net_state_sync_timer_by_peer.erase(cached_peer_id)
+
+
+func _broadcast_player_snapshot_interest(delta: float) -> void:
+	var ready_peers: PackedInt32Array = _get_ready_client_peers()
+	if ready_peers.is_empty():
+		_net_state_sync_timer_by_peer.clear()
+		return
+
+	var include_equipment: bool = _has_equipment_signature_changed()
+	var payload: Dictionary = _build_player_snapshot_payload(include_equipment)
+	var alive_keys: Dictionary = {}
+	for target_peer_id in ready_peers:
+		var target_player := _get_player_node_by_peer_id(target_peer_id)
+		var interval_sec: float = NET_STATE_SYNC_INTERVAL_NEAR_SEC
+		if target_player != null:
+			var distance_to_target: float = global_position.distance_to(target_player.global_position)
+			if distance_to_target >= NET_STATE_SYNC_FAR_DISTANCE_PX:
+				interval_sec = NET_STATE_SYNC_INTERVAL_FAR_SEC
+		var timer_left: float = float(_net_state_sync_timer_by_peer.get(target_peer_id, 0.0)) - delta
+		if timer_left <= 0.0:
+			rpc_id(target_peer_id, "rpc_sync_player_snapshot", payload)
+			timer_left = interval_sec
+		_net_state_sync_timer_by_peer[target_peer_id] = timer_left
+		alive_keys[target_peer_id] = true
+
+	for cached_peer_id in _net_state_sync_timer_by_peer.keys():
+		if not alive_keys.has(cached_peer_id):
+			_net_state_sync_timer_by_peer.erase(cached_peer_id)
+
+
+func _broadcast_server_sync_state(state_peer_id: int, server_position: Vector2, server_velocity: Vector2, ack_input_seq: int) -> void:
+	for target_peer_id in _get_ready_client_peers():
+		rpc_id(target_peer_id, "rpc_server_sync_state", state_peer_id, server_position, server_velocity, ack_input_seq)
+
+
+func _broadcast_vitals_sync(state_peer_id: int, server_health: float, server_is_dead: bool) -> void:
+	for target_peer_id in _get_ready_client_peers():
+		rpc_id(target_peer_id, "rpc_sync_vitals", state_peer_id, server_health, server_is_dead)
+
+
+func _broadcast_equipment_sync(
+	state_peer_id: int,
+	active_weapon_slot: int,
+	ar_path: String,
+	pistol_path: String,
+	melee_path: String,
+	tshirt_path: String,
+	jacket_path: String,
+	heavy_path: String,
+	trousers_path: String,
+	bag_path: String,
+	cap_path: String
+) -> void:
+	for target_peer_id in _get_ready_client_peers():
+		rpc_id(
+			target_peer_id,
+			"rpc_sync_equipment_state",
+			state_peer_id,
+			active_weapon_slot,
+			ar_path,
+			pistol_path,
+			melee_path,
+			tshirt_path,
+			jacket_path,
+			heavy_path,
+			trousers_path,
+			bag_path,
+			cap_path
+		)
+
+
+func _get_player_node_by_peer_id(target_peer_id: int) -> CharacterBody2D:
+	if target_peer_id <= 0:
+		return null
+	for node in get_tree().get_nodes_in_group("player"):
+		var candidate := node as CharacterBody2D
+		if candidate == null or not is_instance_valid(candidate):
+			continue
+		if int(candidate.get("peer_id")) == target_peer_id:
+			return candidate
+	return null
+
+
+func _has_equipment_signature_changed() -> bool:
+	var active_weapon_slot: int = InventoryManager.get_active_weapon_slot()
+	var ar_path: String = _get_equipped_definition_path(ItemData.ItemType.AR_Weapon)
+	var pistol_path: String = _get_equipped_definition_path(ItemData.ItemType.Pistols)
+	var melee_path: String = _get_equipped_definition_path(ItemData.ItemType.MeleeWeapon)
+	var tshirt_path: String = _get_equipped_definition_path(ItemData.ItemType.T_shirts)
+	var jacket_path: String = _get_equipped_definition_path(ItemData.ItemType.Jacket)
+	var heavy_path: String = _get_equipped_definition_path(ItemData.ItemType.HeavyArmour)
+	var trousers_path: String = _get_equipped_definition_path(ItemData.ItemType.Trousers)
+	var bag_path: String = _get_equipped_definition_path(ItemData.ItemType.Bag)
+	var cap_path: String = _get_equipped_definition_path(ItemData.ItemType.Cap)
+	var signature: String = "%d|%s|%s|%s|%s|%s|%s|%s|%s|%s" % [
+		active_weapon_slot,
+		ar_path, pistol_path, melee_path, tshirt_path, jacket_path,
+		heavy_path, trousers_path, bag_path, cap_path
+	]
+	if signature == _net_last_sent_equipment_signature:
+		return false
+	_net_last_sent_equipment_signature = signature
+	return true
+
+
+func _build_player_snapshot_payload(include_equipment: bool) -> Dictionary:
+	var payload: Dictionary = {
+		"pid": peer_id,
+		"t": Time.get_ticks_msec(),
+		"px": _quantize_scalar(global_position.x, NET_SNAPSHOT_POS_SCALE),
+		"py": _quantize_scalar(global_position.y, NET_SNAPSHOT_POS_SCALE),
+		"vx": _quantize_scalar(velocity.x, NET_SNAPSHOT_VEL_SCALE),
+		"vy": _quantize_scalar(velocity.y, NET_SNAPSHOT_VEL_SCALE),
+		"ack": _net_last_applied_input_seq,
+		"hp": _quantize_scalar(health, NET_SNAPSHOT_HEALTH_SCALE),
+		"dead": is_dead,
+		"aws": InventoryManager.get_active_weapon_slot()
+	}
+	if include_equipment:
+		payload["eq"] = {
+			"ar": _get_equipped_definition_path(ItemData.ItemType.AR_Weapon),
+			"pi": _get_equipped_definition_path(ItemData.ItemType.Pistols),
+			"me": _get_equipped_definition_path(ItemData.ItemType.MeleeWeapon),
+			"ts": _get_equipped_definition_path(ItemData.ItemType.T_shirts),
+			"ja": _get_equipped_definition_path(ItemData.ItemType.Jacket),
+			"ha": _get_equipped_definition_path(ItemData.ItemType.HeavyArmour),
+			"tr": _get_equipped_definition_path(ItemData.ItemType.Trousers),
+			"ba": _get_equipped_definition_path(ItemData.ItemType.Bag),
+			"ca": _get_equipped_definition_path(ItemData.ItemType.Cap)
+		}
+	return payload
+
+
+func _quantize_scalar(value: float, scale: float) -> int:
+	return int(round(value * maxf(scale, 0.0001)))
+
+
+func _dequantize_scalar(value: int, scale: float) -> float:
+	return float(value) / maxf(scale, 0.0001)
+
+
+func _sync_network_equipment_state_if_needed() -> void:
+	if not _is_networked_game() or NetworkManager == null or not NetworkManager.is_server():
+		return
+	var active_weapon_slot: int = InventoryManager.get_active_weapon_slot()
+	var ar_path: String = _get_equipped_definition_path(ItemData.ItemType.AR_Weapon)
+	var pistol_path: String = _get_equipped_definition_path(ItemData.ItemType.Pistols)
+	var melee_path: String = _get_equipped_definition_path(ItemData.ItemType.MeleeWeapon)
+	var tshirt_path: String = _get_equipped_definition_path(ItemData.ItemType.T_shirts)
+	var jacket_path: String = _get_equipped_definition_path(ItemData.ItemType.Jacket)
+	var heavy_path: String = _get_equipped_definition_path(ItemData.ItemType.HeavyArmour)
+	var trousers_path: String = _get_equipped_definition_path(ItemData.ItemType.Trousers)
+	var bag_path: String = _get_equipped_definition_path(ItemData.ItemType.Bag)
+	var cap_path: String = _get_equipped_definition_path(ItemData.ItemType.Cap)
+	var signature: String = "%d|%s|%s|%s|%s|%s|%s|%s|%s|%s" % [
+		active_weapon_slot,
+		ar_path, pistol_path, melee_path, tshirt_path, jacket_path,
+		heavy_path, trousers_path, bag_path, cap_path
+	]
+	if signature == _net_last_sent_equipment_signature:
+		return
+	_net_last_sent_equipment_signature = signature
+	_broadcast_equipment_sync(
+		peer_id,
+		active_weapon_slot,
+		ar_path,
+		pistol_path,
+		melee_path,
+		tshirt_path,
+		jacket_path,
+		heavy_path,
+		trousers_path,
+		bag_path,
+		cap_path
+	)
+
+
+func _get_equipped_definition_path(slot_type: int) -> String:
+	var item: ItemData = InventoryManager.get_equipped(slot_type)
+	if item == null:
+		return ""
+	var definition: ItemData = item.get_definition() if item.has_method("get_definition") else item
+	if definition == null:
+		return ""
+	return definition.resource_path
+
+
+@rpc("any_peer", "reliable")
+func rpc_sync_equipment_state(
+	state_peer_id: int,
+	active_weapon_slot: int,
+	ar_path: String,
+	pistol_path: String,
+	melee_path: String,
+	tshirt_path: String,
+	jacket_path: String,
+	heavy_path: String,
+	trousers_path: String,
+	bag_path: String,
+	cap_path: String
+) -> void:
+	if not _is_networked_game():
+		return
+	if NetworkManager == null:
+		return
+	if NetworkManager.is_server():
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	if sender_id != 1:
+		return
+	if state_peer_id != peer_id:
+		return
+	_net_remote_active_weapon_slot = active_weapon_slot
+	_net_remote_equipped_paths = {
+		ItemData.ItemType.AR_Weapon: ar_path,
+		ItemData.ItemType.Pistols: pistol_path,
+		ItemData.ItemType.MeleeWeapon: melee_path,
+		ItemData.ItemType.T_shirts: tshirt_path,
+		ItemData.ItemType.Jacket: jacket_path,
+		ItemData.ItemType.HeavyArmour: heavy_path,
+		ItemData.ItemType.Trousers: trousers_path,
+		ItemData.ItemType.Bag: bag_path,
+		ItemData.ItemType.Cap: cap_path
+	}
+	_refresh_equipment_visuals()
+
+
+func _apply_remote_equipment_visuals() -> void:
+	for visual_slot in equipment_visual_slots:
+		var path: String = String(_net_remote_equipped_paths.get(visual_slot.item_type, ""))
+		var item: ItemData = _load_item_definition_for_path(path)
+		if item == null or item.equipped_frames == null:
+			visual_slot.sprite_frames = null
+			visual_slot.visible = false
+			continue
+		if _is_switchable_weapon_slot(visual_slot.item_type) and visual_slot.item_type != _net_remote_active_weapon_slot:
+			visual_slot.sprite_frames = item.equipped_frames
+			visual_slot.visible = false
+			continue
+		visual_slot.sprite_frames = item.equipped_frames
+		visual_slot.visible = true
+		_apply_equipment_animation(visual_slot, String(anim.animation))
+
+
+func _load_item_definition_for_path(path: String) -> ItemData:
+	if path.is_empty():
+		return null
+	if _net_item_definition_cache.has(path):
+		return _net_item_definition_cache[path]
+	var resource: Resource = load(path)
+	if resource == null or not (resource is ItemData):
+		return null
+	var item: ItemData = resource as ItemData
+	_net_item_definition_cache[path] = item
+	return item
 
 
 func _apply_network_movement(delta: float, input_vector: Vector2) -> void:
@@ -1227,5 +1829,5 @@ func rpc_sync_vitals(state_peer_id: int, server_health: float, server_is_dead: b
 
 
 func _enable_network_updates_after_spawn_sync() -> void:
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().create_timer(0.08).timeout
 	_net_can_send_updates = true

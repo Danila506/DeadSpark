@@ -162,6 +162,8 @@ func _bind_layout() -> bool:
 	_connect_pressed_button(root.find_child("ScopeButton", true, false) as BaseButton, Callable(self, "_toggle_scope_ready"))
 	_connect_pressed_button(root.find_child("SwitchWeaponButton", true, false) as BaseButton, Callable(self, "_cycle_weapon").bind(1))
 	_connect_pressed_button(root.find_child("NextWeaponButton", true, false) as BaseButton, Callable(self, "_cycle_weapon").bind(1))
+	var pause_button := _ensure_text_button(root, "PauseButton", "Esc", Vector2(-128.0, 24.0), Control.PRESET_TOP_RIGHT)
+	_connect_pressed_button(pause_button, Callable(self, "_toggle_pause_menu_mobile"))
 	_apply_scene_control_settings(root)
 	_ensure_mobile_aim_cursor(root)
 	_set_stealth_enabled(false)
@@ -330,6 +332,7 @@ func _build_layout() -> void:
 	_add_texture_pulse_button(top_row, INVENTORY_BUTTON_TEXTURE, Callable(self, "_toggle_inventory"), "Инвентарь")
 	_add_texture_pulse_button(top_row, ACTION_BUTTON_TEXTURE, Callable(self, "_primary_interaction"), "Действие")
 	_add_pulse_button(top_row, ">", Callable(self, "_cycle_weapon").bind(1))
+	_add_pulse_button(top_row, "Esc", Callable(self, "_toggle_pause_menu_mobile"))
 
 
 func _create_joystick(node_name: String, offset: Vector2, preset: Control.LayoutPreset) -> Control:
@@ -950,6 +953,17 @@ func _cycle_weapon(direction: int) -> void:
 			_player.call("_refresh_equipment_visuals")
 		if _player.has_method("_force_refresh_animation"):
 			_player.call("_force_refresh_animation")
+
+
+func _toggle_pause_menu_mobile() -> void:
+	if _player == null or not is_instance_valid(_player):
+		_resolve_targets()
+	if _player == null:
+		return
+	if _player.has_method("_toggle_pause_menu"):
+		_player.call_deferred("_toggle_pause_menu")
+		return
+	_pulse_action(&"ui_cancel")
 
 
 func _get_weapon_controller() -> Node:

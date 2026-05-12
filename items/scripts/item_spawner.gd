@@ -1,4 +1,5 @@
 extends Node2D
+const ITEM_INSTANCE_SCRIPT = preload("res://items/scripts/item_instance.gd")
 
 @export var pickup_scene: PackedScene
 @export var possible_items: Array[ItemData]
@@ -101,6 +102,9 @@ func _ready() -> void:
 	_ensure_guaranteed_weapon_items()
 	if not _can_spawn_on_this_peer():
 		return
+	if multiplayer != null and multiplayer.multiplayer_peer != null and multiplayer.is_server():
+		if not multiplayer.peer_connected.is_connected(_on_peer_connected):
+			multiplayer.peer_connected.connect(_on_peer_connected)
 	if spawn_all_possible_items_near_player:
 		call_deferred("_spawn_all_possible_items_near_player", 0)
 	else:
@@ -372,10 +376,6 @@ func _spawn_pickup(item_data: ItemData, spawn_position: Vector2) -> void:
 		item_copy.stack_count = 1
 	_apply_random_endurance_if_needed(item_copy)
 
-	var pickup: Node2D = pickup_scene.instantiate()
-	pickup.global_position = spawn_position
-	pickup.item_data = item_copy
-
 	if item_copy.storage_category == ItemData.StorageCategory.WEAPON:
 		var max_mag: int = max(item_copy.magazine_size, 0)
 		var max_reserve: int = max(item_copy.reserve_ammo, 0)
@@ -384,8 +384,108 @@ func _spawn_pickup(item_data: ItemData, spawn_position: Vector2) -> void:
 		InventoryManager.set_ammo_state(item_copy, ammo_in_mag, reserve_ammo)
 	elif item_copy.is_ammo_item:
 		item_copy.stack_count = rng.randi_range(3, max(item_copy.max_stack_size, 3))
+	var payload: Dictionary = {
+		"item": item_copy.to_save_dict() if item_copy.has_method("to_save_dict") else {},
+		"position": {"x": spawn_position.x, "y": spawn_position.y}
+	}
+	_spawn_pickup_from_payload(payload)
+	if multiplayer != null and multiplayer.multiplayer_peer != null and multiplayer.is_server():
+		rpc("rpc_spawn_pickup_payload", payload)
 
-	get_parent().add_child.call_deferred(pickup)
+
+func _spawn_pickup_from_payload(payload: Dictionary) -> void:
+	if pickup_scene == null:
+		return
+	if not (payload.get("item", {}) is Dictionary):
+		return
+	var item: ItemData = ITEM_INSTANCE_SCRIPT.from_save_dict(payload.get("item", {}) as Dictionary)
+	if item == null:
+		return
+	var runtime_id := String((payload.get("item", {}) as Dictionary).get("runtime_id", ""))
+	if _has_pickup_runtime_id(runtime_id):
+		return
+	var pickup: Node2D = pickup_scene.instantiate()
+	if pickup == null:
+		return
+	if pickup.has_method("setup_from_item_data"):
+		pickup.call("setup_from_item_data", item)
+	elif "item_data" in pickup:
+		pickup.item_data = item
+	var pos_dict: Dictionary = payload.get("position", {})
+	pickup.global_position = Vector2(
+		float(pos_dict.get("x", 0.0)),
+		float(pos_dict.get("y", 0.0))
+	)
+	var parent_node := get_parent()
+	if parent_node == null:
+		return
+	parent_node.add_child.call_deferred(pickup)
+
+
+func _has_pickup_runtime_id(runtime_id: String) -> bool:
+	if runtime_id.is_empty():
+		return false
+	var parent_node := get_parent()
+	if parent_node == null:
+		return false
+	for node in get_tree().get_nodes_in_group("world_pickup"):
+		var pickup := node as Node
+		if pickup == null or not is_instance_valid(pickup):
+			continue
+		if not parent_node.is_ancestor_of(pickup):
+			continue
+		var item: ItemData = pickup.get("item_data") as ItemData
+		if item == null:
+			continue
+		if String(item.get("runtime_id")) == runtime_id:
+			return true
+	return false
+
+
+func _collect_pickup_snapshot_payloads() -> Array:
+	var result: Array = []
+	var parent_node := get_parent()
+	if parent_node == null:
+		return result
+	for node in get_tree().get_nodes_in_group("world_pickup"):
+		var pickup := node as Node
+		if pickup == null or not is_instance_valid(pickup):
+			continue
+		if not parent_node.is_ancestor_of(pickup):
+			continue
+		var item: ItemData = pickup.get("item_data") as ItemData
+		if item == null or not item.has_method("to_save_dict"):
+			continue
+		var pickup_pos := Vector2.ZERO
+		if pickup is Node2D:
+			pickup_pos = (pickup as Node2D).global_position
+		result.append({
+			"item": item.to_save_dict(),
+			"position": {"x": pickup_pos.x, "y": pickup_pos.y}
+		})
+	return result
+
+
+func _on_peer_connected(peer_id: int) -> void:
+	if peer_id <= 0:
+		return
+	rpc_id(peer_id, "rpc_sync_pickups_snapshot", _collect_pickup_snapshot_payloads())
+
+
+@rpc("authority", "reliable")
+func rpc_spawn_pickup_payload(payload: Dictionary) -> void:
+	if NetworkManager != null and NetworkManager.is_server():
+		return
+	_spawn_pickup_from_payload(payload)
+
+
+@rpc("authority", "reliable")
+func rpc_sync_pickups_snapshot(payloads: Array) -> void:
+	if NetworkManager != null and NetworkManager.is_server():
+		return
+	for payload in payloads:
+		if payload is Dictionary:
+			_spawn_pickup_from_payload(payload as Dictionary)
 
 
 func _apply_random_endurance_if_needed(item: ItemData) -> void:

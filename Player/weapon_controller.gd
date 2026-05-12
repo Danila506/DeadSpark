@@ -740,7 +740,7 @@ func request_network_shot() -> void:
 	shoot_cooldown = max(shoot_cooldown, current_weapon.fire_delay * 0.5)
 
 
-@rpc("any_peer", "reliable")
+@rpc("any_peer", "unreliable")
 func rpc_request_network_shot(aim_direction: Vector2, request_seq: int) -> void:
 	if not is_server_network_instance():
 		return
@@ -759,7 +759,7 @@ func rpc_request_network_shot(aim_direction: Vector2, request_seq: int) -> void:
 	rpc_id(sender_id, "rpc_confirm_network_shot", request_seq, shot_accepted, ammo_in_mag, reserve_ammo, shoot_cooldown)
 
 
-@rpc("any_peer", "reliable")
+@rpc("any_peer", "unreliable")
 func rpc_confirm_network_shot(_request_seq: int, accepted: bool, ammo_in_mag: int, reserve_ammo: int, cooldown_sec: float) -> void:
 	if is_server_network_instance():
 		return

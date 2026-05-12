@@ -4,6 +4,7 @@ const PLAYER_SCENE: PackedScene = preload("res://Player/player.tscn")
 const NETWORK_PROTOCOL_VERSION: int = 1
 
 var players: Dictionary[int, Node2D] = {}
+var _retired_player_nodes: Array[Node2D] = []
 
 
 func _ready() -> void:
@@ -18,6 +19,8 @@ func _ready() -> void:
 		NetworkManager.peer_left.connect(_on_peer_left)
 	if not NetworkManager.session_reset.is_connected(_on_session_reset):
 		NetworkManager.session_reset.connect(_on_session_reset)
+	if not NetworkManager.server_disconnected.is_connected(_on_server_disconnected):
+		NetworkManager.server_disconnected.connect(_on_server_disconnected)
 
 	var local_peer_id: int = NetworkManager.get_local_peer_id()
 	_register_existing_local_player(local_peer_id)
@@ -37,6 +40,8 @@ func _exit_tree() -> void:
 			NetworkManager.peer_left.disconnect(_on_peer_left)
 		if NetworkManager.session_reset.is_connected(_on_session_reset):
 			NetworkManager.session_reset.disconnect(_on_session_reset)
+		if NetworkManager.server_disconnected.is_connected(_on_server_disconnected):
+			NetworkManager.server_disconnected.disconnect(_on_server_disconnected)
 	_cleanup_spawned_players()
 
 
@@ -92,6 +97,12 @@ func _on_session_reset() -> void:
 	_cleanup_spawned_players()
 
 
+func _on_server_disconnected() -> void:
+	_cleanup_spawned_players()
+	if get_tree() != null:
+		get_tree().change_scene_to_file.call_deferred("res://Menu/Menu.tscn")
+
+
 @rpc("any_peer", "reliable")
 func rpc_client_ready(peer_id: int, protocol_version: int) -> void:
 	if not NetworkManager.is_server():
@@ -101,6 +112,7 @@ func rpc_client_ready(peer_id: int, protocol_version: int) -> void:
 	if protocol_version != NETWORK_PROTOCOL_VERSION:
 		rpc_id(peer_id, "rpc_protocol_rejected", NETWORK_PROTOCOL_VERSION, protocol_version)
 		return
+	NetworkManager.mark_peer_world_ready(peer_id)
 
 	for existing_peer_variant: Variant in players.keys():
 		var existing_peer_id: int = int(existing_peer_variant)
@@ -176,9 +188,10 @@ func _soft_remove_player_node(player: Node2D) -> void:
 
 
 func _delayed_free_player(player: Node2D) -> void:
-	await get_tree().create_timer(0.75).timeout
-	if is_instance_valid(player):
-		player.queue_free()
+	if player == null or not is_instance_valid(player):
+		return
+	if not _retired_player_nodes.has(player):
+		_retired_player_nodes.append(player)
 
 
 func _schedule_smoke_exit_if_requested() -> void:
@@ -210,15 +223,18 @@ func _get_cli_float_arg(key: String, default_value: float) -> float:
 
 
 func _cleanup_spawned_players() -> void:
-	if players.is_empty():
-		return
-	var local_peer_id: int = NetworkManager.get_local_peer_id() if NetworkManager != null else 0
-	for peer_id_variant: Variant in players.keys():
-		var peer_id: int = int(peer_id_variant)
-		var player: Node2D = players.get(peer_id, null)
-		if player == null or not is_instance_valid(player):
-			continue
-		if peer_id == local_peer_id:
-			continue
-		player.queue_free()
-	players.clear()
+	if not players.is_empty():
+		var local_peer_id: int = NetworkManager.get_local_peer_id() if NetworkManager != null else 0
+		for peer_id_variant: Variant in players.keys():
+			var peer_id: int = int(peer_id_variant)
+			var player: Node2D = players.get(peer_id, null)
+			if player == null or not is_instance_valid(player):
+				continue
+			if peer_id == local_peer_id:
+				continue
+			player.queue_free()
+		players.clear()
+	for retired in _retired_player_nodes:
+		if retired != null and is_instance_valid(retired):
+			retired.queue_free()
+	_retired_player_nodes.clear()

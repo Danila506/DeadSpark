@@ -1,7 +1,6 @@
-[gd_scene load_steps=11 format=3 uid="uid://bfidev1jl62yq"]
+[gd_scene load_steps=10 format=3 uid="uid://bfidev1jl62yq"]
 
 [ext_resource type="Script" uid="uid://j4unv5lcyjeo" path="res://Menu/menu.gd" id="1_jf1j2"]
-[ext_resource type="AudioStream" path="res://Assets/AudioWaw/SoundTracks/DeadSparkMainTheme.wav" id="2_3vop8"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hmyt2"]
 bg_color = Color(0.0588235, 0.0784314, 0.12549, 0.92)
@@ -176,7 +175,6 @@ text = "Поддержать проект"
 custom_minimum_size = Vector2(0, 22)
 
 [node name="SoundTrack" type="AudioStreamPlayer" parent="."]
-stream = ExtResource("2_3vop8")
 volume_db = -8.0
 autoplay = true
 
@@ -214,6 +212,19 @@ custom_minimum_size = Vector2(0, 56)
 text = "2456"
 placeholder_text = "Port"
 
+[node name="FindLanHostButton" type="Button" parent="CenterContainer/LanPanel/VBoxLan"]
+custom_minimum_size = Vector2(0, 62)
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_ohmor")
+theme_override_styles/hover = SubResource("StyleBoxFlat_xofl4")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ohmor")
+text = "Find LAN Host"
+
+[node name="FoundHostsSelect" type="OptionButton" parent="CenterContainer/LanPanel/VBoxLan"]
+custom_minimum_size = Vector2(0, 56)
+text_overrun_behavior = 3
+clip_text = true
+
 [node name="JoinLanButton" type="Button" parent="CenterContainer/LanPanel/VBoxLan"]
 custom_minimum_size = Vector2(0, 74)
 theme_override_font_sizes/font_size = 30
@@ -221,14 +232,6 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_i4uhh")
 theme_override_styles/hover = SubResource("StyleBoxFlat_w3orb")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_i4uhh")
 text = "Join LAN"
-
-[node name="JoinLocalhostButton" type="Button" parent="CenterContainer/LanPanel/VBoxLan"]
-custom_minimum_size = Vector2(0, 62)
-theme_override_font_sizes/font_size = 24
-theme_override_styles/normal = SubResource("StyleBoxFlat_ohmor")
-theme_override_styles/hover = SubResource("StyleBoxFlat_xofl4")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_ohmor")
-text = "Join Localhost (127.0.0.1)"
 
 [node name="LanStatusLabel" type="Label" parent="CenterContainer/LanPanel/VBoxLan"]
 theme_override_colors/font_color = Color(1, 0.819608, 0.392157, 1)
@@ -250,6 +253,7 @@ text = "Back"
 [connection signal="pressed" from="CenterContainer/MenuPanel/VBox/Donate" to="." method="_on_donate_pressed"]
 [connection signal="pressed" from="CenterContainer/MenuPanel/VBox/Quit" to="." method="_on_quit_pressed"]
 [connection signal="pressed" from="CenterContainer/LanPanel/VBoxLan/HostLanButton" to="." method="_on_host_lan_pressed"]
+[connection signal="pressed" from="CenterContainer/LanPanel/VBoxLan/FindLanHostButton" to="." method="_on_find_lan_host_pressed"]
+[connection signal="item_selected" from="CenterContainer/LanPanel/VBoxLan/FoundHostsSelect" to="." method="_on_found_host_selected"]
 [connection signal="pressed" from="CenterContainer/LanPanel/VBoxLan/JoinLanButton" to="." method="_on_join_lan_pressed"]
-[connection signal="pressed" from="CenterContainer/LanPanel/VBoxLan/JoinLocalhostButton" to="." method="_on_join_localhost_pressed"]
 [connection signal="pressed" from="CenterContainer/LanPanel/VBoxLan/BackToMenuButton" to="." method="_on_back_to_menu_pressed"]

@@ -74,6 +74,9 @@ const DEFAULT_BANDIT_MEDICAL_POOL: Array[ItemData] = [
 @export_range(0.1, 6.0, 0.05) var head_damage_multiplier: float = 2.0
 @export_range(0.1, 6.0, 0.05) var body_damage_multiplier: float = 1.0
 @export_range(0.1, 6.0, 0.05) var legs_damage_multiplier: float = 0.6
+@export_category("Network Smoothing")
+@export_range(0.02, 0.30, 0.005) var net_snapshot_interp_delay_sec: float = 0.10
+@export_range(0.10, 1.00, 0.01) var net_snapshot_max_buffer_sec: float = 0.50
 
 @onready var navigation_agent: NavigationAgent2D = $NavigationAgent2D
 @onready var state_machine: EnemyStateMachine = $StateMachine
@@ -143,11 +146,26 @@ var _nearest_bandit_cache_result: bool = false
 var _last_lethal_hit_direction: StringName = DamageZones.DIR_DOWN
 var _net_last_synced_health: float = -1.0
 var _net_last_synced_dead: bool = false
+var _net_target_position: Vector2 = Vector2.ZERO
+var _net_target_velocity: Vector2 = Vector2.ZERO
+var _net_last_transform_sync_ms: int = 0
+var _net_last_transform_update_ms: int = 0
+var _net_transform_sync_timer_by_peer: Dictionary = {}
+var _net_snapshot_buffer: Array[Dictionary] = []
+var _net_server_time_offset_sec: float = 0.0
+var _net_server_time_offset_initialized: bool = false
 const MOVE_TARGET_REPATH_FACTOR: float = 1.75
 const MELEE_STANDOFF_RATIO: float = 0.72
 const MELEE_STANDOFF_MIN_PX: float = 8.0
 const MELEE_TOO_CLOSE_RATIO: float = 0.52
 const MELEE_BACKSTEP_EXTRA_PX: float = 4.0
+const NET_ENEMY_TRANSFORM_SYNC_INTERVAL_NEAR_SEC: float = 0.05
+const NET_ENEMY_TRANSFORM_SYNC_INTERVAL_FAR_SEC: float = 0.15
+const NET_ENEMY_TRANSFORM_SYNC_FAR_DISTANCE_PX: float = 1400.0
+const NET_ENEMY_MAX_SPEED: float = 380.0
+const NET_ENEMY_MAX_POSITION_DELTA_PER_UPDATE: float = 96.0
+const NET_ENEMY_SNAPSHOT_POS_SCALE: float = 10.0
+const NET_ENEMY_SNAPSHOT_VEL_SCALE: float = 10.0
 
 
 func _ready() -> void:
@@ -162,6 +180,10 @@ func _ready() -> void:
 	_update_health_bar_ui()
 	_net_last_synced_health = health
 	_net_last_synced_dead = _is_dead
+	_net_target_position = global_position
+	_net_target_velocity = Vector2.ZERO
+	_net_last_transform_sync_ms = Time.get_ticks_msec()
+	_net_last_transform_update_ms = Time.get_ticks_msec()
 	_setup_damage_hitboxes()
 	_disable_unused_passive_areas()
 
@@ -175,13 +197,28 @@ func _ready() -> void:
 	_resolve_player_reference()
 
 	add_to_group("noise_listener")
+	if NetworkManager != null and NetworkManager.has_signal("network_tick"):
+		if not NetworkManager.network_tick.is_connected(_on_network_tick):
+			NetworkManager.network_tick.connect(_on_network_tick)
 	if state_machine != null:
 		state_machine.setup(self)
 		if not state_machine.state_changed.is_connected(_on_state_changed):
 			state_machine.state_changed.connect(_on_state_changed)
 
 
+func _exit_tree() -> void:
+	if NetworkManager != null and NetworkManager.has_signal("network_tick"):
+		if NetworkManager.network_tick.is_connected(_on_network_tick):
+			NetworkManager.network_tick.disconnect(_on_network_tick)
+
+
 func _physics_process(delta: float) -> void:
+	if _is_networked_game() and not _is_server_authority():
+		_apply_remote_snapshot_interpolation()
+		_apply_remote_animation()
+		move_and_slide()
+		return
+
 	_tick_timers(delta)
 	_update_sensors(delta)
 	if _is_dead:
@@ -192,6 +229,10 @@ func _physics_process(delta: float) -> void:
 
 	_apply_navigation_movement(delta)
 	_enforce_bandit_run_animation()
+
+
+func _on_network_tick(tick_delta_sec: float, _tick_id: int) -> void:
+	_sync_enemy_transform_if_needed(tick_delta_sec)
 
 
 func _tick_timers(delta: float) -> void:
@@ -1150,6 +1191,185 @@ func _sync_enemy_state_if_needed(play_hurt: bool) -> void:
 	_net_last_synced_health = health
 	_net_last_synced_dead = _is_dead
 	rpc("rpc_sync_enemy_state", health, _is_dead, _last_lethal_hit_direction, play_hurt and not _is_dead)
+
+
+func _sync_enemy_transform_if_needed(delta: float = 0.0) -> void:
+	if not _is_networked_game() or not _is_server_authority():
+		return
+	if NetworkManager == null:
+		return
+	var ready_peers: PackedInt32Array = NetworkManager.get_ready_client_peers()
+	if ready_peers.is_empty():
+		_net_transform_sync_timer_by_peer.clear()
+		return
+
+	var alive_keys: Dictionary = {}
+	for target_peer_id in ready_peers:
+		var interval_sec: float = _get_enemy_transform_sync_interval_for_peer(target_peer_id)
+		var timer_left: float = float(_net_transform_sync_timer_by_peer.get(target_peer_id, 0.0)) - delta
+		if timer_left <= 0.0:
+			rpc_id(target_peer_id, "rpc_sync_enemy_snapshot", _build_enemy_snapshot_payload())
+			timer_left = interval_sec
+		_net_transform_sync_timer_by_peer[target_peer_id] = timer_left
+		alive_keys[target_peer_id] = true
+
+	for cached_peer_id in _net_transform_sync_timer_by_peer.keys():
+		if not alive_keys.has(cached_peer_id):
+			_net_transform_sync_timer_by_peer.erase(cached_peer_id)
+
+
+func _get_enemy_transform_sync_interval_for_peer(target_peer_id: int) -> float:
+	var target_player := _get_player_node_by_peer_id(target_peer_id)
+	if target_player == null:
+		return NET_ENEMY_TRANSFORM_SYNC_INTERVAL_FAR_SEC
+	var distance_to_target: float = global_position.distance_to(target_player.global_position)
+	if distance_to_target >= NET_ENEMY_TRANSFORM_SYNC_FAR_DISTANCE_PX:
+		return NET_ENEMY_TRANSFORM_SYNC_INTERVAL_FAR_SEC
+	return NET_ENEMY_TRANSFORM_SYNC_INTERVAL_NEAR_SEC
+
+
+func _get_player_node_by_peer_id(target_peer_id: int) -> CharacterBody2D:
+	if target_peer_id <= 0:
+		return null
+	for node in get_tree().get_nodes_in_group("player"):
+		var candidate := node as CharacterBody2D
+		if candidate == null or not is_instance_valid(candidate):
+			continue
+		if int(candidate.get("peer_id")) == target_peer_id:
+			return candidate
+	return null
+
+
+@rpc("any_peer", "unreliable")
+func rpc_sync_enemy_transform(server_position: Vector2, server_velocity: Vector2) -> void:
+	if not _is_networked_game():
+		return
+	if NetworkManager == null:
+		return
+	if NetworkManager.is_server():
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	if sender_id != 1:
+		return
+	var now_ms: int = Time.get_ticks_msec()
+	if now_ms - _net_last_transform_update_ms < 10:
+		return
+	_net_last_transform_update_ms = now_ms
+	var clamped_velocity: Vector2 = server_velocity.limit_length(NET_ENEMY_MAX_SPEED)
+	var proposed_delta: Vector2 = server_position - _net_target_position
+	if proposed_delta.length() > NET_ENEMY_MAX_POSITION_DELTA_PER_UPDATE:
+		server_position = _net_target_position + proposed_delta.normalized() * NET_ENEMY_MAX_POSITION_DELTA_PER_UPDATE
+	_net_target_position = server_position
+	_net_target_velocity = clamped_velocity
+	_push_remote_snapshot(server_position, clamped_velocity)
+
+
+@rpc("any_peer", "unreliable")
+func rpc_sync_enemy_snapshot(payload: Dictionary) -> void:
+	if not _is_networked_game():
+		return
+	if NetworkManager == null or NetworkManager.is_server():
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	if sender_id != 1:
+		return
+	var server_time_sec: float = float(payload.get("t", Time.get_ticks_msec())) / 1000.0
+	var now_sec: float = float(Time.get_ticks_msec()) / 1000.0
+	var measured_offset: float = now_sec - server_time_sec
+	if not _net_server_time_offset_initialized:
+		_net_server_time_offset_sec = measured_offset
+		_net_server_time_offset_initialized = true
+	else:
+		_net_server_time_offset_sec = lerpf(_net_server_time_offset_sec, measured_offset, 0.08)
+
+	var server_position := Vector2(
+		_dequantize_enemy_scalar(int(payload.get("px", 0)), NET_ENEMY_SNAPSHOT_POS_SCALE),
+		_dequantize_enemy_scalar(int(payload.get("py", 0)), NET_ENEMY_SNAPSHOT_POS_SCALE)
+	)
+	var server_velocity := Vector2(
+		_dequantize_enemy_scalar(int(payload.get("vx", 0)), NET_ENEMY_SNAPSHOT_VEL_SCALE),
+		_dequantize_enemy_scalar(int(payload.get("vy", 0)), NET_ENEMY_SNAPSHOT_VEL_SCALE)
+	).limit_length(NET_ENEMY_MAX_SPEED)
+	var proposed_delta: Vector2 = server_position - _net_target_position
+	if proposed_delta.length() > NET_ENEMY_MAX_POSITION_DELTA_PER_UPDATE:
+		server_position = _net_target_position + proposed_delta.normalized() * NET_ENEMY_MAX_POSITION_DELTA_PER_UPDATE
+	_net_target_position = server_position
+	_net_target_velocity = server_velocity
+	_push_remote_snapshot(server_position, server_velocity, server_time_sec)
+
+
+func _apply_remote_animation() -> void:
+	if _is_dead:
+		request_animation(&"death")
+		return
+	if _net_target_velocity.length() <= 2.0:
+		request_animation(&"idle")
+		return
+	request_animation(&"walk")
+
+
+func _build_enemy_snapshot_payload() -> Dictionary:
+	return {
+		"t": Time.get_ticks_msec(),
+		"px": _quantize_enemy_scalar(global_position.x, NET_ENEMY_SNAPSHOT_POS_SCALE),
+		"py": _quantize_enemy_scalar(global_position.y, NET_ENEMY_SNAPSHOT_POS_SCALE),
+		"vx": _quantize_enemy_scalar(velocity.x, NET_ENEMY_SNAPSHOT_VEL_SCALE),
+		"vy": _quantize_enemy_scalar(velocity.y, NET_ENEMY_SNAPSHOT_VEL_SCALE)
+	}
+
+
+func _quantize_enemy_scalar(value: float, scale: float) -> int:
+	return int(round(value * maxf(scale, 0.0001)))
+
+
+func _dequantize_enemy_scalar(value: int, scale: float) -> float:
+	return float(value) / maxf(scale, 0.0001)
+
+
+func _push_remote_snapshot(server_position: Vector2, server_velocity: Vector2, server_time_sec: float = -1.0) -> void:
+	var now_sec: float = float(Time.get_ticks_msec()) / 1000.0
+	var snapshot_time_sec: float = server_time_sec if server_time_sec > 0.0 else now_sec
+	_net_snapshot_buffer.append({
+		"t": snapshot_time_sec,
+		"p": server_position,
+		"v": server_velocity
+	})
+	var min_time: float = now_sec - maxf(net_snapshot_max_buffer_sec, 0.10)
+	while _net_snapshot_buffer.size() > 2 and float(_net_snapshot_buffer[0].get("t", 0.0)) < min_time:
+		_net_snapshot_buffer.remove_at(0)
+
+
+func _apply_remote_snapshot_interpolation() -> void:
+	if _net_snapshot_buffer.size() < 2:
+		global_position = global_position.lerp(_net_target_position, 0.35)
+		velocity = _net_target_velocity
+		return
+
+	var render_time: float = float(Time.get_ticks_msec()) / 1000.0 - _net_server_time_offset_sec - clampf(net_snapshot_interp_delay_sec, 0.02, 0.30)
+	var a: Dictionary = _net_snapshot_buffer[0]
+	var b: Dictionary = _net_snapshot_buffer[1]
+	for i in range(_net_snapshot_buffer.size() - 1):
+		var left: Dictionary = _net_snapshot_buffer[i]
+		var right: Dictionary = _net_snapshot_buffer[i + 1]
+		var left_t: float = float(left.get("t", 0.0))
+		var right_t: float = float(right.get("t", left_t + 0.001))
+		if render_time >= left_t and render_time <= right_t:
+			a = left
+			b = right
+			break
+		if render_time > right_t:
+			a = right
+			b = right
+
+	var at: float = float(a.get("t", 0.0))
+	var bt: float = float(b.get("t", at + 0.001))
+	var alpha: float = 1.0 if is_equal_approx(bt, at) else clamp((render_time - at) / max(bt - at, 0.0001), 0.0, 1.0)
+	var ap: Vector2 = a.get("p", _net_target_position) as Vector2
+	var bp: Vector2 = b.get("p", _net_target_position) as Vector2
+	var av: Vector2 = a.get("v", _net_target_velocity) as Vector2
+	var bv: Vector2 = b.get("v", _net_target_velocity) as Vector2
+	global_position = ap.lerp(bp, alpha)
+	velocity = av.lerp(bv, alpha)
 
 
 func has_patrol_points() -> bool:

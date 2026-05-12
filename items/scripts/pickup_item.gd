@@ -119,7 +119,7 @@ func rpc_request_pickup_authorization(requester_peer_id: int) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func rpc_finalize_pickup_authorization(requester_peer_id: int, granted: bool) -> void:
-	if granted and NetworkManager != null and NetworkManager.is_server():
+	if granted:
 		remove_from_world()
 	if NetworkManager != null and requester_peer_id == NetworkManager.get_local_peer_id():
 		network_pickup_result.emit(granted)

@@ -437,14 +437,14 @@ func _setup_navigation_region(bounds: Rect2) -> void:
 
 	var nav_bounds := bounds.grow(maxf(navigation_region_padding_px, 0.0))
 	var polygon := NavigationPolygon.new()
-	var outline := PackedVector2Array([
+	var vertices := PackedVector2Array([
 		nav_bounds.position,
 		Vector2(nav_bounds.end.x, nav_bounds.position.y),
 		nav_bounds.end,
 		Vector2(nav_bounds.position.x, nav_bounds.end.y)
 	])
-	polygon.add_outline(outline)
-	polygon.make_polygons_from_outlines()
+	polygon.vertices = vertices
+	polygon.add_polygon(PackedInt32Array([0, 1, 2, 3]))
 	region.navigation_polygon = polygon
 
 

@@ -6,6 +6,7 @@ const WORLD_GENERATOR_VERSION: int = 1
 const DEFAULT_WORLD_SEED: int = 0
 const FALLBACK_LEVEL_PATH: String = "res://level.tscn"
 const MENU_SCENE_PATH: String = "res://Menu/Menu.tscn"
+const NETWORK_WORLD_PATH: String = "res://World/network_test_world.tscn"
 const ITEM_INSTANCE_SCRIPT = preload("res://items/scripts/item_instance.gd")
 const PICKUP_ITEM_SCENE: PackedScene = preload("res://items/scenes/pickup_item.tscn")
 
@@ -34,6 +35,8 @@ func _notification(what: int) -> void:
 func save_game(path: String = SAVE_FILE_PATH) -> int:
 	var scene_root: Node = get_tree().current_scene
 	if scene_root == null:
+		return ERR_UNCONFIGURED
+	if _is_multiplayer_context(scene_root):
 		return ERR_UNCONFIGURED
 
 	var scene_path: String = scene_root.scene_file_path
@@ -87,6 +90,8 @@ func load_game(path: String = SAVE_FILE_PATH) -> int:
 	var scene_path: String = String(save_payload.get("scene_path", FALLBACK_LEVEL_PATH))
 	if scene_path.is_empty():
 		scene_path = FALLBACK_LEVEL_PATH
+	if scene_path == NETWORK_WORLD_PATH:
+		return ERR_INVALID_DATA
 	if not ResourceLoader.exists(scene_path):
 		return ERR_FILE_NOT_FOUND
 
@@ -546,4 +551,14 @@ func _is_gameplay_context() -> bool:
 		return false
 	if scene_root.scene_file_path == MENU_SCENE_PATH:
 		return false
+	if _is_multiplayer_context(scene_root):
+		return false
 	return get_tree().get_first_node_in_group("player") != null
+
+
+func _is_multiplayer_context(scene_root: Node) -> bool:
+	if scene_root == null:
+		return false
+	if scene_root.scene_file_path == NETWORK_WORLD_PATH:
+		return true
+	return get_tree() != null and get_tree().multiplayer != null and get_tree().multiplayer.multiplayer_peer != null
