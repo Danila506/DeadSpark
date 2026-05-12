@@ -116,6 +116,18 @@ var current_noise_level: float = 1.0
 var current_carry_weight: float = 0.0
 var current_encumbrance_ratio: float = 0.0
 var _carry_weight_refresh_timer: float = 0.0
+var peer_id: int = 1
+var _net_target_position: Vector2 = Vector2.ZERO
+var _net_target_velocity: Vector2 = Vector2.ZERO
+var _net_can_send_updates: bool = false
+var _net_last_remote_update_ms: int = 0
+var _net_last_remote_position: Vector2 = Vector2.ZERO
+var _net_input_vector: Vector2 = Vector2.ZERO
+var _net_input_seq: int = 0
+var _net_last_applied_input_seq: int = -1
+var _net_last_server_ack_seq: int = -1
+var _net_vitals_sync_timer: float = 0.0
+var _collision_exception_refresh_timer: float = 0.0
 
 @export var bleeding_effect_animation_name: String = "Bleeding"
 @export var bleeding_trail_interval_sec: float = 0.20
@@ -135,6 +147,14 @@ var _carry_weight_refresh_timer: float = 0.0
 
 const LOW_NEED_HINT_THRESHOLD_RATIO: float = 0.5
 const LOW_NEED_HINT_INTERVAL_SEC: float = 30.0
+const NET_MAX_POSITION_DELTA_PER_UPDATE: float = 96.0
+const NET_MAX_SPEED: float = 420.0
+const NET_MIN_UPDATE_INTERVAL_MS: int = 16
+const NET_RECONCILE_SNAP_DISTANCE: float = 42.0
+const NET_INPUT_ACTIONS_PRIMARY: Array[StringName] = [&"move_left", &"move_right", &"move_up", &"move_down"]
+const NET_INPUT_ACTIONS_FALLBACK: Array[StringName] = [&"left", &"right", &"up", &"down"]
+const NET_VITALS_SYNC_INTERVAL_SEC: float = 0.10
+const COLLISION_EXCEPTION_REFRESH_INTERVAL_SEC: float = 1.0
 const LOW_WATER_HINT_TEXT: String = "Я хочу пить"
 const LOW_FOOD_HINT_TEXT: String = "Я хочу есть"
 const LOW_WATER_HINT_COLOR: Color = Color(0.45, 0.8, 1.0, 1.0)
@@ -178,8 +198,19 @@ func _ready() -> void:
 	_force_refresh_animation()
 	_hide_action_bar()
 	_ensure_status_hint_label()
-	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
+	_net_target_position = global_position
+	_net_target_velocity = Vector2.ZERO
+	_net_last_remote_position = global_position
+	_net_last_remote_update_ms = Time.get_ticks_msec()
+	_net_can_send_updates = not _is_networked_game()
+	if camera_2d != null and _is_networked_game():
+		camera_2d.enabled = _is_local_network_player()
+	print("Local player authority true/false for peer %d: %s" % [peer_id, str(is_multiplayer_authority())])
+	if _is_networked_game() and _is_local_network_player():
+		call_deferred("_enable_network_updates_after_spawn_sync")
+	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node") and _is_local_control_enabled():
 		GameSaveManager.register_persistent_node(self)
+	call_deferred("_refresh_non_blocking_collision_exceptions")
 
 
 func _resolve_walk_snow_sfx() -> AudioStreamPlayer:
@@ -190,6 +221,8 @@ func _resolve_walk_snow_sfx() -> AudioStreamPlayer:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not _is_local_control_enabled():
+		return
 	if is_dead:
 		return
 
@@ -237,6 +270,39 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _is_networked_game():
+		_collision_exception_refresh_timer -= delta
+		if _collision_exception_refresh_timer <= 0.0:
+			_collision_exception_refresh_timer = COLLISION_EXCEPTION_REFRESH_INTERVAL_SEC
+			_refresh_non_blocking_collision_exceptions()
+		if NetworkManager != null and NetworkManager.is_server():
+			if is_dead:
+				return
+			_update_carry_weight_state_if_due(delta)
+			_update_stealth_state()
+			var server_input: Vector2 = _net_input_vector
+			if _is_local_network_player():
+				server_input = _get_network_input_vector()
+			_apply_network_movement(delta, server_input)
+			rpc("rpc_server_sync_state", peer_id, global_position, velocity, _net_last_applied_input_seq)
+			return
+
+		if _is_local_network_player():
+			if is_dead:
+				return
+			_update_carry_weight_state_if_due(delta)
+			_update_stealth_state()
+			var local_input: Vector2 = _get_network_input_vector()
+			_apply_network_movement(delta, local_input)
+			if _net_can_send_updates:
+				rpc_id(1, "rpc_submit_input", local_input, _net_input_seq)
+				_net_input_seq += 1
+			return
+
+		global_position = global_position.lerp(_net_target_position, minf(12.0 * delta, 1.0))
+		velocity = _net_target_velocity
+		return
+
 	if is_dead:
 		return
 
@@ -246,6 +312,14 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if _is_networked_game() and NetworkManager != null and NetworkManager.is_server():
+		_net_vitals_sync_timer -= delta
+		if _net_vitals_sync_timer <= 0.0:
+			_net_vitals_sync_timer = NET_VITALS_SYNC_INTERVAL_SEC
+			rpc("rpc_sync_vitals", peer_id, health, is_dead)
+
+	if not _is_local_control_enabled():
+		return
 	if is_dead:
 		return
 
@@ -473,11 +547,15 @@ func _set_idle_dir_from_string(dir: String) -> void:
 
 
 func take_damage(amount: float, damage_type: int = ItemData.DamageType.GENERIC, apply_clothing_damage: bool = true) -> void:
+	if _is_networked_game() and (NetworkManager == null or not NetworkManager.is_server()):
+		return
 	if vitals_controller != null:
 		vitals_controller.take_damage(amount, damage_type, apply_clothing_damage)
 
 
 func take_damage_from(amount: float, source: Node, hit_context: Dictionary = {}) -> void:
+	if _is_networked_game() and (NetworkManager == null or not NetworkManager.is_server()):
+		return
 	take_damage(amount, _resolve_damage_type_from_source(source), true)
 	if is_dead:
 		return
@@ -491,6 +569,8 @@ func take_damage_from(amount: float, source: Node, hit_context: Dictionary = {})
 
 
 func take_enemy_damage(amount: float, bleed_chance: float = 0.25, damage_type: int = ItemData.DamageType.BITE) -> void:
+	if _is_networked_game() and (NetworkManager == null or not NetworkManager.is_server()):
+		return
 	take_damage(amount, damage_type, true)
 	if is_dead:
 		return
@@ -1006,3 +1086,146 @@ func apply_save_data(save_data: Dictionary) -> void:
 
 	stats_changed.emit()
 	status_effects_changed.emit()
+
+
+func _is_networked_game() -> bool:
+	return multiplayer != null and multiplayer.multiplayer_peer != null
+
+
+func _is_local_control_enabled() -> bool:
+	if not _is_networked_game():
+		return true
+	return _is_local_network_player()
+
+
+@rpc("any_peer", "unreliable")
+func rpc_submit_input(input_vector: Vector2, input_seq: int) -> void:
+	if not _is_networked_game() or NetworkManager == null or not NetworkManager.is_server():
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	if sender_id != peer_id:
+		return
+	if input_seq <= _net_last_applied_input_seq:
+		return
+	_net_input_vector = input_vector.limit_length(1.0)
+	_net_last_applied_input_seq = input_seq
+
+
+@rpc("any_peer", "unreliable")
+func rpc_server_sync_state(state_peer_id: int, server_position: Vector2, server_velocity: Vector2, ack_input_seq: int) -> void:
+	if not _is_networked_game():
+		return
+	if NetworkManager == null:
+		return
+	if not NetworkManager.is_server():
+		var sender_id: int = multiplayer.get_remote_sender_id()
+		if sender_id != 1:
+			return
+	if state_peer_id != peer_id:
+		return
+	var now_ms: int = Time.get_ticks_msec()
+	if now_ms - _net_last_remote_update_ms < NET_MIN_UPDATE_INTERVAL_MS:
+		return
+	_net_last_remote_update_ms = now_ms
+
+	var clamped_velocity: Vector2 = server_velocity.limit_length(NET_MAX_SPEED)
+	var proposed_delta: Vector2 = server_position - _net_last_remote_position
+	if proposed_delta.length() > NET_MAX_POSITION_DELTA_PER_UPDATE:
+		server_position = _net_last_remote_position + proposed_delta.normalized() * NET_MAX_POSITION_DELTA_PER_UPDATE
+
+	_net_last_remote_position = server_position
+	_net_target_position = server_position
+	_net_target_velocity = clamped_velocity
+
+	if _is_local_network_player():
+		_net_last_server_ack_seq = maxi(_net_last_server_ack_seq, ack_input_seq)
+		var correction: Vector2 = server_position - global_position
+		if correction.length() > NET_RECONCILE_SNAP_DISTANCE:
+			global_position = server_position
+			velocity = clamped_velocity
+
+
+func _get_network_input_vector() -> Vector2:
+	if _has_network_input_actions(NET_INPUT_ACTIONS_PRIMARY):
+		return Input.get_vector(
+			NET_INPUT_ACTIONS_PRIMARY[0],
+			NET_INPUT_ACTIONS_PRIMARY[1],
+			NET_INPUT_ACTIONS_PRIMARY[2],
+			NET_INPUT_ACTIONS_PRIMARY[3]
+		)
+	if _has_network_input_actions(NET_INPUT_ACTIONS_FALLBACK):
+		return Input.get_vector(
+			NET_INPUT_ACTIONS_FALLBACK[0],
+			NET_INPUT_ACTIONS_FALLBACK[1],
+			NET_INPUT_ACTIONS_FALLBACK[2],
+			NET_INPUT_ACTIONS_FALLBACK[3]
+		)
+	return Vector2.ZERO
+
+
+func _has_network_input_actions(actions: Array[StringName]) -> bool:
+	for action_name: StringName in actions:
+		if not InputMap.has_action(action_name):
+			return false
+	return true
+
+
+func _is_local_network_player() -> bool:
+	if not _is_networked_game() or NetworkManager == null:
+		return false
+	return peer_id == NetworkManager.get_local_peer_id()
+
+
+func _apply_network_movement(delta: float, input_vector: Vector2) -> void:
+	var normalized_input: Vector2 = input_vector.limit_length(1.0)
+	var move_speed: float = base_move_speed * _get_current_speed_multiplier()
+	velocity = normalized_input * move_speed
+	move_and_slide()
+	if normalized_input == Vector2.ZERO:
+		idle()
+	else:
+		update_move_animation(normalized_input)
+	_update_walk_snow_sfx(normalized_input, delta)
+
+
+func _refresh_non_blocking_collision_exceptions() -> void:
+	if get_tree() == null:
+		return
+	for peer_variant: Variant in get_tree().get_nodes_in_group("player"):
+		var peer_node: Node = peer_variant as Node
+		if peer_node == null or not is_instance_valid(peer_node) or peer_node == self:
+			continue
+		if peer_node is PhysicsBody2D:
+			add_collision_exception_with(peer_node as PhysicsBody2D)
+	for enemy_variant: Variant in get_tree().get_nodes_in_group("enemy"):
+		var enemy_node: Node = enemy_variant as Node
+		if enemy_node == null or not is_instance_valid(enemy_node):
+			continue
+		if enemy_node is PhysicsBody2D:
+			add_collision_exception_with(enemy_node as PhysicsBody2D)
+
+
+@rpc("any_peer", "unreliable")
+func rpc_sync_vitals(state_peer_id: int, server_health: float, server_is_dead: bool) -> void:
+	if not _is_networked_game():
+		return
+	if state_peer_id != peer_id:
+		return
+	if NetworkManager == null:
+		return
+	if not NetworkManager.is_server():
+		var sender_id: int = multiplayer.get_remote_sender_id()
+		if sender_id != 1:
+			return
+	health = clamp(server_health, 0.0, max_health)
+	stats_changed.emit()
+	if server_is_dead and not is_dead:
+		if _is_local_network_player():
+			die()
+		else:
+			is_dead = true
+
+
+func _enable_network_updates_after_spawn_sync() -> void:
+	await get_tree().create_timer(0.35).timeout
+	_net_can_send_updates = true

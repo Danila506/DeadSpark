@@ -18,6 +18,10 @@ func die() -> void:
 		return
 
 	player.is_dead = true
+	if player.has_method("_is_networked_game") and player.call("_is_networked_game"):
+		if player.has_method("_is_local_network_player") and not player.call("_is_local_network_player"):
+			player._stop_walk_snow_sfx()
+			return
 	clear_menu_continue_save()
 	player._stop_walk_snow_sfx()
 	Callable(self, "play_death_screen_and_go_to_menu").call_deferred()

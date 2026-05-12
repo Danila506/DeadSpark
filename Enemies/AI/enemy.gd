@@ -141,6 +141,8 @@ var _nearest_bandit_cache_left: float = 0.0
 var _nearest_bandit_cache_point: Vector2 = Vector2.ZERO
 var _nearest_bandit_cache_result: bool = false
 var _last_lethal_hit_direction: StringName = DamageZones.DIR_DOWN
+var _net_last_synced_health: float = -1.0
+var _net_last_synced_dead: bool = false
 const MOVE_TARGET_REPATH_FACTOR: float = 1.75
 const MELEE_STANDOFF_RATIO: float = 0.72
 const MELEE_STANDOFF_MIN_PX: float = 8.0
@@ -158,6 +160,8 @@ func _ready() -> void:
 	_sensor_tick_left = config.sensor_interval_sec
 	_register_combat_groups()
 	_update_health_bar_ui()
+	_net_last_synced_health = health
+	_net_last_synced_dead = _is_dead
 	_setup_damage_hitboxes()
 	_disable_unused_passive_areas()
 
@@ -885,6 +889,8 @@ func _collect_damage_hitboxes() -> Array[Area2D]:
 
 
 func apply_damage(amount: float, hit_direction: StringName = StringName("")) -> void:
+	if _is_networked_game() and not _is_server_authority():
+		return
 	if _is_dead:
 		return
 	if hit_direction != StringName(""):
@@ -895,13 +901,18 @@ func apply_damage(amount: float, hit_direction: StringName = StringName("")) -> 
 		kill(_last_lethal_hit_direction)
 	else:
 		request_animation(&"hurt")
+		_sync_enemy_state_if_needed(true)
 
 
 func take_damage(amount: float, hit_direction: StringName = StringName("")) -> void:
+	if _is_networked_game() and not _is_server_authority():
+		return
 	apply_damage(amount, hit_direction)
 
 
 func take_damage_from(amount: float, source: Node, hit_context: Dictionary = {}) -> void:
+	if _is_networked_game() and not _is_server_authority():
+		return
 	if _is_dead:
 		return
 	if source != null and source == self:
@@ -1052,6 +1063,8 @@ func stun(duration_sec: float = -1.0) -> void:
 
 
 func kill(hit_direction: StringName = StringName("")) -> void:
+	if _is_networked_game() and not _is_server_authority():
+		return
 	if _is_dead:
 		return
 	if hit_direction != StringName(""):
@@ -1075,6 +1088,7 @@ func kill(hit_direction: StringName = StringName("")) -> void:
 
 	if state_machine != null:
 		state_machine.change_state(STATE_DEAD, {}, true)
+	_sync_enemy_state_if_needed(false)
 
 	died.emit(self)
 	if config.auto_free_after_death:
@@ -1083,6 +1097,59 @@ func kill(hit_direction: StringName = StringName("")) -> void:
 
 func is_dead() -> bool:
 	return _is_dead
+
+
+@rpc("any_peer", "reliable")
+func rpc_sync_enemy_state(server_health: float, server_dead: bool, hit_direction: StringName, play_hurt: bool) -> void:
+	if not _is_networked_game():
+		return
+	if NetworkManager == null:
+		return
+	if not NetworkManager.is_server():
+		var sender_id: int = multiplayer.get_remote_sender_id()
+		if sender_id != 1:
+			return
+	health = clamp(server_health, 0.0, max(config.max_health, 1.0))
+	_last_lethal_hit_direction = hit_direction
+	if server_dead:
+		if not _is_dead:
+			_is_dead = true
+			stop_move()
+			velocity = Vector2.ZERO
+			collision_layer = 0
+			collision_mask = 0
+			for hitbox_area in _collect_damage_hitboxes():
+				hitbox_area.set_deferred("monitorable", false)
+				var hitbox_shape: CollisionShape2D = hitbox_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+				if hitbox_shape != null:
+					hitbox_shape.set_deferred("disabled", true)
+			if health_bar_root != null:
+				health_bar_root.visible = false
+			request_animation(&"death")
+			if state_machine != null:
+				state_machine.change_state(STATE_DEAD, {}, true)
+	else:
+		if play_hurt and not _is_dead:
+			request_animation(&"hurt")
+	_update_health_bar_ui()
+
+
+func _is_networked_game() -> bool:
+	return multiplayer != null and multiplayer.multiplayer_peer != null
+
+
+func _is_server_authority() -> bool:
+	return NetworkManager != null and NetworkManager.is_server()
+
+
+func _sync_enemy_state_if_needed(play_hurt: bool) -> void:
+	if not _is_networked_game() or not _is_server_authority():
+		return
+	if is_equal_approx(_net_last_synced_health, health) and _net_last_synced_dead == _is_dead and not play_hurt:
+		return
+	_net_last_synced_health = health
+	_net_last_synced_dead = _is_dead
+	rpc("rpc_sync_enemy_state", health, _is_dead, _last_lethal_hit_direction, play_hurt and not _is_dead)
 
 
 func has_patrol_points() -> bool:

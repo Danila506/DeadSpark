@@ -46,6 +46,18 @@ const CRAFT_CATEGORY_MEDICAL: StringName = &"medical"
 const CRAFT_CATEGORY_FOOD: StringName = &"food"
 const CRAFT_CATEGORY_TOOLS: StringName = &"tools"
 const CRAFT_CATEGORY_BUILD: StringName = &"build"
+const NETWORK_PICKUP_TIMEOUT_SEC: float = 1.5
+const NETWORK_INVENTORY_ACTION_TIMEOUT_SEC: float = 1.5
+const NETWORK_INVENTORY_ACTION_MIN_INTERVAL_MS: int = 60
+const NETWORK_INVENTORY_ACTION_CRAFT_MIN_INTERVAL_MS: int = 150
+const NETWORK_ALLOWED_INVENTORY_ACTIONS: Array[StringName] = [
+	&"craft",
+	&"consume_food",
+	&"consume_food_finish",
+	&"use_medical",
+	&"finish_use_medical",
+	&"equip_ammo"
+]
 
 @export var pickup_item_scene: PackedScene
 @export var remove_attachment_dropdown_offset: Vector2 = Vector2(0.0, 6.0)
@@ -141,6 +153,11 @@ var mobile_touch_long_press_triggered: bool = false
 var mobile_touch_index: int = -1
 var mobile_drag_active: bool = false
 var mobile_drag_data: Dictionary = {}
+var _network_pickup_pending: Dictionary = {}
+var _network_inventory_action_next_request_id: int = 1
+var _network_inventory_action_pending: Dictionary = {}
+var _network_inventory_action_bypass: bool = false
+var _network_server_last_inventory_action_ms_by_peer: Dictionary = {}
 
 
 func _ready() -> void:
@@ -1063,6 +1080,13 @@ func _add_craft_preview_slot(parent: Control, position: Vector2, item: ItemData,
 
 
 func _on_craft_recipe_pressed(recipe_index: int) -> void:
+	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
+		_request_server_inventory_action(
+			"craft",
+			{"recipe_index": recipe_index, "selected_recipe_index": selected_craft_recipe_index},
+			Callable(self, "_on_craft_recipe_server_approved").bind(recipe_index)
+		)
+		return
 	if recipe_index < 0 or recipe_index >= craft_recipes.size():
 		return
 
@@ -1089,6 +1113,12 @@ func _on_craft_recipe_pressed(recipe_index: int) -> void:
 		_spawn_world_item(crafted_item)
 
 	refresh_ui()
+
+
+func _on_craft_recipe_server_approved(recipe_index: int) -> void:
+	_network_inventory_action_bypass = true
+	_on_craft_recipe_pressed(recipe_index)
+	_network_inventory_action_bypass = false
 
 
 func _refresh_craft_ui() -> void:
@@ -1286,6 +1316,9 @@ func _get_crafting_item_key(item: ItemData) -> String:
 
 
 func _on_slot_drop_requested(target_slot: InventorySlot, data: Dictionary) -> void:
+	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
+		_notify_local_pickup_status("Действие инвентаря только через сервер", Color(1.0, 0.55, 0.4, 1.0))
+		return
 	if not data.has("item"):
 		return
 	if not data.has("source_mode"):
@@ -1549,6 +1582,8 @@ func pickup_first_nearby_item() -> bool:
 	var world_item: Node = _get_closest_nearby_item()
 	if world_item == null or not is_instance_valid(world_item):
 		return false
+	if multiplayer != null and multiplayer.multiplayer_peer != null and NetworkManager != null and not NetworkManager.is_server():
+		return _request_network_pickup(world_item)
 
 	return _pickup_world_item(world_item)
 
@@ -1584,6 +1619,9 @@ func _clear_clothing_storage_ui_only() -> void:
 
 
 func _drop_dragged_item_to_world(data: Dictionary) -> void:
+	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
+		_notify_local_pickup_status("Сброс предмета только через сервер", Color(1.0, 0.55, 0.4, 1.0))
+		return
 	if not data.has("item"):
 		return
 	if not data.has("source_mode"):
@@ -1706,14 +1744,62 @@ func _pickup_world_item(world_item: Node) -> bool:
 	if item == null:
 		return false
 
+	if _store_world_item_data(item, world_item):
+		if world_item.has_method("remove_from_world"):
+			world_item.remove_from_world()
+		else:
+			world_item.queue_free()
+		refresh_ui()
+		return true
+
+	return false
+
+
+func _request_network_pickup(world_item: Node) -> bool:
+	if world_item == null or not is_instance_valid(world_item):
+		return false
+	if NetworkManager == null:
+		return false
+	if not world_item.has_method("rpc_request_pickup_authorization"):
+		return false
+	var world_item_id: int = world_item.get_instance_id()
+	if _network_pickup_pending.has(world_item_id):
+		return false
+	var item: ItemData = world_item.get("item_data") as ItemData
+	if item == null:
+		return false
+	var runtime_copy: ItemData = _clone_item_data(item)
+	if runtime_copy == null:
+		return false
+	_network_pickup_pending[world_item_id] = true
+	_start_network_pickup_timeout(world_item_id)
+	if world_item.has_signal("network_pickup_result"):
+		var callback: Callable = Callable(self, "_on_network_pickup_result").bind(runtime_copy, world_item_id)
+		if not world_item.is_connected("network_pickup_result", callback):
+			world_item.connect("network_pickup_result", callback, CONNECT_ONE_SHOT)
+	world_item.rpc_id(1, "rpc_request_pickup_authorization", NetworkManager.get_local_peer_id())
+	return true
+
+
+func _on_network_pickup_result(accepted: bool, runtime_item: ItemData, world_item_id: int) -> void:
+	_network_pickup_pending.erase(world_item_id)
+	if not accepted:
+		_notify_local_pickup_status("Подбор отклонен", Color(1.0, 0.55, 0.4, 1.0))
+		return
+	if runtime_item == null:
+		return
+	_store_world_item_data(runtime_item, null)
+	refresh_ui()
+	_notify_local_pickup_status("Предмет подобран", Color(0.45, 0.95, 0.65, 1.0))
+
+
+func _store_world_item_data(item: ItemData, world_item: Node) -> bool:
+	if item == null:
+		return false
+
 	if item.is_ammo_item:
 		_try_apply_picked_ammo_to_weapon_reserve(item)
 		if item.stack_count <= 0:
-			if world_item.has_method("remove_from_world"):
-				world_item.remove_from_world()
-			else:
-				world_item.queue_free()
-			refresh_ui()
 			return true
 
 	var equip_slot_type: int = -1
@@ -1723,29 +1809,195 @@ func _pickup_world_item(world_item: Node) -> bool:
 		var equipped_item: ItemData = InventoryManager.get_equipped(equip_slot_type)
 		var moved_to_equip_slot: int = _stack_items(equipped_item, item)
 		if item.stack_count <= 0:
-			if world_item.has_method("remove_from_world"):
-				world_item.remove_from_world()
-			else:
-				world_item.queue_free()
-			refresh_ui()
 			return true
 		if moved_to_equip_slot > 0:
-			refresh_ui()
 			return true
 
-		_replace_equipped_item_from_world(equip_slot_type, world_item, item)
-		refresh_ui()
-		return true
-
-	if _try_store_picked_item(item):
-		if world_item.has_method("remove_from_world"):
-			world_item.remove_from_world()
+		if world_item != null:
+			_replace_equipped_item_from_world(equip_slot_type, world_item, item)
 		else:
-			world_item.queue_free()
-		refresh_ui()
+			var old_item: ItemData = InventoryManager.get_equipped(equip_slot_type)
+			if old_item != null:
+				_spawn_world_item(old_item)
+			InventoryManager.set_equipped(equip_slot_type, item)
 		return true
 
-	return false
+	return _try_store_picked_item(item)
+
+
+func _start_network_pickup_timeout(world_item_id: int) -> void:
+	_network_pickup_timeout_impl(world_item_id)
+
+
+func _network_pickup_timeout_impl(world_item_id: int) -> void:
+	await get_tree().create_timer(NETWORK_PICKUP_TIMEOUT_SEC).timeout
+	if not _network_pickup_pending.has(world_item_id):
+		return
+	_network_pickup_pending.erase(world_item_id)
+	_notify_local_pickup_status("Таймаут подбора", Color(1.0, 0.55, 0.4, 1.0))
+
+
+func _notify_local_pickup_status(text: String, color: Color) -> void:
+	var player_node: Node = get_tree().get_first_node_in_group("player")
+	if player_node == null:
+		return
+	if player_node.has_method("_enqueue_status_hint"):
+		player_node.call("_enqueue_status_hint", text, color)
+
+
+func _is_network_client_inventory_mutation_blocked() -> bool:
+	return multiplayer != null and multiplayer.multiplayer_peer != null and NetworkManager != null and not NetworkManager.is_server()
+
+
+func _block_network_inventory_action(action_name: String) -> void:
+	_notify_local_pickup_status("%s только через сервер" % action_name, Color(1.0, 0.55, 0.4, 1.0))
+
+
+func _on_consume_food_server_approved() -> void:
+	_network_inventory_action_bypass = true
+	_consume_selected_food()
+	_network_inventory_action_bypass = false
+
+
+func _on_finish_consume_food_server_approved() -> void:
+	_network_inventory_action_bypass = true
+	_finish_consume_selected_food()
+	_network_inventory_action_bypass = false
+
+
+func _on_use_medical_server_approved() -> void:
+	_network_inventory_action_bypass = true
+	_use_selected_medical()
+	_network_inventory_action_bypass = false
+
+
+func _on_finish_use_medical_server_approved() -> void:
+	_network_inventory_action_bypass = true
+	_finish_use_selected_medical()
+	_network_inventory_action_bypass = false
+
+
+func _on_equip_ammo_server_approved() -> void:
+	_network_inventory_action_bypass = true
+	_equip_selected_ammo()
+	_network_inventory_action_bypass = false
+
+
+func _request_server_inventory_action(action_name: String, payload: Dictionary, on_approved: Callable) -> void:
+	if NetworkManager == null:
+		_block_network_inventory_action(action_name)
+		return
+	var request_id: int = _network_inventory_action_next_request_id
+	_network_inventory_action_next_request_id += 1
+	_network_inventory_action_pending[request_id] = {
+		"action": action_name,
+		"callback": on_approved
+	}
+	_start_network_inventory_action_timeout(request_id, action_name)
+	rpc_id(1, "rpc_request_inventory_action", action_name, payload, request_id, NetworkManager.get_local_peer_id())
+
+
+func _build_slot_payload(slot: InventorySlot) -> Dictionary:
+	if slot == null:
+		return {}
+	return {
+		"slot_mode": slot.slot_mode,
+		"slot_type": slot.slot_type,
+		"container_index": slot.container_index
+	}
+
+
+func _build_pending_medical_payload() -> Dictionary:
+	return {
+		"slot_mode": pending_medical_mode,
+		"slot_type": pending_medical_slot_type,
+		"container_index": pending_medical_container_index
+	}
+
+
+func _start_network_inventory_action_timeout(request_id: int, action_name: String) -> void:
+	_network_inventory_action_timeout_impl(request_id, action_name)
+
+
+func _network_inventory_action_timeout_impl(request_id: int, action_name: String) -> void:
+	await get_tree().create_timer(NETWORK_INVENTORY_ACTION_TIMEOUT_SEC).timeout
+	if not _network_inventory_action_pending.has(request_id):
+		return
+	_network_inventory_action_pending.erase(request_id)
+	_notify_local_pickup_status("%s: таймаут" % action_name, Color(1.0, 0.55, 0.4, 1.0))
+
+
+@rpc("any_peer", "reliable")
+func rpc_request_inventory_action(action_name: String, _payload: Dictionary, request_id: int, requester_peer_id: int) -> void:
+	if NetworkManager == null or not NetworkManager.is_server():
+		return
+	if request_id <= 0:
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	if sender_id != requester_peer_id:
+		return
+	var approved: bool = _is_server_inventory_action_authorized(sender_id, action_name, _payload)
+	rpc_id(sender_id, "rpc_inventory_action_result", request_id, action_name, approved)
+
+
+func _is_server_inventory_action_authorized(sender_id: int, action_name: String, payload: Dictionary) -> bool:
+	var action_key: StringName = StringName(action_name)
+	if not (action_key in NETWORK_ALLOWED_INVENTORY_ACTIONS):
+		return false
+	if not _is_server_inventory_action_rate_limited(sender_id, action_key):
+		return false
+	if action_key == &"craft":
+		var recipe_index: int = int(payload.get("recipe_index", -1))
+		if recipe_index < 0 or recipe_index >= craft_recipes.size():
+			return false
+		return true
+	return _is_server_inventory_slot_payload_valid(payload)
+
+
+func _is_server_inventory_action_rate_limited(sender_id: int, action_name: StringName) -> bool:
+	var now_ms: int = Time.get_ticks_msec()
+	var action_history: Dictionary = _network_server_last_inventory_action_ms_by_peer.get(sender_id, {})
+	var last_ms: int = int(action_history.get(action_name, -1))
+	var min_interval_ms: int = NETWORK_INVENTORY_ACTION_CRAFT_MIN_INTERVAL_MS if action_name == &"craft" else NETWORK_INVENTORY_ACTION_MIN_INTERVAL_MS
+	if last_ms >= 0 and now_ms - last_ms < min_interval_ms:
+		return false
+	action_history[action_name] = now_ms
+	_network_server_last_inventory_action_ms_by_peer[sender_id] = action_history
+	return true
+
+
+func _is_server_inventory_slot_payload_valid(payload: Dictionary) -> bool:
+	var has_slot_mode: bool = payload.has("slot_mode")
+	var has_slot_type: bool = payload.has("slot_type")
+	var has_container_index: bool = payload.has("container_index")
+	if not has_slot_mode or not has_slot_type or not has_container_index:
+		return false
+	var slot_mode: int = int(payload.get("slot_mode", -1))
+	var slot_type: int = int(payload.get("slot_type", -1))
+	var container_index: int = int(payload.get("container_index", -9999))
+	if slot_mode != InventorySlot.SlotMode.EQUIPMENT and slot_mode != InventorySlot.SlotMode.CONTAINER:
+		return false
+	if slot_mode == InventorySlot.SlotMode.EQUIPMENT:
+		return slot_type >= 0
+	return container_index >= 0
+
+
+@rpc("any_peer", "reliable")
+func rpc_inventory_action_result(request_id: int, action_name: String, approved: bool) -> void:
+	if NetworkManager != null and not NetworkManager.is_server():
+		var sender_id: int = multiplayer.get_remote_sender_id()
+		if sender_id != 1:
+			return
+	if not _network_inventory_action_pending.has(request_id):
+		return
+	var pending: Dictionary = _network_inventory_action_pending[request_id]
+	_network_inventory_action_pending.erase(request_id)
+	if not approved:
+		_notify_local_pickup_status("%s отклонено" % action_name, Color(1.0, 0.55, 0.4, 1.0))
+		return
+	var callback: Callable = pending.get("callback", Callable())
+	if callback.is_valid():
+		callback.call()
 
 
 func _try_apply_picked_ammo_to_weapon_reserve(ammo_item: ItemData) -> int:
@@ -2522,6 +2774,9 @@ func _hide_action_buttons() -> void:
 
 
 func _consume_selected_food() -> void:
+	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
+		_request_server_inventory_action("consume_food", _build_slot_payload(consume_slot), Callable(self, "_on_consume_food_server_approved"))
+		return
 	if consume_slot == null or consume_slot.item_data == null:
 		_hide_action_buttons()
 		return
@@ -2536,6 +2791,9 @@ func _consume_selected_food() -> void:
 
 
 func _finish_consume_selected_food() -> void:
+	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
+		_request_server_inventory_action("consume_food_finish", _build_slot_payload(consume_slot), Callable(self, "_on_finish_consume_food_server_approved"))
+		return
 	if consume_slot == null or consume_slot.item_data == null:
 		_hide_action_buttons()
 		return
@@ -2567,6 +2825,9 @@ func _finish_consume_selected_food() -> void:
 
 
 func _use_selected_medical() -> void:
+	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
+		_request_server_inventory_action("use_medical", _build_slot_payload(use_medical_slot), Callable(self, "_on_use_medical_server_approved"))
+		return
 	if use_medical_slot == null or use_medical_slot.item_data == null:
 		_clear_pending_medical_context()
 		_hide_action_buttons()
@@ -2589,6 +2850,9 @@ func _use_selected_medical() -> void:
 
 
 func _finish_use_selected_medical() -> void:
+	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
+		_request_server_inventory_action("finish_use_medical", _build_pending_medical_payload(), Callable(self, "_on_finish_use_medical_server_approved"))
+		return
 	if pending_medical_item == null:
 		_clear_pending_medical_context()
 		_hide_action_buttons()
@@ -2664,6 +2928,9 @@ func _clear_pending_medical_context() -> void:
 
 
 func _equip_selected_ammo() -> void:
+	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
+		_request_server_inventory_action("equip_ammo", _build_slot_payload(equip_ammo_slot), Callable(self, "_on_equip_ammo_server_approved"))
+		return
 	if equip_ammo_slot == null or equip_ammo_slot.item_data == null:
 		_hide_action_buttons()
 		return

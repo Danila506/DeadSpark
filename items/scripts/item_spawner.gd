@@ -90,6 +90,8 @@ const STARTER_NEAR_PLAYER_ITEMS: Array[ItemData] = [
 
 var rng := RandomNumberGenerator.new()
 var _spawn_all_completed: bool = false
+var _world_items_spawned: bool = false
+var _starter_items_spawned: bool = false
 
 func _ready() -> void:
 	rng.randomize()
@@ -97,6 +99,8 @@ func _ready() -> void:
 	_ensure_craft_test_items()
 	_ensure_new_craft_material_items()
 	_ensure_guaranteed_weapon_items()
+	if not _can_spawn_on_this_peer():
+		return
 	if spawn_all_possible_items_near_player:
 		call_deferred("_spawn_all_possible_items_near_player", 0)
 	else:
@@ -104,8 +108,13 @@ func _ready() -> void:
 
 
 func spawn_starter_items_near_player_if_enabled() -> void:
+	if not _can_spawn_on_this_peer():
+		return
 	if not spawn_starter_items_near_player:
 		return
+	if _starter_items_spawned:
+		return
+	_starter_items_spawned = true
 	_spawn_starter_items_near_player(0)
 
 
@@ -154,6 +163,9 @@ func _append_if_missing(item: ItemData) -> void:
 	possible_items.append(item)
 	
 func spawn_items() -> void:
+	if _world_items_spawned:
+		return
+	_world_items_spawned = true
 	if pickup_scene == null:
 		push_warning("ItemSpawner: pickup_scene is not assigned")
 		return
@@ -186,6 +198,12 @@ func spawn_items() -> void:
 		if item_data == null:
 			continue
 		_spawn_pickup(item_data, point.global_position)
+
+
+func _can_spawn_on_this_peer() -> bool:
+	if multiplayer == null or multiplayer.multiplayer_peer == null:
+		return true
+	return multiplayer.is_server()
 
 
 func _spawn_all_possible_items_near_player(attempt: int = 0) -> void:

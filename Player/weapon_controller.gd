@@ -88,6 +88,7 @@ var mobile_shoot_just_pressed: bool = false
 var previous_aim_target_position: Vector2 = Vector2.ZERO
 var base_camera_zoom: Vector2 = Vector2(2.0, 2.0)
 var base_camera_position: Vector2 = Vector2.ZERO
+var _network_shot_seq: int = 0
 var noise_controller
 var reload_controller
 var shooting_controller
@@ -700,6 +701,79 @@ func _sync_reload_state_from_controller() -> void:
 	is_reloading = reload_controller.is_reloading
 	reload_timer = reload_controller.reload_timer
 	reload_uses_action_bar = reload_controller.reload_uses_action_bar
+
+
+func is_networked_game() -> bool:
+	return player != null and player.multiplayer != null and player.multiplayer.multiplayer_peer != null
+
+
+func is_server_network_instance() -> bool:
+	return is_networked_game() and NetworkManager != null and NetworkManager.is_server()
+
+
+func is_local_network_player() -> bool:
+	if player != null and player.has_method("_is_local_network_player"):
+		return bool(player.call("_is_local_network_player"))
+	return false
+
+
+func request_network_shot() -> void:
+	if not is_networked_game():
+		return
+	if not is_local_network_player():
+		return
+	if current_weapon == null:
+		return
+	var muzzle: Marker2D = _get_current_muzzle()
+	var from_pos: Vector2 = player.global_position
+	if muzzle != null:
+		from_pos = muzzle.global_position
+	var aim_direction: Vector2 = _get_direction_to_aim_target(from_pos)
+	if aim_direction == Vector2.ZERO:
+		aim_direction = Vector2.DOWN
+	if is_server_network_instance():
+		if shooting_controller != null:
+			shooting_controller.shoot(aim_direction, true)
+		return
+	rpc_id(1, "rpc_request_network_shot", aim_direction, _network_shot_seq)
+	_network_shot_seq += 1
+	shoot_cooldown = max(shoot_cooldown, current_weapon.fire_delay * 0.5)
+
+
+@rpc("any_peer", "reliable")
+func rpc_request_network_shot(aim_direction: Vector2, request_seq: int) -> void:
+	if not is_server_network_instance():
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	var expected_peer_id: int = int(player.get("peer_id")) if player != null else 0
+	if sender_id != expected_peer_id:
+		return
+	if shooting_controller == null:
+		return
+	var normalized_direction: Vector2 = aim_direction.normalized()
+	if normalized_direction == Vector2.ZERO:
+		normalized_direction = Vector2.DOWN
+	var shot_accepted: bool = bool(shooting_controller.shoot(normalized_direction, true))
+	var ammo_in_mag: int = _get_ammo_in_mag()
+	var reserve_ammo: int = _get_reserve_ammo()
+	rpc_id(sender_id, "rpc_confirm_network_shot", request_seq, shot_accepted, ammo_in_mag, reserve_ammo, shoot_cooldown)
+
+
+@rpc("any_peer", "reliable")
+func rpc_confirm_network_shot(_request_seq: int, accepted: bool, ammo_in_mag: int, reserve_ammo: int, cooldown_sec: float) -> void:
+	if is_server_network_instance():
+		return
+	if is_networked_game():
+		var sender_id: int = multiplayer.get_remote_sender_id()
+		if sender_id != 1:
+			return
+	if not is_local_network_player():
+		return
+	if accepted:
+		_set_ammo_state(ammo_in_mag, reserve_ammo)
+		shoot_cooldown = max(cooldown_sec, 0.0)
+	else:
+		shoot_cooldown = min(shoot_cooldown, 0.05)
 
 
 func _get_ammo_in_mag() -> int:

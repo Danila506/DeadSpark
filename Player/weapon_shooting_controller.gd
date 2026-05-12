@@ -32,16 +32,19 @@ func try_shoot() -> void:
 		return
 
 	if should_fire_now():
-		shoot()
+		if controller.is_networked_game():
+			controller.request_network_shot()
+			return
+		shoot(Vector2.ZERO, true)
 
 
-func shoot() -> void:
+func shoot(base_direction: Vector2 = Vector2.ZERO, apply_ammo_and_durability: bool = true) -> bool:
 	if controller.current_weapon == null:
-		return
+		return false
 
 	var ammo_in_mag: int = controller._get_ammo_in_mag()
 	if ammo_in_mag <= 0:
-		return
+		return false
 
 	controller.shoot_cooldown = controller.current_weapon.fire_delay
 
@@ -52,22 +55,24 @@ func shoot() -> void:
 	else:
 		spawn_pos = controller.player.global_position
 
-	spawn_projectiles(spawn_pos)
+	spawn_projectiles(spawn_pos, base_direction)
 	play_shot_sfx()
 
-	var updated_ammo_in_mag: int = ammo_in_mag - 1
-	var reserve_ammo: int = controller._get_reserve_ammo()
-	controller._set_ammo_state(updated_ammo_in_mag, reserve_ammo)
-	var active_weapon_slot: int = InventoryManager.get_active_weapon_slot()
-	var weapon_broken: bool = InventoryManager.apply_endurance_percent_loss_to_equipped(
-		active_weapon_slot,
-		controller.current_weapon.weapon_endurance_loss_percent_per_shot
-	)
-	if weapon_broken:
-		if controller.has_method("_cancel_reload"):
-			controller._cancel_reload()
-		return
+	if apply_ammo_and_durability:
+		var updated_ammo_in_mag: int = ammo_in_mag - 1
+		var reserve_ammo: int = controller._get_reserve_ammo()
+		controller._set_ammo_state(updated_ammo_in_mag, reserve_ammo)
+		var active_weapon_slot: int = InventoryManager.get_active_weapon_slot()
+		var weapon_broken: bool = InventoryManager.apply_endurance_percent_loss_to_equipped(
+			active_weapon_slot,
+			controller.current_weapon.weapon_endurance_loss_percent_per_shot
+		)
+		if weapon_broken:
+			if controller.has_method("_cancel_reload"):
+				controller._cancel_reload()
+			return true
 	emit_player_shot_noise()
+	return true
 
 
 func setup_shoot_sfx() -> void:
@@ -158,7 +163,7 @@ func should_fire_now() -> bool:
 	return Input.is_action_pressed("shoot")
 
 
-func spawn_projectiles(spawn_pos: Vector2) -> void:
+func spawn_projectiles(spawn_pos: Vector2, base_direction_override: Vector2 = Vector2.ZERO) -> void:
 	if controller.current_weapon == null:
 		return
 
@@ -179,7 +184,10 @@ func spawn_projectiles(spawn_pos: Vector2) -> void:
 		if bullet.get_parent() == null:
 			spawn_root.add_child(bullet)
 
-		var shoot_dir: Vector2 = get_pellet_direction(controller._get_direction_to_aim_target(spawn_pos))
+		var base_direction: Vector2 = base_direction_override
+		if base_direction == Vector2.ZERO:
+			base_direction = controller._get_direction_to_aim_target(spawn_pos)
+		var shoot_dir: Vector2 = get_pellet_direction(base_direction)
 		var bullet_distance: float = get_pellet_distance()
 
 		if bullet is Node2D:

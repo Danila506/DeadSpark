@@ -154,6 +154,9 @@ func _resolve_damage_target_from_area(area: Area2D) -> Node:
 func _apply_damage_to_target(target: Node, hit_context: Dictionary) -> void:
 	if target == null:
 		return
+	if multiplayer != null and multiplayer.multiplayer_peer != null:
+		if NetworkManager != null and not NetworkManager.is_server():
+			return
 	if _is_friendly_target(target):
 		return
 	if target.has_method("take_damage_from"):
