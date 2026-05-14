@@ -5,3 +5,6 @@
 
 [node name="Level" unique_id=1484262535 instance=ExtResource("1")]
 script = ExtResource("2")
+
+[node name="NetworkPlayerSpawner" type="MultiplayerSpawner" parent="."]
+spawn_path = NodePath("../Y-Sort_Objects")

@@ -169,6 +169,22 @@ func _exit_tree() -> void:
 	_release_loaded_spawn_reservations()
 
 
+func disable_generation_runtime() -> void:
+	enabled = false
+	set_process(false)
+	var scheduler := _get_generation_scheduler()
+	if scheduler != null and scheduler.has_method("cancel_owner_tasks"):
+		scheduler.call("cancel_owner_tasks", self)
+	_cancel_active_spawn_job()
+	_release_loaded_spawn_reservations()
+	_pending_load_chunks.clear()
+	_pending_unload_chunks.clear()
+	_scheduled_spawn_chunks.clear()
+	_scheduled_unload_chunks.clear()
+	_loaded_chunks.clear()
+	_required_chunks.clear()
+
+
 func _apply_config(cfg: ChunkTreeSpawnerConfig) -> void:
 	enabled = cfg.enabled
 	spawner_id = cfg.spawner_id
@@ -257,6 +273,10 @@ func _init_world_bounds() -> void:
 
 
 func _update_visible_chunks(force: bool) -> void:
+	if _player == null or not is_instance_valid(_player):
+		_player = get_node_or_null(player_path) as Node2D
+		if _player == null:
+			return
 	var center_chunk := _world_to_chunk(_player.global_position)
 	var has_pending_work := not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty()
 	if not force and center_chunk == _last_center_chunk and not has_pending_work:
@@ -745,8 +765,8 @@ func _cancel_active_spawn_job() -> void:
 	_scheduled_spawn_chunks.erase(chunk)
 	var nodes: Array = _active_spawn_job.get("nodes", [])
 	for item in nodes:
-		var node := item as Node
-		if node == null or not is_instance_valid(node):
+		var node: Node = _as_valid_generated_node(item)
+		if node == null:
 			continue
 		if node is Node2D:
 			_unregister_spawn_position((node as Node2D).global_position)
@@ -759,8 +779,8 @@ func _release_loaded_spawn_reservations() -> void:
 	for chunk_key in _spawned_trees_by_chunk.keys():
 		var nodes := _spawned_trees_by_chunk[chunk_key] as Array
 		for item in nodes:
-			var node := item as Node
-			if node == null or not is_instance_valid(node):
+			var node: Node = _as_valid_generated_node(item)
+			if node == null:
 				continue
 			if node is Node2D:
 				_unregister_spawn_position((node as Node2D).global_position)
@@ -768,6 +788,14 @@ func _release_loaded_spawn_reservations() -> void:
 	_spawned_trees_by_chunk.clear()
 	_spawn_positions_by_chunk.clear()
 	_spawn_position_grid.clear()
+
+
+func _as_valid_generated_node(item: Variant) -> Node:
+	if item == null:
+		return null
+	if not is_instance_valid(item):
+		return null
+	return item as Node
 
 
 func _spawn_tree_at_cell(
@@ -864,14 +892,15 @@ func _unload_chunk_trees(chunk: Vector2i) -> void:
 		return
 	var nodes := _spawned_trees_by_chunk[chunk] as Array
 	for item in nodes:
-		var n := item as Node
-		if n != null and is_instance_valid(n):
-			if n is Node2D:
-				_unregister_spawn_position((n as Node2D).global_position)
-			_record_generated_object_state(n)
-			_release_global_reservation_for_node(n)
-			n.queue_free()
-			stats["nodes_freed"] = int(stats["nodes_freed"]) + 1
+		var node: Node = _as_valid_generated_node(item)
+		if node == null:
+			continue
+		if node is Node2D:
+			_unregister_spawn_position((node as Node2D).global_position)
+		_record_generated_object_state(node)
+		_release_global_reservation_for_node(node)
+		node.queue_free()
+		stats["nodes_freed"] = int(stats["nodes_freed"]) + 1
 	_spawned_trees_by_chunk.erase(chunk)
 	_spawn_positions_by_chunk.erase(chunk)
 	_last_chunk_profile_stats = stats
@@ -1361,8 +1390,8 @@ func _revalidate_spawn_chunk(chunk: Vector2i) -> void:
 	var valid_nodes: Array[Node2D] = []
 	var valid_positions: Array[Vector2] = []
 	for item in nodes:
-		var node := item as Node2D
-		if node == null or not is_instance_valid(node):
+		var node := _as_valid_generated_node(item) as Node2D
+		if node == null:
 			continue
 		if not _is_allowed_by_biome_layers(node.global_position):
 			_unregister_spawn_position(node.global_position)
@@ -1516,6 +1545,13 @@ func _release_global_reservation_for_node(node: Node) -> void:
 
 
 func _initialize_update_phase_offsets() -> void:
+	if multiplayer != null and multiplayer.multiplayer_peer != null:
+		# In multiplayer all peers must execute world generation updates in the same phase.
+		# Per-instance phase offsets produce divergent chunk/spawn processing order.
+		_update_timer = 0.0
+		_revalidate_timer = 0.0
+		return
+
 	var update_interval := maxf(update_interval_sec, 0.001)
 	var revalidate_interval := maxf(revalidate_interval_sec, 0.001)
 	_update_timer = _compute_phase_offset(update_interval, 173)
@@ -1523,7 +1559,8 @@ func _initialize_update_phase_offsets() -> void:
 
 
 func _compute_phase_offset(interval_sec: float, salt: int) -> float:
-	var stable_hash := int(get_instance_id()) ^ (world_seed * 1103515245) ^ salt
+	var stable_key := "%s|%s|%d|%d" % [_get_spawner_identity(), str(get_path()), world_seed, salt]
+	var stable_hash := hash(stable_key)
 	if stable_hash < 0:
 		stable_hash = -stable_hash
 	var normalized := float(stable_hash % 10000) / 10000.0
@@ -1678,8 +1715,8 @@ func _collect_spawn_scene_counts() -> Dictionary:
 	for chunk_key in _spawned_trees_by_chunk.keys():
 		var nodes := _spawned_trees_by_chunk[chunk_key] as Array
 		for item in nodes:
-			var node := item as Node
-			if node == null or not is_instance_valid(node):
+			var node: Node = _as_valid_generated_node(item)
+			if node == null:
 				continue
 			var scene_path := str(node.get_meta("world_generation_scene_path", ""))
 			if scene_path.is_empty():

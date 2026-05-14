@@ -1582,7 +1582,7 @@ func pickup_first_nearby_item() -> bool:
 	var world_item: Node = _get_closest_nearby_item()
 	if world_item == null or not is_instance_valid(world_item):
 		return false
-	if multiplayer != null and multiplayer.multiplayer_peer != null and NetworkManager != null and not NetworkManager.is_server():
+	if multiplayer != null and multiplayer.multiplayer_peer != null and NetworkManager != null:
 		return _request_network_pickup(world_item)
 
 	return _pickup_world_item(world_item)
@@ -1650,11 +1650,11 @@ func _drop_dragged_item_to_world(data: Dictionary) -> void:
 			if source_slot == null:
 				return
 
-			var equipped_item: ItemData = InventoryManager.get_equipped(source_slot.slot_type)
+			var source_item: ItemData = source_slot.item_data
+			var equipped_item: ItemData = _extract_equipped_item_for_world_drop(source_item, source_slot.slot_type)
 			if equipped_item == null:
 				return
 
-			InventoryManager.set_equipped(source_slot.slot_type, null)
 			_spawn_world_item(equipped_item)
 
 		InventorySlot.SlotMode.CONTAINER:
@@ -1674,6 +1674,64 @@ func _drop_dragged_item_to_world(data: Dictionary) -> void:
 
 			source_provider.runtime_storage_items[source_slot_index] = null
 			_spawn_world_item(stored_item)
+
+
+func _extract_equipped_item_for_world_drop(source_item: ItemData, preferred_slot_type: int) -> ItemData:
+	if source_item == null:
+		return null
+	var source_runtime_id: String = _get_runtime_item_id(source_item)
+	var extracted: ItemData = null
+
+	if preferred_slot_type >= 0:
+		var preferred_item: ItemData = InventoryManager.get_equipped(preferred_slot_type)
+		if preferred_item != null and _is_same_runtime_item(preferred_item, source_item, source_runtime_id):
+			extracted = preferred_item
+			InventoryManager.set_equipped(preferred_slot_type, null)
+
+	for slot_type in _get_all_equipment_slot_types():
+		var equipped_item: ItemData = InventoryManager.get_equipped(slot_type)
+		if equipped_item == null:
+			continue
+		if not _is_same_runtime_item(equipped_item, source_item, source_runtime_id):
+			continue
+		if extracted == null:
+			extracted = equipped_item
+		InventoryManager.set_equipped(slot_type, null)
+
+	return extracted
+
+
+func _get_all_equipment_slot_types() -> Array[int]:
+	return [
+		ItemData.ItemType.AR_Weapon,
+		ItemData.ItemType.Pistols,
+		ItemData.ItemType.MeleeWeapon,
+		ItemData.ItemType.Lefthand,
+		ItemData.ItemType.T_shirts,
+		ItemData.ItemType.Jacket,
+		ItemData.ItemType.HeavyArmour,
+		ItemData.ItemType.Trousers,
+		ItemData.ItemType.Bag,
+		ItemData.ItemType.Cap
+	]
+
+
+func _is_same_runtime_item(candidate: ItemData, reference: ItemData, reference_runtime_id: String) -> bool:
+	if candidate == null or reference == null:
+		return false
+	if candidate == reference:
+		return true
+	if reference_runtime_id.is_empty():
+		return false
+	return _get_runtime_item_id(candidate) == reference_runtime_id
+
+
+func _get_runtime_item_id(item: ItemData) -> String:
+	if item == null:
+		return ""
+	if item.has_method("get_runtime_id"):
+		return String(item.call("get_runtime_id"))
+	return ""
 
 
 func _spawn_world_item(item: ItemData) -> bool:
@@ -1777,7 +1835,14 @@ func _request_network_pickup(world_item: Node) -> bool:
 		var callback: Callable = Callable(self, "_on_network_pickup_result").bind(runtime_copy, world_item_id)
 		if not world_item.is_connected("network_pickup_result", callback):
 			world_item.connect("network_pickup_result", callback, CONNECT_ONE_SHOT)
-	world_item.rpc_id(1, "rpc_request_pickup_authorization", NetworkManager.get_local_peer_id())
+	var local_peer_id: int = NetworkManager.get_local_peer_id()
+	if NetworkManager.is_server():
+		if world_item.has_method("authorize_pickup_locally"):
+			world_item.call("authorize_pickup_locally", local_peer_id)
+		else:
+			world_item.rpc_id(1, "rpc_request_pickup_authorization", local_peer_id)
+	else:
+		world_item.rpc_id(1, "rpc_request_pickup_authorization", local_peer_id)
 	return true
 
 
@@ -1788,7 +1853,12 @@ func _on_network_pickup_result(accepted: bool, runtime_item: ItemData, world_ite
 		return
 	if runtime_item == null:
 		return
-	_store_world_item_data(runtime_item, null)
+	var stored: bool = _store_world_item_data(runtime_item, null)
+	if not stored:
+		_spawn_world_item(runtime_item)
+		_notify_local_pickup_status("Нет места: предмет сброшен рядом", Color(1.0, 0.8, 0.45, 1.0))
+		refresh_ui()
+		return
 	refresh_ui()
 	_notify_local_pickup_status("Предмет подобран", Color(0.45, 0.95, 0.65, 1.0))
 
@@ -1811,7 +1881,11 @@ func _store_world_item_data(item: ItemData, world_item: Node) -> bool:
 		if item.stack_count <= 0:
 			return true
 		if moved_to_equip_slot > 0:
-			return true
+			if _try_store_item_in_first_free_container(item):
+				return true
+			if item.stack_count <= 0:
+				return true
+			return false
 
 		if world_item != null:
 			_replace_equipped_item_from_world(equip_slot_type, world_item, item)
@@ -2059,7 +2133,11 @@ func _try_store_picked_item(item: ItemData) -> bool:
 		if item.stack_count <= 0:
 			return true
 		if moved_to_left_hand > 0:
-			return true
+			if _try_store_item_in_first_free_container(item):
+				return true
+			if item.stack_count <= 0:
+				return true
+			return false
 		if old_left_hand == null:
 			InventoryManager.set_equipped(ItemData.ItemType.Lefthand, item)
 			return true

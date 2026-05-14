@@ -45,6 +45,7 @@ var _stealth_enabled: bool = false
 
 func _ready() -> void:
 	layer = 80
+	add_to_group("mobile_controls")
 	_resolve_targets()
 	if not _bind_layout():
 		_build_layout()
@@ -970,3 +971,7 @@ func _get_weapon_controller() -> Node:
 	if _player == null or not is_instance_valid(_player):
 		return null
 	return _player.get_node_or_null("WeaponController")
+
+
+func get_move_input_vector() -> Vector2:
+	return _move_vector

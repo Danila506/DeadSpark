@@ -2526,6 +2526,9 @@ metadata/_aseprite_wizard_config_ = {
 script = ExtResource("3_vtle1")
 melee_blood_sprite_frames = ExtResource("4_7emwf")
 
+[node name="EquipmentSynchronizer" type="MultiplayerSynchronizer" parent="."]
+root_path = NodePath("..")
+
 [node name="T_ShirtSpite" type="AnimatedSprite2D" parent="." unique_id=1223326312]
 z_index = 1
 sprite_frames = SubResource("SpriteFrames_gpjlu")

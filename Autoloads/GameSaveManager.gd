@@ -561,4 +561,10 @@ func _is_multiplayer_context(scene_root: Node) -> bool:
 		return false
 	if scene_root.scene_file_path == NETWORK_WORLD_PATH:
 		return true
-	return get_tree() != null and get_tree().multiplayer != null and get_tree().multiplayer.multiplayer_peer != null
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return false
+	var scene_multiplayer: MultiplayerAPI = scene_root.get_multiplayer()
+	if scene_multiplayer == null:
+		return false
+	return scene_multiplayer.multiplayer_peer != null

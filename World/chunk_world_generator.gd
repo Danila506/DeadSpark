@@ -208,6 +208,20 @@ func _exit_tree() -> void:
 		scheduler.call("cancel_owner_tasks", self)
 
 
+func disable_generation_runtime() -> void:
+	enabled = false
+	set_process(false)
+	var scheduler := _get_generation_scheduler()
+	if scheduler != null and scheduler.has_method("cancel_owner_tasks"):
+		scheduler.call("cancel_owner_tasks", self)
+	_pending_load_chunks.clear()
+	_pending_unload_chunks.clear()
+	_scheduled_load_chunks.clear()
+	_scheduled_unload_chunks.clear()
+	_loaded_chunks.clear()
+	_required_chunks.clear()
+
+
 func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
 	enabled = cfg.enabled
 	tile_map_path = cfg.tile_map_path
@@ -311,6 +325,10 @@ func _init_world_bounds() -> void:
 
 
 func _update_visible_chunks(force: bool) -> void:
+	if _player == null or not is_instance_valid(_player):
+		_player = get_node_or_null(player_path) as Node2D
+		if _player == null:
+			return
 	var player_cell := _tile_map.local_to_map(_tile_map.to_local(_player.global_position))
 	var center_chunk := _world_to_chunk(player_cell)
 	var has_pending_work := not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty()

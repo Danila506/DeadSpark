@@ -5,6 +5,7 @@ const DEFAULT_LEVEL_PATH: String = "res://level.tscn"
 const NETWORK_WORLD_PATH: String = "res://World/network_test_world.tscn"
 const DONATE_URL: String = "https://boosty.to/deadspark/donate"
 const LAN_CONNECT_TIMEOUT_SEC: float = 10.0
+const LAN_RECONNECT_DELAYS_SEC: Array[float] = [1.0, 2.0, 4.0]
 const SOUNDTRACK_STREAM_PATH: String = "res://Assets/AudioWaw/SoundTracks/DeadSparkMainTheme.wav"
 
 @onready var continue_button: Button = $CenterContainer/MenuPanel/VBox/Continue
@@ -21,7 +22,8 @@ const SOUNDTRACK_STREAM_PATH: String = "res://Assets/AudioWaw/SoundTracks/DeadSp
 @onready var found_hosts_select: OptionButton = $CenterContainer/LanPanel/VBoxLan/FoundHostsSelect
 
 var _is_connecting_lan: bool = false
-var _lan_reconnect_attempted: bool = false
+var _lan_reconnect_attempts: int = 0
+var _lan_connect_generation: int = 0
 var _lan_smoke_mode: String = ""
 var _lan_smoke_host: String = "127.0.0.1"
 var _lan_smoke_port: int = 2456
@@ -248,7 +250,7 @@ func _apply_debug_status_label() -> void:
 func _on_host_lan_pressed() -> void:
 	print("Host button pressed")
 	_is_connecting_lan = false
-	_lan_reconnect_attempted = false
+	_reset_lan_reconnect_state()
 	var port: int = _parse_port_or_default()
 	_set_lan_status("Starting LAN host on port %d..." % port)
 	var host_result: int = NetworkManager.host_lan_game(port)
@@ -266,21 +268,22 @@ func _on_join_lan_pressed() -> void:
 		return
 	var port: int = _parse_port_or_default()
 	_is_connecting_lan = true
-	_lan_reconnect_attempted = false
+	_reset_lan_reconnect_state()
+	_lan_connect_generation += 1
 	_set_lan_status("Connecting to %s:%d ..." % [ip, port])
 	var join_result: int = NetworkManager.join_lan_game(ip, port)
 	if join_result != OK:
 		_is_connecting_lan = false
 		_set_lan_status(_format_network_error("Join failed", join_result))
 		return
-	_watch_lan_connect_timeout(ip, port)
+	_watch_lan_connect_timeout(ip, port, _lan_connect_generation)
 
 
 func _on_back_to_menu_pressed() -> void:
 	if NetworkManager != null and NetworkManager.get_state() != NetworkManager.NetworkState.IDLE:
 		NetworkManager.reset_session_state(false)
 	_is_connecting_lan = false
-	_lan_reconnect_attempted = false
+	_reset_lan_reconnect_state()
 	_hide_lan_panel()
 	_set_lan_status("Status: idle")
 
@@ -312,14 +315,14 @@ func _parse_port_or_default() -> int:
 
 func _on_network_server_started() -> void:
 	_is_connecting_lan = false
-	_lan_reconnect_attempted = false
+	_reset_lan_reconnect_state()
 	_set_lan_status("LAN server started. Loading world...")
 	get_tree().change_scene_to_file.bind(NETWORK_WORLD_PATH).call_deferred()
 
 
 func _on_network_connected_to_server() -> void:
 	_is_connecting_lan = false
-	_lan_reconnect_attempted = false
+	_reset_lan_reconnect_state()
 	_set_lan_status("Connected to server. Loading world...")
 	get_tree().change_scene_to_file.bind(NETWORK_WORLD_PATH).call_deferred()
 
@@ -338,13 +341,13 @@ func _on_network_connection_rejected(reason: String) -> void:
 	_set_lan_status("Connection rejected: %s" % reason)
 
 
-func _watch_lan_connect_timeout(ip: String, port: int) -> void:
-	_connect_timeout_impl(ip, port)
+func _watch_lan_connect_timeout(ip: String, port: int, generation: int) -> void:
+	_connect_timeout_impl(ip, port, generation)
 
 
-func _connect_timeout_impl(ip: String, port: int) -> void:
+func _connect_timeout_impl(ip: String, port: int, generation: int) -> void:
 	await get_tree().create_timer(LAN_CONNECT_TIMEOUT_SEC).timeout
-	if not _is_connecting_lan:
+	if not _is_connecting_lan or generation != _lan_connect_generation:
 		return
 	print("Connection failed")
 	NetworkManager.disconnect_from_network()
@@ -357,17 +360,38 @@ func _connect_timeout_impl(ip: String, port: int) -> void:
 func _try_lan_reconnect() -> bool:
 	if not _is_connecting_lan:
 		return false
-	if _lan_reconnect_attempted:
+	if _lan_reconnect_attempts >= LAN_RECONNECT_DELAYS_SEC.size():
 		return false
 	if NetworkManager == null or not NetworkManager.can_reconnect_last_join():
 		return false
-	_lan_reconnect_attempted = true
-	_set_lan_status("Retrying LAN connection...")
+	_lan_reconnect_attempts += 1
+	var attempt: int = _lan_reconnect_attempts
+	var delay_sec: float = LAN_RECONNECT_DELAYS_SEC[attempt - 1]
+	var generation: int = _lan_connect_generation
+	_set_lan_status("Retrying LAN connection %d/%d in %.1fs..." % [attempt, LAN_RECONNECT_DELAYS_SEC.size(), delay_sec])
+	_lan_reconnect_after_delay(generation, attempt, delay_sec)
+	return true
+
+
+func _lan_reconnect_after_delay(generation: int, attempt: int, delay_sec: float) -> void:
+	await get_tree().create_timer(delay_sec).timeout
+	if not _is_connecting_lan or generation != _lan_connect_generation:
+		return
+	if NetworkManager == null or not NetworkManager.can_reconnect_last_join():
+		return
+	_set_lan_status("Retrying LAN connection %d/%d..." % [attempt, LAN_RECONNECT_DELAYS_SEC.size()])
 	var reconnect_result: int = NetworkManager.reconnect_last_join()
 	if reconnect_result != OK:
 		_set_lan_status(_format_network_error("Reconnect failed", reconnect_result))
-		return false
-	return true
+		if _try_lan_reconnect():
+			return
+		_is_connecting_lan = false
+		return
+	_watch_lan_connect_timeout(lan_ip_input.text.strip_edges(), _parse_port_or_default(), generation)
+
+
+func _reset_lan_reconnect_state() -> void:
+	_lan_reconnect_attempts = 0
 
 
 func _on_find_lan_host_pressed() -> void:

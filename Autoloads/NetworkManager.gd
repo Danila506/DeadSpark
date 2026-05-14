@@ -12,10 +12,26 @@ signal session_reset
 signal lan_host_discovered(ip: String, port: int, host_name: String)
 signal net_stats_updated(rtt_ms: float, packet_loss_percent: float)
 signal network_tick(tick_delta_sec: float, tick_id: int)
+signal host_migration_started(is_new_host: bool, port: int)
+signal host_migration_completed(is_new_host: bool)
+signal host_migration_failed(reason: String)
+signal peer_session_phase_changed(peer_id: int, phase: int)
 
 const DEFAULT_MAX_PLAYERS: int = 16
 const LAN_DISCOVERY_PORT: int = 24560
 const LAN_DISCOVERY_PROTOCOL_VERSION: int = 1
+enum NetProfile {
+	DESKTOP_LAN,
+	ANDROID_WIFI
+}
+@export var active_net_profile: int = NetProfile.DESKTOP_LAN
+@export_range(10, 60, 1) var tick_rate_hz_desktop: int = 30
+@export_range(8, 40, 1) var tick_rate_hz_android_wifi: int = 20
+@export_range(1, 12, 1) var tick_max_steps_per_frame_desktop: int = 5
+@export_range(1, 12, 1) var tick_max_steps_per_frame_android_wifi: int = 4
+@export_range(0.2, 3.0, 0.1) var ping_interval_sec_desktop: float = 1.0
+@export_range(0.2, 3.0, 0.1) var ping_interval_sec_android_wifi: float = 1.5
+@export var host_migration_enabled: bool = true
 
 enum NetworkState {
 	IDLE,
@@ -23,6 +39,15 @@ enum NetworkState {
 	JOINING,
 	IN_GAME,
 	DISCONNECTING
+}
+
+enum PeerSessionPhase {
+	UNKNOWN,
+	CONNECTED,
+	WORLD_LOADING,
+	WORLD_READY_CONFIRMED,
+	PLAYER_SPAWNED,
+	ACTIVE
 }
 
 var _peer: ENetMultiplayerPeer
@@ -43,6 +68,15 @@ var _ping_pending_send_ms: Dictionary = {}
 var _rtt_ms: float = -1.0
 var _packet_loss_percent: float = 0.0
 var _ready_world_peers: Dictionary = {}
+var _known_session_peer_ids: Dictionary = {}
+var _last_session_local_peer_id: int = 0
+var _host_migration_active: bool = false
+var _host_migration_is_new_host: bool = false
+var _host_migration_port: int = 2456
+var _host_migration_discovery_deadline_ms: int = 0
+var _host_migration_next_discovery_ms: int = 0
+var _peer_session_phase_by_peer: Dictionary = {}
+var _peer_session_phase_changed_ms_by_peer: Dictionary = {}
 
 const NET_STATS_PING_INTERVAL_SEC: float = 1.0
 const NET_STATS_PENDING_TIMEOUT_MS: int = 3500
@@ -52,9 +86,12 @@ const NETWORK_TICK_MAX_STEPS_PER_FRAME: int = 5
 var _network_tick_accum_sec: float = 0.0
 var _network_tick_id: int = 0
 var _network_tick_interval_sec: float = 1.0 / float(NETWORK_TICK_RATE_HZ)
+var _network_tick_max_steps_per_frame: int = NETWORK_TICK_MAX_STEPS_PER_FRAME
+var _net_stats_ping_interval_sec: float = NET_STATS_PING_INTERVAL_SEC
 
 func _ready() -> void:
 	print("Current platform / OS name: %s" % OS.get_name())
+	_apply_network_profile()
 	_ensure_network_signals_connected()
 	_start_discovery_listener()
 	set_process(true)
@@ -62,10 +99,25 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_poll_discovery_packets()
+	_poll_host_migration()
 	if _discovery_active and Time.get_ticks_msec() >= _discovery_deadline_ms:
 		_discovery_active = false
 	_emit_network_ticks(delta)
 	_update_net_stats(delta)
+
+
+func _apply_network_profile() -> void:
+	var profile: int = active_net_profile
+	if OS.has_feature("android") or OS.has_feature("mobile"):
+		profile = NetProfile.ANDROID_WIFI
+	if profile == NetProfile.ANDROID_WIFI:
+		_network_tick_interval_sec = 1.0 / float(maxi(tick_rate_hz_android_wifi, 1))
+		_network_tick_max_steps_per_frame = maxi(tick_max_steps_per_frame_android_wifi, 1)
+		_net_stats_ping_interval_sec = maxf(ping_interval_sec_android_wifi, 0.2)
+		return
+	_network_tick_interval_sec = 1.0 / float(maxi(tick_rate_hz_desktop, 1))
+	_network_tick_max_steps_per_frame = maxi(tick_max_steps_per_frame_desktop, 1)
+	_net_stats_ping_interval_sec = maxf(ping_interval_sec_desktop, 0.2)
 
 
 func _emit_network_ticks(delta: float) -> void:
@@ -73,12 +125,12 @@ func _emit_network_ticks(delta: float) -> void:
 		return
 	_network_tick_accum_sec += delta
 	var steps: int = 0
-	while _network_tick_accum_sec >= _network_tick_interval_sec and steps < NETWORK_TICK_MAX_STEPS_PER_FRAME:
+	while _network_tick_accum_sec >= _network_tick_interval_sec and steps < _network_tick_max_steps_per_frame:
 		_network_tick_accum_sec -= _network_tick_interval_sec
 		_network_tick_id += 1
 		network_tick.emit(_network_tick_interval_sec, _network_tick_id)
 		steps += 1
-	if steps >= NETWORK_TICK_MAX_STEPS_PER_FRAME:
+	if steps >= _network_tick_max_steps_per_frame:
 		_network_tick_accum_sec = minf(_network_tick_accum_sec, _network_tick_interval_sec)
 
 
@@ -102,6 +154,9 @@ func host_lan_game(port: int = 2456) -> int:
 
 	multiplayer.multiplayer_peer = _peer
 	_host_port = port
+	_known_session_peer_ids.clear()
+	_known_session_peer_ids[1] = true
+	_last_session_local_peer_id = 1
 	_ensure_network_signals_connected()
 	print("Local IP candidates: %s" % str(get_local_ipv4_candidates()))
 	print("LAN server started on port: %d" % port)
@@ -132,6 +187,8 @@ func join_lan_game(ip: String, port: int = 2456) -> int:
 		return result
 
 	multiplayer.multiplayer_peer = _peer
+	_known_session_peer_ids.clear()
+	_last_session_local_peer_id = 0
 	_ensure_network_signals_connected()
 	return OK
 
@@ -150,21 +207,29 @@ func reset_session_state(clear_last_join_target: bool = false) -> void:
 	if clear_last_join_target:
 		_last_join_ip = ""
 		_last_join_port = 2456
+	if not _host_migration_active:
+		_known_session_peer_ids.clear()
+		_peer_session_phase_by_peer.clear()
+		_peer_session_phase_changed_ms_by_peer.clear()
 	_reset_net_stats()
 	_set_state(NetworkState.IDLE)
 	session_reset.emit()
 
 
 func is_server() -> bool:
-	return multiplayer.multiplayer_peer != null and multiplayer.is_server()
+	if not _has_active_multiplayer_peer():
+		return false
+	return multiplayer.is_server()
 
 
 func is_client() -> bool:
-	return multiplayer.multiplayer_peer != null and not multiplayer.is_server()
+	if not _has_active_multiplayer_peer():
+		return false
+	return not multiplayer.is_server()
 
 
 func get_local_peer_id() -> int:
-	if multiplayer.multiplayer_peer == null:
+	if not _has_active_multiplayer_peer():
 		return 0
 	return multiplayer.get_unique_id()
 
@@ -186,6 +251,10 @@ func reconnect_last_join() -> int:
 		_last_error = "No previous join target"
 		return ERR_INVALID_PARAMETER
 	return join_lan_game(_last_join_ip, _last_join_port)
+
+
+func is_host_migration_active() -> bool:
+	return _host_migration_active
 
 
 func mark_peer_world_ready(peer_id: int) -> void:
@@ -214,6 +283,43 @@ func get_ready_client_peers() -> PackedInt32Array:
 		if is_peer_world_ready(peer_id):
 			result.append(peer_id)
 	return result
+
+
+func get_active_client_peers(min_active_age_ms: int = 250) -> PackedInt32Array:
+	var result: PackedInt32Array = []
+	if multiplayer == null or multiplayer.multiplayer_peer == null:
+		return result
+	var now_ms: int = Time.get_ticks_msec()
+	for peer_id in multiplayer.get_peers():
+		if not is_peer_world_ready(peer_id):
+			continue
+		if get_peer_session_phase(peer_id) != PeerSessionPhase.ACTIVE:
+			continue
+		var changed_ms: int = int(_peer_session_phase_changed_ms_by_peer.get(peer_id, now_ms))
+		if now_ms - changed_ms < max(min_active_age_ms, 0):
+			continue
+		result.append(peer_id)
+	return result
+
+
+func set_peer_session_phase(peer_id: int, phase: int) -> void:
+	if peer_id <= 0:
+		return
+	var previous: int = int(_peer_session_phase_by_peer.get(peer_id, PeerSessionPhase.UNKNOWN))
+	if previous == phase:
+		return
+	_peer_session_phase_by_peer[peer_id] = phase
+	_peer_session_phase_changed_ms_by_peer[peer_id] = Time.get_ticks_msec()
+	peer_session_phase_changed.emit(peer_id, phase)
+
+
+func get_peer_session_phase(peer_id: int) -> int:
+	return int(_peer_session_phase_by_peer.get(peer_id, PeerSessionPhase.UNKNOWN))
+
+
+func clear_peer_session_phase(peer_id: int) -> void:
+	_peer_session_phase_by_peer.erase(peer_id)
+	_peer_session_phase_changed_ms_by_peer.erase(peer_id)
 
 
 func reject_connection(reason: String) -> void:
@@ -380,19 +486,28 @@ func _ensure_network_signals_connected() -> void:
 
 func _on_peer_connected(peer_id: int) -> void:
 	print("Peer connected: %d" % peer_id)
+	_known_session_peer_ids[peer_id] = true
+	set_peer_session_phase(peer_id, PeerSessionPhase.CONNECTED)
 	peer_joined.emit(peer_id)
 
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	print("Peer disconnected: %d" % peer_id)
 	clear_peer_world_ready(peer_id)
+	clear_peer_session_phase(peer_id)
 	peer_left.emit(peer_id)
 
 
 func _on_connected_to_server() -> void:
 	print("Connected to server")
+	_known_session_peer_ids[1] = true
+	_last_session_local_peer_id = multiplayer.get_unique_id()
+	_known_session_peer_ids[_last_session_local_peer_id] = true
 	_set_state(NetworkState.IN_GAME)
 	connected_to_server.emit()
+	if _host_migration_active and not _host_migration_is_new_host:
+		_host_migration_active = false
+		host_migration_completed.emit(false)
 
 
 func _on_connection_failed() -> void:
@@ -406,29 +521,30 @@ func _on_connection_failed() -> void:
 func _on_server_disconnected() -> void:
 	print("Server disconnected")
 	_last_error = "Host disconnected"
+	if _begin_host_migration_if_possible():
+		server_disconnected.emit()
+		return
 	reset_session_state(false)
 	server_disconnected.emit()
 
 
 func _update_net_stats(delta: float) -> void:
-	if multiplayer == null or multiplayer.multiplayer_peer == null:
+	if not _has_active_multiplayer_peer():
 		return
 	if is_server():
 		return
 	if _state != NetworkState.IN_GAME:
 		return
-	if not multiplayer.has_multiplayer_peer() or not multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
-		return
 	_ping_timer_sec -= delta
 	if _ping_timer_sec <= 0.0:
-		_ping_timer_sec = NET_STATS_PING_INTERVAL_SEC
+		_ping_timer_sec = _net_stats_ping_interval_sec
 		_send_ping_sample()
 	_cleanup_expired_ping_samples()
 	_emit_net_stats()
 
 
 func _send_ping_sample() -> void:
-	if multiplayer == null or multiplayer.multiplayer_peer == null:
+	if not _has_active_multiplayer_peer():
 		return
 	var seq: int = _ping_next_seq
 	_ping_next_seq += 1
@@ -436,6 +552,17 @@ func _send_ping_sample() -> void:
 	_ping_pending_send_ms[seq] = now_ms
 	_ping_sent_total += 1
 	rpc_id(1, "rpc_ping_request", seq, now_ms)
+
+
+func _has_active_multiplayer_peer() -> bool:
+	if multiplayer == null:
+		return false
+	if not multiplayer.has_multiplayer_peer():
+		return false
+	var peer: MultiplayerPeer = multiplayer.multiplayer_peer
+	if peer == null:
+		return false
+	return peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED
 
 
 func _cleanup_expired_ping_samples() -> void:
@@ -469,7 +596,7 @@ func _reset_net_stats() -> void:
 	net_stats_updated.emit(_rtt_ms, _packet_loss_percent)
 
 
-@rpc("any_peer", "unreliable")
+@rpc("any_peer", "call_remote", "unreliable_ordered")
 func rpc_ping_request(seq: int, client_send_ms: int) -> void:
 	if not is_server():
 		return
@@ -479,7 +606,7 @@ func rpc_ping_request(seq: int, client_send_ms: int) -> void:
 	rpc_id(sender_id, "rpc_ping_response", seq, client_send_ms, Time.get_ticks_msec())
 
 
-@rpc("any_peer", "unreliable")
+@rpc("any_peer", "call_remote", "unreliable_ordered")
 func rpc_ping_response(seq: int, client_send_ms: int, _server_recv_ms: int) -> void:
 	if is_server():
 		return
@@ -500,7 +627,7 @@ func _start_discovery_listener() -> void:
 	_discovery_listener = PacketPeerUDP.new()
 	var listen_result: int = _discovery_listener.bind(LAN_DISCOVERY_PORT, "*")
 	if listen_result != OK:
-		push_warning("LAN discovery listener bind failed on %d: %d" % [LAN_DISCOVERY_PORT, listen_result])
+		print("LAN discovery listener unavailable on %d (code=%d), discovery disabled for this instance" % [LAN_DISCOVERY_PORT, listen_result])
 		_discovery_listener = null
 
 
@@ -562,6 +689,9 @@ func _handle_discovery_response(payload: Dictionary, from_ip: String) -> void:
 		return
 	_discovery_seen_hosts[key] = true
 	lan_host_discovered.emit(ip, port, host_name)
+	if _host_migration_active and not _host_migration_is_new_host:
+		_host_migration_next_discovery_ms = Time.get_ticks_msec() + 10000
+		join_lan_game(ip, port)
 
 
 func _get_lan_broadcast_addresses() -> PackedStringArray:
@@ -574,6 +704,63 @@ func _get_lan_broadcast_addresses() -> PackedStringArray:
 		if not result.has(broadcast_ip):
 			result.append(broadcast_ip)
 	return result
+
+
+func _begin_host_migration_if_possible() -> bool:
+	if not host_migration_enabled:
+		return false
+	var local_peer_id: int = _last_session_local_peer_id
+	if local_peer_id <= 1:
+		return false
+	var candidate_ids: Array[int] = []
+	for peer_id_variant in _known_session_peer_ids.keys():
+		var peer_id: int = int(peer_id_variant)
+		if peer_id > 1:
+			candidate_ids.append(peer_id)
+	if not candidate_ids.has(local_peer_id):
+		candidate_ids.append(local_peer_id)
+	if candidate_ids.is_empty():
+		return false
+	candidate_ids.sort()
+	var elected_peer_id: int = candidate_ids[0]
+	_host_migration_active = true
+	_host_migration_is_new_host = local_peer_id == elected_peer_id
+	_host_migration_port = _last_join_port
+	_host_migration_discovery_deadline_ms = Time.get_ticks_msec() + 10000
+	_host_migration_next_discovery_ms = 0
+	reset_session_state(false)
+	host_migration_started.emit(_host_migration_is_new_host, _host_migration_port)
+	if _host_migration_is_new_host:
+		call_deferred("_complete_host_migration_as_host")
+	else:
+		_host_migration_next_discovery_ms = Time.get_ticks_msec() + 700
+	return true
+
+
+func _complete_host_migration_as_host() -> void:
+	if not _host_migration_active or not _host_migration_is_new_host:
+		return
+	var result: int = host_lan_game(_host_migration_port)
+	if result != OK:
+		_host_migration_active = false
+		host_migration_failed.emit("Host migration failed to create host (%d)" % result)
+		return
+	_host_migration_active = false
+	host_migration_completed.emit(true)
+
+
+func _poll_host_migration() -> void:
+	if not _host_migration_active or _host_migration_is_new_host:
+		return
+	var now_ms: int = Time.get_ticks_msec()
+	if now_ms >= _host_migration_discovery_deadline_ms:
+		_host_migration_active = false
+		host_migration_failed.emit("Host migration discovery timed out")
+		return
+	if now_ms < _host_migration_next_discovery_ms:
+		return
+	_host_migration_next_discovery_ms = now_ms + 1200
+	request_lan_discovery(_host_migration_port, 1.0)
 
 
 func _set_state(next_state: int) -> void:

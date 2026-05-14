@@ -407,6 +407,8 @@ func _spawn_pickup_from_payload(payload: Dictionary) -> void:
 	var pickup: Node2D = pickup_scene.instantiate()
 	if pickup == null:
 		return
+	if not runtime_id.is_empty():
+		pickup.name = _build_network_pickup_node_name(runtime_id)
 	if pickup.has_method("setup_from_item_data"):
 		pickup.call("setup_from_item_data", item)
 	elif "item_data" in pickup:
@@ -420,6 +422,18 @@ func _spawn_pickup_from_payload(payload: Dictionary) -> void:
 	if parent_node == null:
 		return
 	parent_node.add_child.call_deferred(pickup)
+
+
+func _build_network_pickup_node_name(runtime_id: String) -> String:
+	var normalized: String = runtime_id.strip_edges()
+	if normalized.is_empty():
+		return "WorldPickup"
+	normalized = normalized.replace(" ", "_")
+	normalized = normalized.replace("/", "_")
+	normalized = normalized.replace("\\", "_")
+	normalized = normalized.replace(":", "_")
+	normalized = normalized.replace(".", "_")
+	return "WorldPickup_%s" % normalized
 
 
 func _has_pickup_runtime_id(runtime_id: String) -> bool:

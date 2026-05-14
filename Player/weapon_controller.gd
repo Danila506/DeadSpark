@@ -89,6 +89,7 @@ var previous_aim_target_position: Vector2 = Vector2.ZERO
 var base_camera_zoom: Vector2 = Vector2(2.0, 2.0)
 var base_camera_position: Vector2 = Vector2.ZERO
 var _network_shot_seq: int = 0
+var _network_shot_time_offset_ms: int = 0
 var noise_controller
 var reload_controller
 var shooting_controller
@@ -98,6 +99,10 @@ const CURSOR_HEAT_BUILD_PER_SEC: float = 0.75
 const CURSOR_HEAT_RECOVER_PER_SEC: float = 1.25
 const AIM_SETTLE_RECOVER_PER_SEC: float = 1.85
 const MIN_BULLET_DISTANCE: float = 8.0
+const SHOT_DIR_PACK_SCALE: float = 32767.0
+const LAG_COMP_MAX_REWIND_MS: int = 900
+const LAG_COMP_TARGET_RADIUS_PLAYER: float = 16.0
+const LAG_COMP_TARGET_RADIUS_ENEMY: float = 18.0
 const WEAPON_NOISE_CONTROLLER = preload("res://Player/weapon_noise_controller.gd")
 const WEAPON_RELOAD_CONTROLLER = preload("res://Player/weapon_reload_controller.gd")
 const WEAPON_SHOOTING_CONTROLLER = preload("res://Player/weapon_shooting_controller.gd")
@@ -735,13 +740,32 @@ func request_network_shot() -> void:
 		if shooting_controller != null:
 			shooting_controller.shoot(aim_direction, true)
 		return
-	rpc_id(1, "rpc_request_network_shot", aim_direction, _network_shot_seq)
+	var packed_request: PackedByteArray = _encode_shot_request_payload(aim_direction, _network_shot_seq, _estimate_server_shot_time_ms())
+	rpc_id(1, "rpc_request_network_shot_packed", packed_request)
 	_network_shot_seq += 1
 	shoot_cooldown = max(shoot_cooldown, current_weapon.fire_delay * 0.5)
 
 
 @rpc("any_peer", "unreliable")
 func rpc_request_network_shot(aim_direction: Vector2, request_seq: int) -> void:
+	_server_process_network_shot(aim_direction, request_seq, Time.get_ticks_msec())
+
+
+@rpc("any_peer", "unreliable")
+func rpc_request_network_shot_packed(payload: PackedByteArray) -> void:
+	if not is_server_network_instance():
+		return
+	var decoded: Dictionary = _decode_shot_request_payload(payload)
+	if not bool(decoded.get("ok", false)):
+		return
+	_server_process_network_shot(
+		decoded.get("dir", Vector2.DOWN) as Vector2,
+		int(decoded.get("seq", 0)),
+		int(decoded.get("shot_server_ms", Time.get_ticks_msec()))
+	)
+
+
+func _server_process_network_shot(aim_direction: Vector2, request_seq: int, shot_server_time_ms: int) -> void:
 	if not is_server_network_instance():
 		return
 	var sender_id: int = multiplayer.get_remote_sender_id()
@@ -753,7 +777,26 @@ func rpc_request_network_shot(aim_direction: Vector2, request_seq: int) -> void:
 	var normalized_direction: Vector2 = aim_direction.normalized()
 	if normalized_direction == Vector2.ZERO:
 		normalized_direction = Vector2.DOWN
-	var shot_accepted: bool = bool(shooting_controller.shoot(normalized_direction, true))
+	var lag_comp_result: Dictionary = _server_rewind_hitcheck(normalized_direction, shot_server_time_ms)
+	var hit_applied: bool = bool(lag_comp_result.get("hit", false))
+	var shot_accepted: bool = bool(shooting_controller.shoot(normalized_direction, true, 0.0))
+	if shot_accepted and hit_applied:
+		var target: Node = lag_comp_result.get("target", null) as Node
+		if target != null and is_instance_valid(target):
+			var target_2d: Node2D = target as Node2D
+			var fallback_pos: Vector2 = player.global_position
+			if target_2d != null:
+				fallback_pos = target_2d.global_position
+			var hit_pos: Vector2 = lag_comp_result.get("hit_position", fallback_pos) as Vector2
+			var hit_context: Dictionary = {
+				"hit_position": hit_pos,
+				"hitbox_type": "body",
+				"damage_zone": "body",
+				"projectile_direction": normalized_direction,
+				"rewind_hit": true,
+				"shot_server_time_ms": shot_server_time_ms
+			}
+			target.call("take_damage_from", current_weapon.damage, player, hit_context)
 	var ammo_in_mag: int = _get_ammo_in_mag()
 	var reserve_ammo: int = _get_reserve_ammo()
 	rpc_id(sender_id, "rpc_confirm_network_shot", request_seq, shot_accepted, ammo_in_mag, reserve_ammo, shoot_cooldown)
@@ -774,6 +817,110 @@ func rpc_confirm_network_shot(_request_seq: int, accepted: bool, ammo_in_mag: in
 		shoot_cooldown = max(cooldown_sec, 0.0)
 	else:
 		shoot_cooldown = min(shoot_cooldown, 0.05)
+
+
+func _estimate_server_shot_time_ms() -> int:
+	if player != null and player.has_method("_is_networked_game") and bool(player.call("_is_networked_game")):
+		var now_ms: int = Time.get_ticks_msec()
+		if "_net_server_time_offset_sec" in player:
+			var offset_sec: float = float(player.get("_net_server_time_offset_sec"))
+			_network_shot_time_offset_ms = int(round(offset_sec * 1000.0))
+		return now_ms - _network_shot_time_offset_ms
+	return Time.get_ticks_msec()
+
+
+func _encode_shot_request_payload(aim_direction: Vector2, request_seq: int, shot_server_time_ms: int) -> PackedByteArray:
+	var stream := StreamPeerBuffer.new()
+	stream.clear()
+	stream.put_u16(request_seq & 0xffff)
+	stream.put_u32(shot_server_time_ms & 0xffffffff)
+	stream.put_16(int(round(clampf(aim_direction.x, -1.0, 1.0) * SHOT_DIR_PACK_SCALE)))
+	stream.put_16(int(round(clampf(aim_direction.y, -1.0, 1.0) * SHOT_DIR_PACK_SCALE)))
+	return stream.data_array
+
+
+func _decode_shot_request_payload(payload: PackedByteArray) -> Dictionary:
+	if payload.is_empty() or payload.size() < 10:
+		return {"ok": false}
+	var stream := StreamPeerBuffer.new()
+	stream.data_array = payload
+	stream.seek(0)
+	var request_seq: int = int(stream.get_u16())
+	var shot_server_time_ms: int = int(stream.get_u32())
+	var packed_x: int = int(stream.get_16())
+	var packed_y: int = int(stream.get_16())
+	var dir := Vector2(float(packed_x) / SHOT_DIR_PACK_SCALE, float(packed_y) / SHOT_DIR_PACK_SCALE)
+	if dir == Vector2.ZERO:
+		dir = Vector2.DOWN
+	else:
+		dir = dir.normalized()
+	return {
+		"ok": true,
+		"seq": request_seq,
+		"shot_server_ms": shot_server_time_ms,
+		"dir": dir
+	}
+
+
+func _server_rewind_hitcheck(shot_direction: Vector2, shot_server_time_ms: int) -> Dictionary:
+	if player == null or current_weapon == null:
+		return {"hit": false}
+	var now_ms: int = Time.get_ticks_msec()
+	var min_shot_ms: int = now_ms - LAG_COMP_MAX_REWIND_MS
+	var clamped_shot_ms: int = clampi(shot_server_time_ms, min_shot_ms, now_ms + 10)
+	var muzzle: Marker2D = _get_current_muzzle()
+	var origin: Vector2 = player.global_position
+	if muzzle != null:
+		origin = muzzle.global_position
+	var max_distance: float = maxf(current_weapon.bullet_max_distance, MIN_BULLET_DISTANCE)
+	var best_t: float = INF
+	var best_target: Node = null
+	var best_hit_position: Vector2 = origin + shot_direction * max_distance
+	for candidate in _collect_lag_comp_targets():
+		if candidate == null or not is_instance_valid(candidate):
+			continue
+		if candidate == player:
+			continue
+		var candidate_2d: Node2D = candidate as Node2D
+		if candidate_2d == null:
+			continue
+		var rewound_info: Dictionary = candidate.call("get_lag_compensated_position_at_ms", clamped_shot_ms)
+		if not bool(rewound_info.get("ok", false)):
+			continue
+		var target_pos: Vector2 = rewound_info.get("position", candidate_2d.global_position) as Vector2
+		var radius: float = LAG_COMP_TARGET_RADIUS_PLAYER if candidate.is_in_group("player") else LAG_COMP_TARGET_RADIUS_ENEMY
+		var ray_to_target: Vector2 = target_pos - origin
+		var along: float = ray_to_target.dot(shot_direction)
+		if along < 0.0 or along > max_distance:
+			continue
+		var closest: Vector2 = origin + shot_direction * along
+		var dist_sq: float = target_pos.distance_squared_to(closest)
+		if dist_sq > radius * radius:
+			continue
+		if along < best_t:
+			best_t = along
+			best_target = candidate
+			best_hit_position = closest
+	return {
+		"hit": best_target != null,
+		"target": best_target,
+		"hit_position": best_hit_position
+	}
+
+
+func _collect_lag_comp_targets() -> Array[Node]:
+	var result: Array[Node] = []
+	if player == null or player.get_tree() == null:
+		return result
+	for node in player.get_tree().get_nodes_in_group("player"):
+		var p := node as Node
+		if p != null and p.has_method("get_lag_compensated_position_at_ms"):
+			result.append(p)
+	for node in player.get_tree().get_nodes_in_group("enemy"):
+		var e := node as Node
+		if e != null and e.has_method("get_lag_compensated_position_at_ms"):
+			result.append(e)
+	return result
 
 
 func _get_ammo_in_mag() -> int:

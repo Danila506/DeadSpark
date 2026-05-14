@@ -77,6 +77,9 @@ const DEFAULT_BANDIT_MEDICAL_POOL: Array[ItemData] = [
 @export_category("Network Smoothing")
 @export_range(0.02, 0.30, 0.005) var net_snapshot_interp_delay_sec: float = 0.10
 @export_range(0.10, 1.00, 0.01) var net_snapshot_max_buffer_sec: float = 0.50
+@export_category("Lag Compensation")
+@export_range(0.20, 2.00, 0.01) var net_lag_history_duration_sec: float = 0.75
+@export_range(0.005, 0.100, 0.001) var net_lag_history_sample_interval_sec: float = 0.016
 
 @onready var navigation_agent: NavigationAgent2D = $NavigationAgent2D
 @onready var state_machine: EnemyStateMachine = $StateMachine
@@ -154,6 +157,8 @@ var _net_transform_sync_timer_by_peer: Dictionary = {}
 var _net_snapshot_buffer: Array[Dictionary] = []
 var _net_server_time_offset_sec: float = 0.0
 var _net_server_time_offset_initialized: bool = false
+var _net_lag_history_samples: Array[Dictionary] = []
+var _net_lag_history_sample_timer: float = 0.0
 const MOVE_TARGET_REPATH_FACTOR: float = 1.75
 const MELEE_STANDOFF_RATIO: float = 0.72
 const MELEE_STANDOFF_MIN_PX: float = 8.0
@@ -218,6 +223,8 @@ func _physics_process(delta: float) -> void:
 		_apply_remote_animation()
 		move_and_slide()
 		return
+	if _is_networked_game() and _is_server_authority():
+		_record_lag_history_sample_if_due(delta)
 
 	_tick_timers(delta)
 	_update_sensors(delta)
@@ -1198,7 +1205,7 @@ func _sync_enemy_transform_if_needed(delta: float = 0.0) -> void:
 		return
 	if NetworkManager == null:
 		return
-	var ready_peers: PackedInt32Array = NetworkManager.get_ready_client_peers()
+	var ready_peers: PackedInt32Array = NetworkManager.get_active_client_peers() if NetworkManager.has_method("get_active_client_peers") else NetworkManager.get_ready_client_peers()
 	if ready_peers.is_empty():
 		_net_transform_sync_timer_by_peer.clear()
 		return
@@ -1240,7 +1247,7 @@ func _get_player_node_by_peer_id(target_peer_id: int) -> CharacterBody2D:
 	return null
 
 
-@rpc("any_peer", "unreliable")
+@rpc("any_peer", "call_remote", "unreliable_ordered")
 func rpc_sync_enemy_transform(server_position: Vector2, server_velocity: Vector2) -> void:
 	if not _is_networked_game():
 		return
@@ -1264,7 +1271,7 @@ func rpc_sync_enemy_transform(server_position: Vector2, server_velocity: Vector2
 	_push_remote_snapshot(server_position, clamped_velocity)
 
 
-@rpc("any_peer", "unreliable")
+@rpc("any_peer", "call_remote", "unreliable_ordered")
 func rpc_sync_enemy_snapshot(payload: Dictionary) -> void:
 	if not _is_networked_game():
 		return
@@ -1324,6 +1331,52 @@ func _quantize_enemy_scalar(value: float, scale: float) -> int:
 
 func _dequantize_enemy_scalar(value: int, scale: float) -> float:
 	return float(value) / maxf(scale, 0.0001)
+
+
+func _record_lag_history_sample_if_due(delta: float) -> void:
+	_net_lag_history_sample_timer -= delta
+	if _net_lag_history_sample_timer > 0.0:
+		return
+	_net_lag_history_sample_timer = maxf(net_lag_history_sample_interval_sec, 0.005)
+	var now_ms: int = Time.get_ticks_msec()
+	_net_lag_history_samples.append({
+		"t": now_ms,
+		"p": global_position
+	})
+	var min_allowed_ms: int = now_ms - int(maxf(net_lag_history_duration_sec, 0.20) * 1000.0)
+	while _net_lag_history_samples.size() > 2 and int(_net_lag_history_samples[0].get("t", 0)) < min_allowed_ms:
+		_net_lag_history_samples.remove_at(0)
+
+
+func get_lag_compensated_position_at_ms(server_time_ms: int) -> Dictionary:
+	if _net_lag_history_samples.is_empty():
+		return {"ok": false, "position": global_position}
+	if _net_lag_history_samples.size() == 1:
+		return {"ok": true, "position": _net_lag_history_samples[0].get("p", global_position)}
+	var first: Dictionary = _net_lag_history_samples[0]
+	var last: Dictionary = _net_lag_history_samples[_net_lag_history_samples.size() - 1]
+	var first_t: int = int(first.get("t", server_time_ms))
+	var last_t: int = int(last.get("t", server_time_ms))
+	var clamped_time: int = clampi(server_time_ms, first_t, last_t)
+	var a: Dictionary = first
+	var b: Dictionary = last
+	for i in range(_net_lag_history_samples.size() - 1):
+		var left: Dictionary = _net_lag_history_samples[i]
+		var right: Dictionary = _net_lag_history_samples[i + 1]
+		var left_t: int = int(left.get("t", clamped_time))
+		var right_t: int = int(right.get("t", left_t))
+		if clamped_time >= left_t and clamped_time <= right_t:
+			a = left
+			b = right
+			break
+	var at: int = int(a.get("t", clamped_time))
+	var bt: int = int(b.get("t", at))
+	var ap: Vector2 = a.get("p", global_position) as Vector2
+	var bp: Vector2 = b.get("p", ap) as Vector2
+	if bt <= at:
+		return {"ok": true, "position": ap}
+	var alpha: float = clamp(float(clamped_time - at) / float(bt - at), 0.0, 1.0)
+	return {"ok": true, "position": ap.lerp(bp, alpha)}
 
 
 func _push_remote_snapshot(server_position: Vector2, server_velocity: Vector2, server_time_sec: float = -1.0) -> void:

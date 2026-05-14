@@ -41,7 +41,7 @@ func _ensure_scope_overlay() -> void:
 
 	_scope_overlay = Sprite2D.new()
 	_scope_overlay.name = "ScopeOverlay"
-	_scope_overlay.z_index = 5
+	_scope_overlay.z_index = 0
 	_scope_overlay.centered = true
 	_scope_overlay.visible = false
 	add_child(_scope_overlay)

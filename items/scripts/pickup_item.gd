@@ -8,6 +8,7 @@ const NETWORK_PICKUP_DISTANCE_MAX: float = 96.0
 
 var player_in_range: bool = false
 var _network_pickup_locked: bool = false
+var _removed_from_world: bool = false
 
 @onready var sprite: Sprite2D = $Sprite2D
 
@@ -48,9 +49,9 @@ func _on_body_exited(body: Node) -> void:
 
 
 func remove_from_world() -> void:
-	if _network_pickup_locked:
+	if _removed_from_world:
 		return
-	_network_pickup_locked = true
+	_removed_from_world = true
 	NearbyItemsManager.remove_item(self)
 	queue_free()
 	
@@ -102,7 +103,7 @@ func _get_prompt_text() -> String:
 
 @rpc("any_peer", "reliable")
 func rpc_request_pickup_authorization(requester_peer_id: int) -> void:
-	if _network_pickup_locked:
+	if _network_pickup_locked or _removed_from_world:
 		return
 	if NetworkManager == null or not NetworkManager.is_server():
 		return
@@ -110,6 +111,22 @@ func rpc_request_pickup_authorization(requester_peer_id: int) -> void:
 		return
 	var sender_id: int = multiplayer.get_remote_sender_id()
 	if sender_id != requester_peer_id:
+		return
+	_authorize_pickup_for_peer(requester_peer_id)
+
+
+func authorize_pickup_locally(requester_peer_id: int) -> void:
+	if _network_pickup_locked or _removed_from_world:
+		return
+	if NetworkManager == null or not NetworkManager.is_server():
+		return
+	if requester_peer_id <= 0:
+		return
+	_authorize_pickup_for_peer(requester_peer_id)
+
+
+func _authorize_pickup_for_peer(requester_peer_id: int) -> void:
+	if _removed_from_world:
 		return
 	var granted: bool = _can_authorize_pickup_for_peer(requester_peer_id)
 	if granted:

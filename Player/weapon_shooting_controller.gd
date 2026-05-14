@@ -38,7 +38,11 @@ func try_shoot() -> void:
 		shoot(Vector2.ZERO, true)
 
 
-func shoot(base_direction: Vector2 = Vector2.ZERO, apply_ammo_and_durability: bool = true) -> bool:
+func shoot(
+	base_direction: Vector2 = Vector2.ZERO,
+	apply_ammo_and_durability: bool = true,
+	projectile_damage_override: float = -1.0
+) -> bool:
 	if controller.current_weapon == null:
 		return false
 
@@ -55,7 +59,7 @@ func shoot(base_direction: Vector2 = Vector2.ZERO, apply_ammo_and_durability: bo
 	else:
 		spawn_pos = controller.player.global_position
 
-	spawn_projectiles(spawn_pos, base_direction)
+	spawn_projectiles(spawn_pos, base_direction, projectile_damage_override)
 	play_shot_sfx()
 
 	if apply_ammo_and_durability:
@@ -163,7 +167,11 @@ func should_fire_now() -> bool:
 	return Input.is_action_pressed("shoot")
 
 
-func spawn_projectiles(spawn_pos: Vector2, base_direction_override: Vector2 = Vector2.ZERO) -> void:
+func spawn_projectiles(
+	spawn_pos: Vector2,
+	base_direction_override: Vector2 = Vector2.ZERO,
+	projectile_damage_override: float = -1.0
+) -> void:
 	if controller.current_weapon == null:
 		return
 
@@ -202,6 +210,7 @@ func spawn_projectiles(spawn_pos: Vector2, base_direction_override: Vector2 = Ve
 			bullet_layer = collision_object.collision_layer
 			bullet_mask = collision_object.collision_mask
 
+		var projectile_damage: float = controller.current_weapon.damage if projectile_damage_override < 0.0 else projectile_damage_override
 		if bullet.has_method("initialize"):
 			bullet.initialize(
 				spawn_pos,
@@ -210,12 +219,12 @@ func spawn_projectiles(spawn_pos: Vector2, base_direction_override: Vector2 = Ve
 				2.0,
 				bullet_layer,
 				bullet_mask,
-				controller.current_weapon.damage,
+				projectile_damage,
 				bullet_distance,
 				controller.player
 			)
 		elif bullet.has_method("setup"):
-			bullet.setup(shoot_dir, controller.current_weapon.damage, controller.current_weapon.bullet_speed)
+			bullet.setup(shoot_dir, projectile_damage, controller.current_weapon.bullet_speed)
 
 
 func get_pellet_direction(base_direction: Vector2) -> Vector2:
