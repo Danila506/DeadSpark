@@ -1,0 +1,106 @@
+[gd_scene format=3 uid="uid://b14h1772ftaef"]
+
+[ext_resource type="Script" uid="uid://by3rayjb7qqbu" path="res://Assets/Farming/bulgarian_pepper.gd" id="1_nkymd"]
+[ext_resource type="Texture2D" uid="uid://d1wgxyc415pk4" path="res://Assets/Farming/cultivation.png" id="2_fmye1"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3ayi0"]
+atlas = ExtResource("2_fmye1")
+region = Rect2(33, 58, 14, 21)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wdg4b"]
+atlas = ExtResource("2_fmye1")
+region = Rect2(65, 58, 14, 21)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_01pl3"]
+atlas = ExtResource("2_fmye1")
+region = Rect2(97, 58, 14, 21)
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_nkymd"]
+load_path = "res://.godot/imported/cultivation.png-de4f4bb6b9a4d74405b6edcf585adaea.ctex"
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_01eqa"]
+atlas = SubResource("CompressedTexture2D_nkymd")
+region = Rect2(129, 54, 14, 25)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pjm26"]
+atlas = ExtResource("2_fmye1")
+region = Rect2(161, 55, 14, 24)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6exyy"]
+atlas = ExtResource("2_fmye1")
+region = Rect2(192, 54, 16, 26)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hcj05"]
+atlas = ExtResource("2_fmye1")
+region = Rect2(193, 10, 14, 21)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jh2h2"]
+atlas = ExtResource("2_fmye1")
+region = Rect2(224, 9, 16, 23)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xb8u6"]
+radius = 36.0
+
+[node name="Tomatos" type="Node2D" unique_id=436642439]
+script = ExtResource("1_nkymd")
+
+[node name="Stage1" type="Sprite2D" parent="." unique_id=1624788306]
+position = Vector2(0, -15)
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_3ayi0")
+
+[node name="Stage2" type="Sprite2D" parent="." unique_id=871852620]
+position = Vector2(0, -15)
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_wdg4b")
+
+[node name="Stage3" type="Sprite2D" parent="." unique_id=990141246]
+position = Vector2(0, -15)
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_01pl3")
+
+[node name="Stage4" type="Sprite2D" parent="." unique_id=1268573063]
+position = Vector2(0, -15)
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_01eqa")
+
+[node name="Stage5" type="Sprite2D" parent="." unique_id=1454314491]
+position = Vector2(0, -15)
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_pjm26")
+
+[node name="CultivatedOutline" type="Sprite2D" parent="." unique_id=618804928]
+position = Vector2(0, -16)
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_6exyy")
+
+[node name="TaintedTomate" type="Sprite2D" parent="." unique_id=573885785]
+position = Vector2(0, -15)
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_hcj05")
+
+[node name="TaintedOutline" type="Sprite2D" parent="." unique_id=1784147920]
+position = Vector2(0, -15)
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_jh2h2")
+
+[node name="InteractArea" type="Area2D" parent="." unique_id=1717751200]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractArea" unique_id=115551553]
+visible = false
+shape = SubResource("CircleShape2D_xb8u6")
+
+[node name="InteractLabel" type="Label" parent="." unique_id=1355976350]
+visible = false
+offset_left = -46.0
+offset_top = -43.0
+offset_right = 46.0
+offset_bottom = -22.0
+theme_override_colors/font_color = Color(0.94, 0.96, 0.9, 1)
+theme_override_colors/font_shadow_color = Color(0.04, 0.05, 0.035, 0.9)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 12
+text = "[E] - собрать"
+horizontal_alignment = 1
+vertical_alignment = 1

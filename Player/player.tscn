@@ -2491,6 +2491,7 @@ script = ExtResource("1_onrkg")
 passive_regen_per_sec = 3.0
 bleeding_damage_amount = 3.0
 bleeding_damage_interval = 3.0
+speed = 300.0
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2077669749]
 zoom = Vector2(2, 2)
@@ -2526,8 +2527,7 @@ metadata/_aseprite_wizard_config_ = {
 script = ExtResource("3_vtle1")
 melee_blood_sprite_frames = ExtResource("4_7emwf")
 
-[node name="EquipmentSynchronizer" type="MultiplayerSynchronizer" parent="."]
-root_path = NodePath("..")
+[node name="EquipmentSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1892345959]
 
 [node name="T_ShirtSpite" type="AnimatedSprite2D" parent="." unique_id=1223326312]
 z_index = 1

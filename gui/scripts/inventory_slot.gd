@@ -647,7 +647,9 @@ func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 	if not data.has("item"):
 		return false
 
-	var dragged_item: ItemData = data["item"]
+	var dragged_item: ItemData = data.get("item", null)
+	if dragged_item == null or dragged_item.stack_count <= 0:
+		return false
 
 	match slot_mode:
 		SlotMode.NEARBY:

@@ -42,6 +42,7 @@ class_name WeaponController
 @export var aim_camera_look_ahead_distance: float = 34.0
 @export var scoped_aim_camera_look_ahead_distance: float = 48.0
 @export_range(1.0, 20.0, 0.1) var aim_camera_transition_speed: float = 8.0
+@export_range(0.0, 0.25, 0.005) var aim_input_grace_sec: float = 0.08
 @export var hearing_base_radius: float = 140.0
 @export var hearing_footstep_bonus_radius: float = 80.0
 @export var hearing_shot_bonus_radius: float = 240.0
@@ -86,6 +87,7 @@ var mobile_aim_distance: float = 420.0
 var mobile_shoot_active: bool = false
 var mobile_shoot_just_pressed: bool = false
 var previous_aim_target_position: Vector2 = Vector2.ZERO
+var _aim_input_grace_timer: float = 0.0
 var base_camera_zoom: Vector2 = Vector2(2.0, 2.0)
 var base_camera_position: Vector2 = Vector2.ZERO
 var _network_shot_seq: int = 0
@@ -210,7 +212,13 @@ func _stop_weapon_audio() -> void:
 func _update_aim_state() -> void:
 	var was_aiming: bool = is_aiming
 	var inventory_open: bool = inventory_root != null and "is_inventory_open" in inventory_root and inventory_root.is_inventory_open
-	is_aiming = not inventory_open and current_weapon != null and Input.is_action_pressed("aim")
+	var aim_pressed: bool = Input.is_action_pressed("aim")
+	if aim_pressed:
+		_aim_input_grace_timer = maxf(aim_input_grace_sec, 0.0)
+	else:
+		_aim_input_grace_timer = maxf(_aim_input_grace_timer - get_process_delta_time(), 0.0)
+	var aim_effective_pressed: bool = aim_pressed or _aim_input_grace_timer > 0.0
+	is_aiming = not inventory_open and current_weapon != null and aim_effective_pressed
 	if is_aiming and not was_aiming:
 		_reset_aim_settle()
 	if not is_aiming and was_aiming:
@@ -650,7 +658,8 @@ func _update_aim_camera(delta: float) -> void:
 	var target_position: Vector2 = base_camera_position
 	if is_aiming and current_weapon != null and not is_reloading:
 		var has_scope: bool = _has_scope_attachment()
-		target_zoom = scoped_aim_camera_zoom if has_scope else aim_camera_zoom
+		var is_mobile_platform: bool = OS.has_feature("android") or OS.has_feature("ios") or OS.has_feature("mobile")
+		target_zoom = (scoped_aim_camera_zoom if has_scope else aim_camera_zoom) if is_mobile_platform else base_camera_zoom
 		var look_ahead_distance: float = scoped_aim_camera_look_ahead_distance if has_scope else aim_camera_look_ahead_distance
 		target_position = base_camera_position + _get_direction_to_aim_target(player.global_position) * maxf(look_ahead_distance, 0.0)
 

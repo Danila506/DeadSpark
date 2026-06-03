@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bod3mn4nbqiyf"]
+
+[ext_resource type="Texture2D" uid="uid://bd4ivweh75pr5" path="res://Assets/itemAssets/animation_sprites/weapon/Meele/lopata.png" id="1_brwos"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="2_pisjs"]
+[ext_resource type="SpriteFrames" uid="uid://c078ity3arm31" path="res://Resources/Melee/lopata/lopataFrames.tres" id="3_rk0md"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w76sn"]
+atlas = ExtResource("1_brwos")
+region = Rect2(369, 90, 36, 37)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dji2s"]
+atlas = ExtResource("1_brwos")
+region = Rect2(385, 138, 27, 8)
+
+[resource]
+script = ExtResource("2_pisjs")
+storage_category = 1
+can_be_stored_in_clothing = false
+item_name = "Лопата"
+world_icon = SubResource("AtlasTexture_dji2s")
+world_icon_scale = 0.8
+inventory_icon = SubResource("AtlasTexture_w76sn")
+item_type = 7
+equipped_frames = ExtResource("3_rk0md")

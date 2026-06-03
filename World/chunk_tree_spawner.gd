@@ -49,6 +49,7 @@ static var _global_reserved_footprint_grid: Dictionary = {}
 @export_range(0.0, 1.0, 0.01) var spawn_probability: float = 0.03
 @export var min_trees_per_chunk: int = 1
 @export var min_spawn_distance_px: float = 0.0
+@export var spawn_cell_jitter_px: Vector2 = Vector2.ZERO
 @export var biome_partition_enabled: bool = false
 @export_range(2, 8, 1) var biome_partition_count: int = 2
 @export_range(0, 7, 1) var biome_partition_index: int = 0
@@ -219,6 +220,7 @@ func _apply_config(cfg: ChunkTreeSpawnerConfig) -> void:
 	spawn_probability = cfg.spawn_probability
 	min_trees_per_chunk = cfg.min_trees_per_chunk
 	min_spawn_distance_px = cfg.min_spawn_distance_px
+	spawn_cell_jitter_px = cfg.spawn_cell_jitter_px
 	biome_partition_enabled = cfg.biome_partition_enabled
 	biome_partition_count = cfg.biome_partition_count
 	biome_partition_index = cfg.biome_partition_index
@@ -498,6 +500,7 @@ func _start_spawn_chunk_job(chunk: Vector2i) -> void:
 		"chunk": chunk,
 		"base_cell": base_cell,
 		"random_cells": random_cells,
+		"fallback_start": int(_hash_cell(chunk.x, chunk.y, world_seed + 12791) % maxi(random_cells.size(), 1)),
 		"nodes": [],
 		"chunk_spawn_positions": [],
 		"chunk_spawn_cells": {},
@@ -532,6 +535,7 @@ func _process_active_spawn_job(budget: Dictionary = {}) -> Dictionary:
 	var next_index := int(_active_spawn_job.get("next_index", 0))
 	var target_min_trees := int(_active_spawn_job.get("target_min_trees", 0))
 	var attempts_limit := int(_active_spawn_job.get("attempts_limit", chunk_size_tiles * chunk_size_tiles))
+	var fallback_start := int(_active_spawn_job.get("fallback_start", 0))
 	var stats: Dictionary = _active_spawn_job.get("stats", {})
 	var chunk_cell_count := chunk_size_tiles * chunk_size_tiles
 	var max_attempts := maxi(1, max_spawn_candidates_per_update)
@@ -585,7 +589,7 @@ func _process_active_spawn_job(budget: Dictionary = {}) -> Dictionary:
 				world_pos = candidate.get("world_pos", Vector2.ZERO) as Vector2
 			else:
 				cell = random_cells[next_index] as Vector2i
-				world_pos = Vector2((cell.x + 0.5) * tile_size_px.x, (cell.y + 0.5) * tile_size_px.y)
+				world_pos = _get_spawn_world_position(cell)
 			next_index += 1
 			attempts_this_step += 1
 			if _roll(cell) > spawn_probability:
@@ -593,8 +597,11 @@ func _process_active_spawn_job(budget: Dictionary = {}) -> Dictionary:
 					stats["large_structure_rejected"] = int(stats.get("large_structure_rejected", 0)) + 1
 				continue
 		else:
-			cell = _fallback_cell(base_cell, next_index)
-			world_pos = Vector2((cell.x + 0.5) * tile_size_px.x, (cell.y + 0.5) * tile_size_px.y)
+			if random_cells.is_empty():
+				cell = _fallback_cell(base_cell, next_index)
+			else:
+				cell = random_cells[(fallback_start + next_index) % random_cells.size()] as Vector2i
+			world_pos = _get_spawn_world_position(cell)
 			next_index += 1
 			attempts_this_step += 1
 
@@ -806,7 +813,7 @@ func _spawn_tree_at_cell(
 	chunk_spawn_cells: Dictionary,
 	stats: Dictionary
 ) -> Node2D:
-	var world_pos := Vector2((cell.x + 0.5) * tile_size_px.x, (cell.y + 0.5) * tile_size_px.y)
+	var world_pos := _get_spawn_world_position(cell)
 	return _spawn_tree_at_candidate(cell, world_pos, chunk, placed_index, chunk_spawn_positions, chunk_spawn_cells, stats)
 
 
@@ -919,6 +926,24 @@ func _world_to_chunk(world_pos: Vector2) -> Vector2i:
 func _roll(cell: Vector2i) -> float:
 	var h := _hash_cell(cell.x, cell.y, world_seed + 2222)
 	return float(h % 10000) / 10000.0
+
+
+func _get_spawn_world_position(cell: Vector2i) -> Vector2:
+	var center := Vector2((cell.x + 0.5) * tile_size_px.x, (cell.y + 0.5) * tile_size_px.y)
+	var max_jitter := Vector2(
+		clampf(spawn_cell_jitter_px.x, 0.0, tile_size_px.x * 0.48),
+		clampf(spawn_cell_jitter_px.y, 0.0, tile_size_px.y * 0.48)
+	)
+	if max_jitter.x <= 0.0 and max_jitter.y <= 0.0:
+		return center
+
+	var hx := _hash_cell(cell.x, cell.y, world_seed + 17321)
+	var hy := _hash_cell(cell.x, cell.y, world_seed + 23917)
+	var jitter := Vector2(
+		(float(hx % 20001) / 10000.0 - 1.0) * max_jitter.x,
+		(float(hy % 20001) / 10000.0 - 1.0) * max_jitter.y
+	)
+	return center + jitter
 
 
 func _fallback_cell(chunk_origin: Vector2i, index: int) -> Vector2i:

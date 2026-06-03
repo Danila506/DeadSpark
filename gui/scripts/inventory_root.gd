@@ -10,7 +10,8 @@ const BANDAGE_ITEM: ItemData = preload("res://Resources/Medicine/bandage.tres")
 const IMPROVISED_SPLINT_ITEM: ItemData = preload("res://Resources/Medicine/improvised_splint.tres")
 const MEDICAL_SPLINT_ITEM: ItemData = preload("res://Resources/Medicine/splint.tres")
 const AXE_ITEM: ItemData = preload("res://Resources/Melee/axe.tres")
-const CLEAVER_ITEM: ItemData = preload("res://Resources/Melee/cleaver.tres")
+const SHOVEL_ITEM: ItemData = preload("res://Resources/Melee/lopata/lopata.tres")
+const CLEAVER_ITEM: ItemData = preload("res://Resources/Misc/cleaver.tres")
 const HEMOSTAT_ITEM: ItemData = preload("res://Resources/Medicine/hemostat.tres")
 const SALINE_ITEM: ItemData = preload("res://Resources/Medicine/saline.tres")
 const HEALTH_BOX_ITEM: ItemData = preload("res://Resources/Medicine/healthBox.tres")
@@ -116,6 +117,8 @@ var consume_button: Button = null
 var consume_slot: InventorySlot = null
 var use_medical_button: Button = null
 var use_medical_slot: InventorySlot = null
+var till_farm_row_button: Button = null
+var till_farm_row_slot: InventorySlot = null
 var pending_medical_item: ItemData = null
 var pending_medical_mode: int = -1
 var pending_medical_slot_type: int = -1
@@ -158,6 +161,26 @@ var _network_inventory_action_next_request_id: int = 1
 var _network_inventory_action_pending: Dictionary = {}
 var _network_inventory_action_bypass: bool = false
 var _network_server_last_inventory_action_ms_by_peer: Dictionary = {}
+var _dev_console_panel: PanelContainer = null
+var _dev_console_output: RichTextLabel = null
+var _dev_console_input: LineEdit = null
+var _dev_console_suggestions: ItemList = null
+var _dev_console_open: bool = false
+var _dev_item_path_by_id: Dictionary = {}
+var _dev_item_ids_sorted: Array[String] = []
+var _dev_item_paths_by_name: Dictionary = {}
+var _dev_console_suggestion_values: Array[String] = []
+var _dev_console_selected_suggestion: int = -1
+var _dev_console_history: Array[String] = []
+var _dev_console_history_index: int = -1
+var _dev_console_aliases: Dictionary = {
+	"g": "give",
+	"gi": "give_inv",
+	"s": "spawn",
+	"ls": "list_items",
+	"f": "find_item",
+	"h": "help"
+}
 
 
 func _ready() -> void:
@@ -181,11 +204,13 @@ func _ready() -> void:
 	storage_slots_by_type[ItemData.ItemType.Bag] = []
 	_ensure_consume_button()
 	_ensure_use_medical_button()
+	_ensure_till_farm_row_button()
 	_ensure_equip_ammo_button()
 	_ensure_scope_buttons()
 
 	_setup_nav_buttons_z()
 	_setup_nav_pages()
+	_ensure_dev_console()
 	_setup_craft_recipes()
 	_setup_craft_categories()
 	_setup_craft_rows()
@@ -208,6 +233,10 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if _handle_dev_console_input(event):
+		get_viewport().set_input_as_handled()
+		return
+
 	if craft_scroll_texture_dragging:
 		if event is InputEventScreenDrag:
 			_drag_craft_scroll_texture((event as InputEventScreenDrag).position.y)
@@ -1400,12 +1429,12 @@ func _handle_drop_to_equipment(
 			if source_binding.is_empty():
 				return
 
-			var source_provider: ItemData = source_binding.get("provider", null)
-			var source_slot_index: int = int(source_binding.get("slot_index", -1))
-			if source_provider == null or source_slot_index < 0:
+			if not _is_storage_binding_valid(source_binding):
 				return
 
-			var source_item: ItemData = source_provider.runtime_storage_items[source_slot_index]
+			var source_provider: ItemData = source_binding.get("provider", null)
+			var source_slot_index: int = int(source_binding.get("slot_index", -1))
+			var source_item: ItemData = _get_bound_storage_item(source_binding)
 			if source_item == null:
 				return
 
@@ -1435,12 +1464,12 @@ func _handle_drop_to_clothing_container(
 	if target_binding.is_empty():
 		return
 
-	var target_provider: ItemData = target_binding.get("provider", null)
-	var target_index: int = int(target_binding.get("slot_index", -1))
-	if target_provider == null or target_index < 0:
+	if not _is_storage_binding_valid(target_binding):
 		return
 
-	var target_item: ItemData = target_provider.runtime_storage_items[target_index]
+	var target_provider: ItemData = target_binding.get("provider", null)
+	var target_index: int = int(target_binding.get("slot_index", -1))
+	var target_item: ItemData = _get_bound_storage_item(target_binding)
 
 	match source_mode:
 		InventorySlot.SlotMode.NEARBY:
@@ -1473,12 +1502,15 @@ func _handle_drop_to_clothing_container(
 			if source_index == target_slot.container_index:
 				return
 
-			var source_provider: ItemData = source_binding.get("provider", null)
-			var source_slot_index: int = int(source_binding.get("slot_index", -1))
-			if source_provider == null or source_slot_index < 0:
+			if not _is_storage_binding_valid(source_binding):
 				return
 
-			var source_item: ItemData = source_provider.runtime_storage_items[source_slot_index]
+			var source_provider: ItemData = source_binding.get("provider", null)
+			var source_slot_index: int = int(source_binding.get("slot_index", -1))
+			var source_item: ItemData = _get_bound_storage_item(source_binding)
+			if source_item == null:
+				return
+
 			var moved_between_slots: int = _stack_items(target_item, source_item)
 			if source_item.stack_count <= 0:
 				source_provider.runtime_storage_items[source_slot_index] = null
@@ -1663,12 +1695,12 @@ func _drop_dragged_item_to_world(data: Dictionary) -> void:
 			if source_binding.is_empty():
 				return
 
-			var source_provider: ItemData = source_binding.get("provider", null)
-			var source_slot_index: int = int(source_binding.get("slot_index", -1))
-			if source_provider == null or source_slot_index < 0:
+			if not _is_storage_binding_valid(source_binding):
 				return
 
-			var stored_item: ItemData = source_provider.runtime_storage_items[source_slot_index]
+			var source_provider: ItemData = source_binding.get("provider", null)
+			var source_slot_index: int = int(source_binding.get("slot_index", -1))
+			var stored_item: ItemData = _get_bound_storage_item(source_binding)
 			if stored_item == null:
 				return
 
@@ -2263,13 +2295,7 @@ func _can_item_fit_container_storage(item: ItemData) -> bool:
 
 
 func _can_stack_more(target_item: ItemData, source_item: ItemData) -> bool:
-	if target_item == null or source_item == null:
-		return false
-	if target_item.item_name != source_item.item_name:
-		return false
-	if target_item.is_ammo_item != source_item.is_ammo_item:
-		return false
-	if target_item.is_ammo_item and target_item.ammo_type != source_item.ammo_type:
+	if not _can_stack_items_together(target_item, source_item):
 		return false
 	if target_item.max_stack_size <= 1:
 		return false
@@ -2284,15 +2310,7 @@ func _get_equipment_slot_by_type(slot_type: int) -> InventorySlot:
 
 
 func _stack_items(target_item: ItemData, source_item: ItemData) -> int:
-	if target_item == null or source_item == null:
-		return 0
-	if target_item == source_item:
-		return 0
-	if target_item.item_name != source_item.item_name:
-		return 0
-	if target_item.is_ammo_item != source_item.is_ammo_item:
-		return 0
-	if target_item.is_ammo_item and target_item.ammo_type != source_item.ammo_type:
+	if not _can_stack_items_together(target_item, source_item):
 		return 0
 	if target_item.max_stack_size <= 1:
 		return 0
@@ -2307,6 +2325,34 @@ func _stack_items(target_item: ItemData, source_item: ItemData) -> int:
 	target_item.stack_count += moved
 	source_item.stack_count -= moved
 	return moved
+
+
+func _can_stack_items_together(target_item: ItemData, source_item: ItemData) -> bool:
+	if target_item == null or source_item == null:
+		return false
+	if target_item == source_item:
+		return false
+	if source_item.stack_count <= 0:
+		return false
+	if target_item.is_ammo_item or source_item.is_ammo_item:
+		return target_item.is_ammo_item and source_item.is_ammo_item and not target_item.ammo_type.is_empty() and target_item.ammo_type == source_item.ammo_type
+
+	var target_key: String = _get_stack_item_key(target_item)
+	var source_key: String = _get_stack_item_key(source_item)
+	if target_key.is_empty() or source_key.is_empty():
+		return false
+	return target_key == source_key
+
+
+func _get_stack_item_key(item: ItemData) -> String:
+	if item == null:
+		return ""
+	var definition: ItemData = item.get_definition() if item.has_method("get_definition") else item
+	if definition != null and not definition.resource_path.is_empty():
+		return definition.resource_path
+	if not item.resource_path.is_empty():
+		return item.resource_path
+	return item.item_name.strip_edges().to_lower()
 
 
 func _get_drop_offset_for_player(player: Node) -> Vector2:
@@ -2380,10 +2426,25 @@ func _ensure_storage_provider_size(provider: ItemData) -> void:
 	provider.runtime_storage_items = resized_storage
 
 
+func _is_storage_binding_valid(binding: Dictionary) -> bool:
+	var provider: ItemData = binding.get("provider", null)
+	var slot_index: int = int(binding.get("slot_index", -1))
+	return provider != null and slot_index >= 0 and slot_index < provider.runtime_storage_items.size()
+
+
+func _get_bound_storage_item(binding: Dictionary) -> ItemData:
+	if not _is_storage_binding_valid(binding):
+		return null
+
+	var provider: ItemData = binding.get("provider", null)
+	var slot_index: int = int(binding.get("slot_index", -1))
+	return provider.runtime_storage_items[slot_index]
+
+
 func _set_bound_storage_item_or_drop_old(binding: Dictionary, new_item: ItemData) -> void:
 	var provider: ItemData = binding.get("provider", null)
 	var slot_index: int = int(binding.get("slot_index", -1))
-	if provider == null or slot_index < 0 or slot_index >= provider.runtime_storage_items.size():
+	if not _is_storage_binding_valid(binding):
 		return
 
 	var old_item: ItemData = provider.runtime_storage_items[slot_index]
@@ -2502,6 +2563,10 @@ func _handle_slot_primary_press(slot: InventorySlot) -> void:
 	if _try_show_remove_scope_button_for_weapon(slot):
 		return
 
+	if _is_farm_tool_item(slot.item_data):
+		_show_till_farm_row_button_for_slot(slot)
+		return
+
 	if slot.item_data.is_ammo_item:
 		_show_equip_ammo_button_for_slot(slot)
 		return
@@ -2516,6 +2581,7 @@ func _handle_slot_primary_press(slot: InventorySlot) -> void:
 
 	_hide_equip_ammo_button()
 	_hide_use_medical_button()
+	_hide_till_farm_row_button()
 	consume_slot = slot
 	consume_button.position = slot.global_position - inventory_content.global_position + Vector2(0.0, slot.size.y + 6.0)
 	consume_button.visible = true
@@ -2715,6 +2781,7 @@ func _try_show_remove_scope_button_for_weapon(slot: InventorySlot) -> bool:
 	_hide_consume_button()
 	_hide_use_medical_button()
 	_hide_equip_ammo_button()
+	_hide_till_farm_row_button()
 	_hide_install_scope_button()
 	remove_scope_slot = slot
 	_populate_remove_attachment_dropdown(weapon_item)
@@ -2747,6 +2814,7 @@ func _ensure_use_medical_button() -> void:
 func _show_use_medical_button_for_slot(slot: InventorySlot) -> void:
 	_hide_consume_button()
 	_hide_equip_ammo_button()
+	_hide_till_farm_row_button()
 	_hide_install_scope_button()
 	_hide_remove_scope_button()
 	use_medical_slot = slot
@@ -2758,6 +2826,63 @@ func _hide_use_medical_button() -> void:
 	use_medical_slot = null
 	if use_medical_button != null:
 		use_medical_button.visible = false
+
+
+func _ensure_till_farm_row_button() -> void:
+	if till_farm_row_button != null:
+		return
+
+	till_farm_row_button = Button.new()
+	till_farm_row_button.text = "Вспахать"
+	till_farm_row_button.visible = false
+	till_farm_row_button.custom_minimum_size = Vector2(110, 28)
+	till_farm_row_button.pressed.connect(_start_till_farm_row_placement)
+	inventory_content.add_child(till_farm_row_button)
+
+
+func _show_till_farm_row_button_for_slot(slot: InventorySlot) -> void:
+	_hide_consume_button()
+	_hide_use_medical_button()
+	_hide_equip_ammo_button()
+	_hide_install_scope_button()
+	_hide_remove_scope_button()
+	till_farm_row_slot = slot
+	till_farm_row_button.position = slot.global_position - inventory_content.global_position + Vector2(0.0, slot.size.y + 6.0)
+	till_farm_row_button.visible = true
+
+
+func _hide_till_farm_row_button() -> void:
+	till_farm_row_slot = null
+	if till_farm_row_button != null:
+		till_farm_row_button.visible = false
+
+
+func _is_farm_tool_item(item: ItemData) -> bool:
+	if item == null:
+		return false
+	var definition: ItemData = item.get_definition() if item.has_method("get_definition") else item
+	if definition == SHOVEL_ITEM:
+		return true
+	return (
+		item.item_type == ItemData.ItemType.MeleeWeapon
+		and item.item_name.strip_edges().to_lower() == SHOVEL_ITEM.item_name.strip_edges().to_lower()
+	)
+
+
+func _start_till_farm_row_placement() -> void:
+	if till_farm_row_slot == null or till_farm_row_slot.item_data == null or not _is_farm_tool_item(till_farm_row_slot.item_data):
+		_hide_action_buttons()
+		return
+
+	var farming_controller: Node = get_tree().get_first_node_in_group("farming_placement_controller")
+	if farming_controller == null or not farming_controller.has_method("start_farm_row_placement"):
+		push_warning("InventoryRoot: farming placement controller was not found.")
+		_hide_action_buttons()
+		return
+
+	_hide_action_buttons()
+	close_inventory()
+	farming_controller.call("start_farm_row_placement")
 
 
 func _ensure_equip_ammo_button() -> void:
@@ -2800,6 +2925,7 @@ func _show_install_scope_button_for_slot(slot: InventorySlot) -> void:
 	_hide_consume_button()
 	_hide_use_medical_button()
 	_hide_equip_ammo_button()
+	_hide_till_farm_row_button()
 	_hide_remove_scope_button()
 	install_scope_slot = slot
 	install_scope_button.position = slot.global_position - inventory_content.global_position + Vector2(0.0, slot.size.y + 6.0)
@@ -2824,6 +2950,7 @@ func _hide_remove_scope_button() -> void:
 func _show_equip_ammo_button_for_slot(slot: InventorySlot) -> void:
 	_hide_consume_button()
 	_hide_use_medical_button()
+	_hide_till_farm_row_button()
 	equip_ammo_slot = slot
 	equip_ammo_button.position = slot.global_position - inventory_content.global_position + Vector2(0.0, slot.size.y + 6.0)
 	equip_ammo_button.visible = true
@@ -2846,6 +2973,7 @@ func _hide_equip_ammo_button() -> void:
 func _hide_action_buttons() -> void:
 	_hide_consume_button()
 	_hide_use_medical_button()
+	_hide_till_farm_row_button()
 	_hide_equip_ammo_button()
 	_hide_install_scope_button()
 	_hide_remove_scope_button()
@@ -3368,3 +3496,676 @@ func _clamp_inventory_content_to_viewport() -> void:
 		clamp(inventory_content.global_position.x, safe_margin.x, max_x),
 		clamp(inventory_content.global_position.y, safe_margin.y, max_y)
 	)
+
+
+func _ensure_dev_console() -> void:
+	if _dev_console_panel != null:
+		return
+
+	_dev_console_panel = PanelContainer.new()
+	_dev_console_panel.name = "DevConsole"
+	_dev_console_panel.visible = false
+	_dev_console_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_dev_console_panel.z_as_relative = false
+	_dev_console_panel.z_index = 200
+	_dev_console_panel.custom_minimum_size = Vector2(880.0, 300.0)
+	_dev_console_panel.position = Vector2(24.0, 24.0)
+	add_child(_dev_console_panel)
+
+	var root_vbox := VBoxContainer.new()
+	root_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	root_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_dev_console_panel.add_child(root_vbox)
+
+	var title_label := Label.new()
+	title_label.text = "Developer Console (`): help | list_items | find_item | give | give_inv | spawn | give_name | history"
+	root_vbox.add_child(title_label)
+
+	_dev_console_output = RichTextLabel.new()
+	_dev_console_output.bbcode_enabled = false
+	_dev_console_output.scroll_following = true
+	_dev_console_output.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_console_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_dev_console_output.custom_minimum_size = Vector2(860.0, 236.0)
+	root_vbox.add_child(_dev_console_output)
+
+	_dev_console_input = LineEdit.new()
+	_dev_console_input.placeholder_text = "Введите команду. Пример: give nonster 3"
+	_dev_console_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_console_input.text_submitted.connect(_on_dev_console_command_submitted)
+	_dev_console_input.text_changed.connect(_on_dev_console_input_text_changed)
+	root_vbox.add_child(_dev_console_input)
+
+	_dev_console_suggestions = ItemList.new()
+	_dev_console_suggestions.custom_minimum_size = Vector2(860.0, 110.0)
+	_dev_console_suggestions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_console_suggestions.select_mode = ItemList.SELECT_SINGLE
+	_dev_console_suggestions.visible = false
+	_dev_console_suggestions.item_selected.connect(_on_dev_console_suggestion_selected)
+	root_vbox.add_child(_dev_console_suggestions)
+
+	_dev_console_log("Console ready. Нажми ` чтобы скрыть.")
+
+
+func _handle_dev_console_input(event: InputEvent) -> bool:
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_QUOTELEFT:
+			_set_dev_console_open(not _dev_console_open)
+			return true
+		if _dev_console_open and key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
+			_set_dev_console_open(false)
+			return true
+		if _dev_console_open and key_event.pressed and not key_event.echo:
+			if key_event.keycode == KEY_TAB:
+				_apply_dev_console_selected_suggestion()
+				return true
+			if key_event.keycode == KEY_UP:
+				if _dev_console_suggestions != null and _dev_console_suggestions.visible:
+					_move_dev_console_suggestion_selection(-1)
+				else:
+					_move_dev_console_history_selection(-1)
+				return true
+			if key_event.keycode == KEY_DOWN:
+				if _dev_console_suggestions != null and _dev_console_suggestions.visible:
+					_move_dev_console_suggestion_selection(1)
+				else:
+					_move_dev_console_history_selection(1)
+				return true
+
+	if not _dev_console_open:
+		return false
+
+	if event is InputEventMouseButton or event is InputEventMouseMotion or event is InputEventScreenTouch or event is InputEventScreenDrag:
+		if _dev_console_panel != null and _dev_console_panel.visible:
+			var mouse_position := get_viewport().get_mouse_position()
+			var rect := Rect2(_dev_console_panel.global_position, _dev_console_panel.size)
+			if rect.has_point(mouse_position):
+				# Let built-in UI controls (RichTextLabel scrollbar, ItemList, LineEdit)
+				# receive mouse events directly.
+				return false
+			# Block gameplay clicks/touches while console is open.
+			return true
+
+	return false
+
+
+func _set_dev_console_open(should_open: bool) -> void:
+	_dev_console_open = should_open
+	if _dev_console_panel == null:
+		return
+	_dev_console_panel.visible = _dev_console_open
+	if _dev_console_open and _dev_console_input != null:
+		_dev_console_input.grab_focus()
+		_dev_console_input.select_all()
+		_on_dev_console_input_text_changed(_dev_console_input.text)
+	else:
+		_clear_dev_console_suggestions()
+
+
+func _on_dev_console_command_submitted(command_text: String) -> void:
+	if _dev_console_input != null:
+		_dev_console_input.clear()
+	_clear_dev_console_suggestions()
+	_execute_dev_console_command(command_text)
+
+
+func _execute_dev_console_command(command_text: String) -> void:
+	var trimmed := command_text.strip_edges()
+	if trimmed.is_empty():
+		return
+
+	var resolved_command_text: String = _resolve_dev_console_bang_command(trimmed)
+	if resolved_command_text.is_empty():
+		return
+
+	_push_dev_console_history(trimmed)
+	_push_dev_console_history(resolved_command_text)
+
+	var effective_text: String = _apply_dev_console_alias(resolved_command_text)
+	if effective_text.is_empty():
+		return
+
+	_push_dev_console_history(effective_text)
+	_dev_console_log("> %s" % trimmed)
+	if effective_text != trimmed:
+		_dev_console_log("= %s" % effective_text)
+	var tokens: Array[String] = _tokenize_dev_console_command(effective_text)
+	if tokens.is_empty():
+		return
+
+	var command := tokens[0].to_lower()
+	match command:
+		"help":
+			_dev_console_help(tokens)
+		"list_items":
+			_dev_console_list_items(tokens)
+		"find_item":
+			_dev_console_find_item(tokens)
+		"give":
+			_dev_console_give_by_id(tokens, "auto")
+		"give_inv":
+			_dev_console_give_by_id(tokens, "inventory")
+		"spawn":
+			_dev_console_give_by_id(tokens, "world")
+		"give_name":
+			_dev_console_give_by_name(tokens)
+		"history":
+			_dev_console_history_cmd(tokens)
+		"aliases":
+			_dev_console_aliases_cmd(tokens)
+		"alias":
+			_dev_console_alias_cmd(tokens)
+		_:
+			_dev_console_log("Unknown command: %s" % command)
+
+
+func _dev_console_help(tokens: Array[String]) -> void:
+	if tokens.size() <= 1:
+		_dev_console_log("help [command]")
+		_dev_console_log("list_items [filter] [limit], find_item <text> [limit], give/give_inv/spawn <id|path> [count], give_name \"Item Name\" [count], history [limit], aliases, alias <short> <command>, !!")
+		return
+
+	var topic: String = tokens[1].to_lower()
+	match topic:
+		"give":
+			_dev_console_log("give <id|res://path> [count] -> в инвентарь, а если не влезает, то рядом на землю.")
+		"give_inv":
+			_dev_console_log("give_inv <id|res://path> [count] -> только в инвентарь, без сброса на землю.")
+		"spawn":
+			_dev_console_log("spawn <id|res://path> [count] -> всегда спавнит рядом с игроком.")
+		"give_name":
+			_dev_console_log("give_name \"Название\" [count] -> выдача по item_name.")
+		"list_items":
+			_dev_console_log("list_items [filter] [limit] -> список id -> path.")
+		"find_item":
+			_dev_console_log("find_item <text> [limit] -> поиск по id, имени и пути.")
+		"history":
+			_dev_console_log("history [limit] -> история команд. !! -> повторить последнюю.")
+		"aliases", "alias":
+			_dev_console_log("aliases -> список алиасов. alias <short> <command> -> добавить/изменить.")
+		"!!":
+			_dev_console_log("!! -> выполнить последнюю команду из истории.")
+		_:
+			_dev_console_log("No help for: %s" % topic)
+
+
+func _dev_console_list_items(tokens: Array[String]) -> void:
+	_ensure_dev_item_index()
+	var filter_text: String = ""
+	var limit: int = 40
+	if tokens.size() >= 2:
+		filter_text = tokens[1].to_lower()
+	if tokens.size() >= 3:
+		limit = clampi(int(tokens[2]), 1, 300)
+
+	var shown: int = 0
+	for id in _dev_item_ids_sorted:
+		var path: String = String(_dev_item_path_by_id.get(id, ""))
+		if path.is_empty():
+			continue
+		if not filter_text.is_empty() and not id.contains(filter_text) and not path.to_lower().contains(filter_text):
+			continue
+		_dev_console_log("%s -> %s" % [id, path])
+		shown += 1
+		if shown >= limit:
+			break
+
+	_dev_console_log("Items shown: %d (total: %d)" % [shown, _dev_item_ids_sorted.size()])
+
+
+func _dev_console_find_item(tokens: Array[String]) -> void:
+	if tokens.size() < 2:
+		_dev_console_log("Usage: find_item <text> [limit]")
+		return
+	_ensure_dev_item_index()
+
+	var query: String = tokens[1].to_lower()
+	var limit: int = 30
+	if tokens.size() >= 3:
+		limit = clampi(int(tokens[2]), 1, 300)
+
+	var names_by_path: Dictionary = {}
+	for name_key in _dev_item_paths_by_name.keys():
+		var paths: Array = _dev_item_paths_by_name.get(name_key, [])
+		for raw_path in paths:
+			names_by_path[String(raw_path)] = String(name_key)
+
+	var shown: int = 0
+	for id in _dev_item_ids_sorted:
+		var path: String = String(_dev_item_path_by_id.get(id, ""))
+		if path.is_empty():
+			continue
+		var item_name: String = String(names_by_path.get(path, ""))
+		var matches: bool = id.contains(query) or path.to_lower().contains(query) or item_name.contains(query)
+		if not matches:
+			continue
+		_dev_console_log("%s | %s | %s" % [id, item_name, path])
+		shown += 1
+		if shown >= limit:
+			break
+
+	_dev_console_log("Matches: %d" % shown)
+
+
+func _dev_console_give_by_id(tokens: Array[String], mode: String = "auto") -> void:
+	if tokens.size() < 2:
+		_dev_console_log("Usage: give|give_inv|spawn <id|res://path> [count]")
+		return
+	if _is_network_client_inventory_mutation_blocked():
+		_dev_console_log("Команда доступна только на сервере/в одиночной игре.")
+		return
+
+	var id_or_path: String = tokens[1]
+	var count: int = 1
+	if tokens.size() >= 3:
+		count = max(int(tokens[2]), 1)
+
+	var item_definition: ItemData = _resolve_dev_item_definition(id_or_path)
+	if item_definition == null:
+		_dev_console_log("Item not found: %s" % id_or_path)
+		return
+	_dev_console_give_item_definition(item_definition, count, mode)
+
+
+func _dev_console_give_by_name(tokens: Array[String]) -> void:
+	if tokens.size() < 2:
+		_dev_console_log("Usage: give_name \"Item Name\" [count]")
+		return
+	if _is_network_client_inventory_mutation_blocked():
+		_dev_console_log("Команда доступна только на сервере/в одиночной игре.")
+		return
+
+	var item_name_query: String = tokens[1].strip_edges()
+	var count: int = 1
+	if tokens.size() >= 3:
+		count = max(int(tokens[2]), 1)
+
+	_ensure_dev_item_index()
+	var key: String = item_name_query.to_lower()
+	var candidate_paths: Array = _dev_item_paths_by_name.get(key, [])
+	if candidate_paths.is_empty():
+		_dev_console_log("Item name not found: %s" % item_name_query)
+		return
+
+	var definition: ItemData = load(String(candidate_paths[0])) as ItemData
+	if definition == null:
+		_dev_console_log("Failed to load item by name: %s" % item_name_query)
+		return
+	_dev_console_give_item_definition(definition, count, "auto")
+
+
+func _dev_console_give_item_definition(definition: ItemData, count: int, mode: String = "auto") -> void:
+	if definition == null:
+		return
+	var total_requested: int = max(count, 1)
+	var remaining: int = total_requested
+	var inventory_stacks_added: int = 0
+	var world_stacks_spawned: int = 0
+	var dropped_stacks: int = 0
+	var stack_size: int = max(definition.max_stack_size, 1)
+
+	while remaining > 0:
+		var give_count: int = min(stack_size, remaining)
+		var instance: ItemData = definition.create_instance(give_count)
+		match mode:
+			"inventory":
+				if _try_store_picked_item(instance):
+					inventory_stacks_added += 1
+				else:
+					dropped_stacks += 1
+			"world":
+				if _spawn_world_item(instance):
+					world_stacks_spawned += 1
+				else:
+					dropped_stacks += 1
+			_:
+				var stored_without_drop: bool = try_store_item_or_drop(instance)
+				if stored_without_drop:
+					inventory_stacks_added += 1
+				else:
+					world_stacks_spawned += 1
+		remaining -= give_count
+
+	_dev_console_log("Issued %d x %s | inv stacks: %d | world stacks: %d | failed: %d" % [total_requested, definition.item_name, inventory_stacks_added, world_stacks_spawned, dropped_stacks])
+
+
+func _resolve_dev_item_definition(id_or_path: String) -> ItemData:
+	if id_or_path.begins_with("res://"):
+		return load(id_or_path) as ItemData
+
+	_ensure_dev_item_index()
+	var item_path: String = String(_dev_item_path_by_id.get(id_or_path.to_lower(), ""))
+	if item_path.is_empty():
+		return null
+	return load(item_path) as ItemData
+
+
+func _ensure_dev_item_index() -> void:
+	if not _dev_item_path_by_id.is_empty():
+		return
+
+	_dev_item_path_by_id.clear()
+	_dev_item_ids_sorted.clear()
+	_dev_item_paths_by_name.clear()
+	_collect_dev_item_resources("res://Resources")
+	var raw_ids: Array = _dev_item_path_by_id.keys()
+	for raw_id in raw_ids:
+		_dev_item_ids_sorted.append(String(raw_id))
+	_dev_item_ids_sorted.sort()
+	_dev_console_log("Indexed items: %d" % _dev_item_ids_sorted.size())
+
+
+func _collect_dev_item_resources(directory_path: String) -> void:
+	var directory := DirAccess.open(directory_path)
+	if directory == null:
+		return
+
+	directory.list_dir_begin()
+	var entry_name: String = directory.get_next()
+	while not entry_name.is_empty():
+		if entry_name.begins_with("."):
+			entry_name = directory.get_next()
+			continue
+
+		var entry_path: String = directory_path.path_join(entry_name)
+		if directory.current_is_dir():
+			_collect_dev_item_resources(entry_path)
+			entry_name = directory.get_next()
+			continue
+
+		var ext: String = entry_path.get_extension().to_lower()
+		if ext == "tres" or ext == "res":
+			_index_dev_item_resource(entry_path)
+		elif ext == "remap":
+			var original_path := entry_path.trim_suffix(".remap")
+			var original_ext := original_path.get_extension().to_lower()
+			if original_ext == "tres" or original_ext == "res":
+				_index_dev_item_resource(original_path)
+
+		entry_name = directory.get_next()
+	directory.list_dir_end()
+
+
+func _index_dev_item_resource(resource_path: String) -> void:
+	if resource_path.is_empty():
+		return
+	var resource: Resource = load(resource_path)
+	var item: ItemData = resource as ItemData
+	if item == null:
+		return
+
+	var base_id: String = resource_path.get_file().get_basename().to_lower()
+	var unique_id: String = base_id
+	var suffix: int = 2
+	while _dev_item_path_by_id.has(unique_id) and String(_dev_item_path_by_id.get(unique_id, "")) != resource_path:
+		unique_id = "%s_%d" % [base_id, suffix]
+		suffix += 1
+	_dev_item_path_by_id[unique_id] = resource_path
+
+	var item_name_key: String = item.item_name.to_lower()
+	if not item_name_key.is_empty():
+		var name_paths: Array = _dev_item_paths_by_name.get(item_name_key, [])
+		if not name_paths.has(resource_path):
+			name_paths.append(resource_path)
+			_dev_item_paths_by_name[item_name_key] = name_paths
+
+
+func _tokenize_dev_console_command(command_text: String) -> Array[String]:
+	var tokens: Array[String] = []
+	var current: String = ""
+	var in_quotes: bool = false
+
+	for i in range(command_text.length()):
+		var ch: String = command_text[i]
+		if ch == "\"":
+			in_quotes = not in_quotes
+			continue
+		if not in_quotes and ch in [" ", "\t"]:
+			if not current.is_empty():
+				tokens.append(current)
+				current = ""
+			continue
+		current += ch
+
+	if not current.is_empty():
+		tokens.append(current)
+	return tokens
+
+
+func _resolve_dev_console_bang_command(trimmed: String) -> String:
+	if trimmed != "!!":
+		return trimmed
+	for i in range(_dev_console_history.size() - 1, -1, -1):
+		var candidate: String = _dev_console_history[i]
+		if candidate.is_empty() or candidate == "!!":
+			continue
+		_dev_console_log("repeat: %s" % candidate)
+		return candidate
+	_dev_console_log("History is empty")
+	return ""
+
+
+func _apply_dev_console_alias(command_text: String) -> String:
+	var tokens: Array[String] = _tokenize_dev_console_command(command_text)
+	if tokens.is_empty():
+		return command_text
+	var alias_key: String = tokens[0].to_lower()
+	if not _dev_console_aliases.has(alias_key):
+		return command_text
+	tokens[0] = String(_dev_console_aliases.get(alias_key, tokens[0]))
+	var rebuilt: String = ""
+	for i in range(tokens.size()):
+		if i > 0:
+			rebuilt += " "
+		rebuilt += tokens[i]
+	return rebuilt
+
+
+func _push_dev_console_history(command_text: String) -> void:
+	if command_text.is_empty():
+		return
+	if _dev_console_history.is_empty() or _dev_console_history[_dev_console_history.size() - 1] != command_text:
+		_dev_console_history.append(command_text)
+		if _dev_console_history.size() > 200:
+			_dev_console_history.remove_at(0)
+	_dev_console_history_index = _dev_console_history.size()
+
+
+func _move_dev_console_history_selection(direction: int) -> void:
+	if _dev_console_input == null:
+		return
+	if _dev_console_history.is_empty():
+		return
+	if _dev_console_history_index < 0:
+		_dev_console_history_index = _dev_console_history.size()
+	_dev_console_history_index = clampi(_dev_console_history_index + direction, 0, _dev_console_history.size())
+	if _dev_console_history_index >= _dev_console_history.size():
+		_dev_console_input.text = ""
+	else:
+		_dev_console_input.text = _dev_console_history[_dev_console_history_index]
+	_dev_console_input.caret_column = _dev_console_input.text.length()
+	_on_dev_console_input_text_changed(_dev_console_input.text)
+
+
+func _dev_console_history_cmd(tokens: Array[String]) -> void:
+	var limit: int = 20
+	if tokens.size() >= 2:
+		limit = clampi(int(tokens[1]), 1, 200)
+	if _dev_console_history.is_empty():
+		_dev_console_log("History is empty")
+		return
+	var start_index: int = max(_dev_console_history.size() - limit, 0)
+	for i in range(start_index, _dev_console_history.size()):
+		_dev_console_log("%d: %s" % [i + 1, _dev_console_history[i]])
+
+
+func _dev_console_aliases_cmd(_tokens: Array[String]) -> void:
+	var keys: Array = _dev_console_aliases.keys()
+	keys.sort()
+	for key in keys:
+		var alias_key: String = String(key)
+		_dev_console_log("%s -> %s" % [alias_key, String(_dev_console_aliases.get(alias_key, ""))])
+
+
+func _dev_console_alias_cmd(tokens: Array[String]) -> void:
+	if tokens.size() < 3:
+		_dev_console_log("Usage: alias <short> <command>")
+		return
+	var alias_key: String = tokens[1].strip_edges().to_lower()
+	if alias_key.is_empty():
+		_dev_console_log("Alias key is empty")
+		return
+	var command_value: String = tokens[2].strip_edges().to_lower()
+	if command_value.is_empty():
+		_dev_console_log("Alias target is empty")
+		return
+	_dev_console_aliases[alias_key] = command_value
+	_dev_console_log("Alias set: %s -> %s" % [alias_key, command_value])
+
+
+func _on_dev_console_input_text_changed(new_text: String) -> void:
+	_refresh_dev_console_suggestions(new_text)
+
+
+func _refresh_dev_console_suggestions(text: String) -> void:
+	if _dev_console_suggestions == null:
+		return
+
+	_dev_console_suggestions.clear()
+	_dev_console_suggestion_values.clear()
+	_dev_console_selected_suggestion = -1
+
+	var trimmed: String = text.strip_edges()
+	if trimmed.is_empty():
+		_dev_console_suggestions.visible = false
+		return
+
+	var known_commands: Array[String] = ["help", "list_items", "find_item", "give", "give_inv", "spawn", "give_name", "history", "aliases", "alias"]
+	var tokens: Array[String] = _tokenize_dev_console_command(text)
+	if tokens.is_empty():
+		_dev_console_suggestions.visible = false
+		return
+
+	var first: String = tokens[0].to_lower()
+	var max_hints: int = 12
+
+	if tokens.size() == 1 and not text.ends_with(" "):
+		for cmd in known_commands:
+			if cmd.begins_with(first):
+				_dev_console_suggestion_values.append(cmd)
+				_dev_console_suggestions.add_item("cmd: %s" % cmd)
+		_dev_console_suggestions.visible = not _dev_console_suggestion_values.is_empty()
+		if _dev_console_suggestions.visible:
+			_move_dev_console_suggestion_selection(1)
+		return
+
+	if first in ["give", "give_inv", "spawn"]:
+		_ensure_dev_item_index()
+		var item_filter: String = ""
+		if tokens.size() >= 2:
+			item_filter = tokens[1].to_lower()
+		for id in _dev_item_ids_sorted:
+			if item_filter.is_empty() or id.contains(item_filter):
+				_dev_console_suggestion_values.append(id)
+				_dev_console_suggestions.add_item("item: %s" % id)
+			if _dev_console_suggestion_values.size() >= max_hints:
+				break
+	elif first == "give_name":
+		_ensure_dev_item_index()
+		var name_filter: String = ""
+		if tokens.size() >= 2:
+			name_filter = tokens[1].to_lower()
+		var names: Array = _dev_item_paths_by_name.keys()
+		names.sort()
+		for raw_name in names:
+			var item_name: String = String(raw_name)
+			if name_filter.is_empty() or item_name.contains(name_filter):
+				_dev_console_suggestion_values.append(item_name)
+				_dev_console_suggestions.add_item("name: %s" % item_name)
+			if _dev_console_suggestion_values.size() >= max_hints:
+				break
+	elif first == "list_items" and tokens.size() <= 2:
+		var filters: Array[String] = ["food", "medical", "misc", "weapon", "ammo", "clothes"]
+		var existing_filter: String = ""
+		if tokens.size() >= 2:
+			existing_filter = tokens[1].to_lower()
+		for hint in filters:
+			if existing_filter.is_empty() or hint.begins_with(existing_filter):
+				_dev_console_suggestion_values.append(hint)
+				_dev_console_suggestions.add_item("filter: %s" % hint)
+
+	_dev_console_suggestions.visible = not _dev_console_suggestion_values.is_empty()
+	if _dev_console_suggestions.visible:
+		_move_dev_console_suggestion_selection(1)
+
+
+func _on_dev_console_suggestion_selected(index: int) -> void:
+	_dev_console_selected_suggestion = index
+
+
+func _move_dev_console_suggestion_selection(direction: int) -> void:
+	if _dev_console_suggestion_values.is_empty() or _dev_console_suggestions == null:
+		return
+	var current: int = _dev_console_selected_suggestion
+	if current < 0:
+		current = 0 if direction >= 0 else _dev_console_suggestion_values.size() - 1
+	else:
+		current = (current + direction + _dev_console_suggestion_values.size()) % _dev_console_suggestion_values.size()
+	_dev_console_selected_suggestion = current
+	_dev_console_suggestions.select(current)
+	_dev_console_suggestions.ensure_current_is_visible()
+
+
+func _apply_dev_console_selected_suggestion() -> void:
+	if _dev_console_input == null:
+		return
+	if _dev_console_selected_suggestion < 0 or _dev_console_selected_suggestion >= _dev_console_suggestion_values.size():
+		return
+
+	var selected: String = _dev_console_suggestion_values[_dev_console_selected_suggestion]
+	var text: String = _dev_console_input.text
+	var tokens: Array[String] = _tokenize_dev_console_command(text)
+	if tokens.is_empty():
+		_dev_console_input.text = selected
+		_dev_console_input.caret_column = _dev_console_input.text.length()
+		return
+
+	var first: String = tokens[0].to_lower()
+	if tokens.size() == 1 and not text.ends_with(" "):
+		_dev_console_input.text = selected + " "
+	elif first in ["give", "give_inv", "spawn"]:
+		var parts: PackedStringArray = text.split(" ", false)
+		if parts.size() <= 1:
+			_dev_console_input.text = "give %s " % selected
+		else:
+			parts[1] = selected
+			var rebuilt: String = ""
+			for i in range(parts.size()):
+				if i > 0:
+					rebuilt += " "
+				rebuilt += parts[i]
+			_dev_console_input.text = rebuilt + (" " if parts.size() == 2 else "")
+	elif first == "give_name":
+		_dev_console_input.text = "give_name \"%s\" " % selected
+	elif first == "list_items":
+		_dev_console_input.text = "list_items %s " % selected
+	else:
+		_dev_console_input.text = selected
+
+	_dev_console_input.caret_column = _dev_console_input.text.length()
+	_on_dev_console_input_text_changed(_dev_console_input.text)
+
+
+func _clear_dev_console_suggestions() -> void:
+	if _dev_console_suggestions != null:
+		_dev_console_suggestions.clear()
+		_dev_console_suggestions.visible = false
+	_dev_console_suggestion_values.clear()
+	_dev_console_selected_suggestion = -1
+
+
+func _dev_console_log(message: String) -> void:
+	if _dev_console_output == null:
+		return
+	_dev_console_output.append_text("%s\n" % message)

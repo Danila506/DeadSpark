@@ -136,7 +136,7 @@ func _kill() -> void:
 	if flayed_sprite != null:
 		flayed_sprite.visible = false
 	if collision_shape != null:
-		collision_shape.disabled = true
+		collision_shape.set_deferred("disabled", true)
 	velocity = Vector2.ZERO
 	_update_move_animation(Vector2.ZERO)
 

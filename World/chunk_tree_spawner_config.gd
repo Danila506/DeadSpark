@@ -40,6 +40,7 @@ const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 @export_range(0.0, 1.0, 0.01) var spawn_probability: float = 0.03
 @export var min_trees_per_chunk: int = 1
 @export var min_spawn_distance_px: float = 0.0
+@export var spawn_cell_jitter_px: Vector2 = Vector2.ZERO
 @export var biome_partition_enabled: bool = false
 @export_range(2, 8, 1) var biome_partition_count: int = 2
 @export_range(0, 7, 1) var biome_partition_index: int = 0

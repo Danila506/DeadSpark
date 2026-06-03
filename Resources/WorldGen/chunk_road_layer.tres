@@ -8,6 +8,7 @@ enabled = false
 tile_map_path = NodePath("../../RoadLayer")
 player_path = NodePath("../../Y-Sort_Objects/Player2")
 load_radius_chunks = 2
+load_entire_world_on_start = true
 preserve_editor_tiles = true
 fill_probability = 0.08
 source_id = 0

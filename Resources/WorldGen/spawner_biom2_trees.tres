@@ -13,5 +13,6 @@ world_seed = 2411
 spawn_probability = 0.49
 min_trees_per_chunk = 0
 min_spawn_distance_px = 58.0
-forbidden_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/LakeLayer"), NodePath("../../Y-Sort_Objects/Biom1/Biom1Layer"), NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer"), NodePath("../../Y-Sort_Objects/xz")])
+spawn_cell_jitter_px = Vector2(28, 28)
+forbidden_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/LakeLayer"), NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer"), NodePath("../../Y-Sort_Objects/xz")])
 forbidden_layer_radius_tiles = 1

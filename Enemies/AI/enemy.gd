@@ -1712,6 +1712,8 @@ func _play_builtin_animation(token: StringName) -> void:
 	for animation_name in candidates:
 		if body_sprite.sprite_frames.has_animation(animation_name) and body_sprite.sprite_frames.get_frame_count(animation_name) > 0:
 			_apply_sprite_flip_for_animation(animation_name)
+			if token == &"death" and body_sprite.animation == animation_name:
+				return
 			if token == &"death":
 				body_sprite.sprite_frames.set_animation_loop(animation_name, false)
 			body_sprite.play(animation_name)

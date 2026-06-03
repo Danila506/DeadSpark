@@ -14,9 +14,9 @@
 [ext_resource type="PackedScene" uid="uid://e3uqauak7fap" path="res://Projectile/projectile.tscn" id="17_fedht"]
 [ext_resource type="Texture2D" uid="uid://b8c27l6m6swpl" path="res://World/Assets/тайлмап воды.png" id="22_fj6e6"]
 [ext_resource type="Texture2D" uid="uid://bnrt520qd0h0t" path="res://Assets/World/biom2.png" id="25_uuqa8"]
-[ext_resource type="Texture2D" uid="uid://dk7ac07ugy0px" path="res://Assets/World/RoadLayer.png" id="35_uuqa8"]
 [ext_resource type="Script" uid="uid://bpmu2s8ry3rap" path="res://World/snowfall_layer.gd" id="39_snowfall"]
 [ext_resource type="PackedScene" path="res://World/world_generation.tscn" id="40_worldgen"]
+[ext_resource type="Script" uid="uid://b7drf4vbjkp6q" path="res://World/farming_placement_controller.gd" id="41_farming"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_n6hdu"]
 texture = ExtResource("2_f2txt")
@@ -79,106 +79,6 @@ texture = ExtResource("3_0b4ue")
 
 [sub_resource type="TileSet" id="TileSet_1ainy"]
 sources/0 = SubResource("TileSetAtlasSource_f2txt")
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_samc1"]
-texture = ExtResource("35_uuqa8")
-texture_region_size = Vector2i(64, 64)
-0:0/size_in_atlas = Vector2i(7, 4)
-0:0/next_alternative_id = 2
-0:0/0 = 0
-0:0/0/terrain_set = 0
-0:0/0/terrain = 0
-0:0/0/terrains_peering_bit/bottom_side = 0
-0:0/0/terrains_peering_bit/top_side = 0
-0:0/1 = 1
-0:0/1/flip_v = true
-0:0/1/terrain_set = 0
-0:0/1/terrains_peering_bit/bottom_side = 0
-0:0/1/terrains_peering_bit/top_side = 0
-21:0/size_in_atlas = Vector2i(6, 4)
-21:0/0 = 0
-21:0/0/texture_origin = Vector2i(-44, -8)
-21:0/0/terrain_set = 0
-21:0/0/terrain = 0
-27:0/size_in_atlas = Vector2i(5, 4)
-27:0/next_alternative_id = 4
-27:0/0 = 0
-27:0/0/terrain_set = 0
-27:0/0/terrains_peering_bit/bottom_left_corner = 0
-27:0/0/terrains_peering_bit/top_side = 0
-27:0/1 = 1
-27:0/1/flip_h = true
-27:0/1/terrain_set = 0
-27:0/1/terrains_peering_bit/bottom_right_corner = 0
-27:0/1/terrains_peering_bit/top_side = 0
-27:0/2 = 2
-27:0/2/flip_v = true
-27:0/2/terrain_set = 0
-27:0/2/terrains_peering_bit/bottom_side = 0
-27:0/2/terrains_peering_bit/top_left_corner = 0
-27:0/3 = 3
-27:0/3/flip_h = true
-27:0/3/flip_v = true
-27:0/3/terrain_set = 0
-27:0/3/terrains_peering_bit/bottom_side = 0
-27:0/3/terrains_peering_bit/top_right_corner = 0
-32:0/size_in_atlas = Vector2i(6, 4)
-32:0/next_alternative_id = 2
-32:0/0 = 0
-32:0/0/texture_origin = Vector2i(60, 0)
-32:0/0/terrain_set = 0
-32:0/0/terrain = 0
-32:0/0/terrains_peering_bit/left_side = 0
-32:0/1 = 1
-32:0/1/flip_h = true
-32:0/1/terrain_set = 0
-32:0/1/terrain = 0
-32:0/1/terrains_peering_bit/left_side = 0
-14:0/size_in_atlas = Vector2i(5, 4)
-14:0/next_alternative_id = 4
-14:0/0 = 0
-14:0/0/texture_origin = Vector2i(5, 36)
-14:0/0/terrain_set = 0
-14:0/0/terrains_peering_bit/right_side = 0
-14:0/0/terrains_peering_bit/left_side = 0
-14:0/0/terrains_peering_bit/top_side = 0
-14:0/1 = 1
-14:0/1/flip_v = true
-14:0/1/texture_origin = Vector2i(0, -36)
-14:0/1/terrain_set = 0
-14:0/1/terrains_peering_bit/right_side = 0
-14:0/1/terrains_peering_bit/bottom_side = 0
-14:0/1/terrains_peering_bit/left_side = 0
-14:0/2 = 2
-14:0/2/transpose = true
-14:0/2/texture_origin = Vector2i(36, 0)
-14:0/2/terrain_set = 0
-14:0/2/terrains_peering_bit/bottom_side = 0
-14:0/2/terrains_peering_bit/left_side = 0
-14:0/2/terrains_peering_bit/top_side = 0
-14:0/3 = 3
-14:0/3/flip_h = true
-14:0/3/transpose = true
-14:0/3/texture_origin = Vector2i(-36, 0)
-14:0/3/terrain_set = 0
-14:0/3/terrains_peering_bit/right_side = 0
-14:0/3/terrains_peering_bit/bottom_side = 0
-14:0/3/terrains_peering_bit/top_side = 0
-7:0/size_in_atlas = Vector2i(5, 4)
-7:0/0 = 0
-7:0/0/texture_origin = Vector2i(-8, -5)
-7:0/0/terrain_set = 0
-7:0/0/terrains_peering_bit/right_side = 0
-7:0/0/terrains_peering_bit/bottom_side = 0
-7:0/0/terrains_peering_bit/left_side = 0
-7:0/0/terrains_peering_bit/top_side = 0
-
-[sub_resource type="TileSet" id="TileSet_oaehd"]
-tile_size = Vector2i(239, 151)
-terrain_set_0/mode = 0
-terrain_set_0/terrain_0/name = "Terrain 0"
-terrain_set_0/terrain_0/color = Color(0.5, 0.34375, 0.25, 1)
-sources/0 = SubResource("TileSetAtlasSource_samc1")
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_2h3vt"]
 texture = ExtResource("22_fj6e6")
@@ -369,6 +269,7 @@ texture = ExtResource("4_f2txt")
 1:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-10.881453, 7.3993893, 16.975067, 8.269905, 17.183195, 20.869558, -11.35637, 20.869558)
 
 [sub_resource type="TileSet" id="TileSet_n6hdu"]
+tile_size = Vector2i(60, 60)
 physics_layer_0/collision_layer = 1
 sources/0 = SubResource("TileSetAtlasSource_qw2y7")
 
@@ -460,9 +361,17 @@ sources/0 = SubResource("TileSetAtlasSource_oaehd")
 [node name="Level" type="Node2D" unique_id=372047388]
 script = ExtResource("1_u52ul")
 world_bounds_generator_path = NodePath("WorldGeneration/ChunkWorldGenerator")
-world_mood_targets = Array[NodePath]([NodePath("SnowLayer"), NodePath("WoodLayer"), NodePath("RoadLayer"), NodePath(""), NodePath("Y-Sort_Objects"), NodePath("Snowfall")])
+world_mood_targets = Array[NodePath]([NodePath("SnowLayer"), NodePath("WoodLayer"), NodePath(""), NodePath("FarmRowsLayer"), NodePath(""), NodePath("Y-Sort_Objects"), NodePath("Snowfall")])
+startup_hidden_nodes = Array[NodePath]([NodePath("SnowLayer"), NodePath("WoodLayer"), NodePath(""), NodePath("Y-Sort_Objects"), NodePath("UI"), NodePath("Snowfall"), NodePath("Projectile")])
+
+[node name="NightCanvasModulate" type="CanvasModulate" parent="."]
+color = Color(0.35, 0.38, 0.5, 1)
 
 [node name="WorldGeneration" parent="." unique_id=13881982 instance=ExtResource("40_worldgen")]
+
+[node name="FarmingPlacementController" type="Node2D" parent="." unique_id=1586729883]
+script = ExtResource("41_farming")
+blocked_layer_paths = Array[NodePath]([NodePath(""), NodePath("../Y-Sort_Objects/LakeLayer"), NodePath("../Y-Sort_Objects/Biom1/Biom1Layer"), NodePath("../Y-Sort_Objects/Biom2/Biom2Layer"), NodePath("../Y-Sort_Objects/xz")])
 
 [node name="SnowLayer" type="TileMapLayer" parent="." unique_id=1540319895]
 z_index = -1
@@ -471,9 +380,6 @@ tile_set = SubResource("TileSet_km5ld")
 [node name="WoodLayer" type="TileMapLayer" parent="." unique_id=716576606]
 z_index = -1
 tile_set = SubResource("TileSet_1ainy")
-
-[node name="RoadLayer" type="TileMapLayer" parent="." unique_id=339745339]
-tile_set = SubResource("TileSet_oaehd")
 
 [node name="Y-Sort_Objects" type="Node2D" parent="." unique_id=1962220443]
 y_sort_enabled = true

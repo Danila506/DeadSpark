@@ -1,0 +1,19 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/itemAssets/inventory_icon/Food/tushenkaInv.png" id="1_inv"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="2_script"]
+[ext_resource type="Texture2D" path="res://Assets/itemAssets/on_world_icon/Food/tushenkaWrd.png" id="3_world"]
+
+[resource]
+script = ExtResource("2_script")
+storage_category = 3
+item_name = "Тушенка"
+world_icon = ExtResource("3_world")
+inventory_icon = ExtResource("1_inv")
+inventory_icon_scale = 0.75
+max_stack_size = 10
+show_stack_count_in_inventory = true
+food_restore_amount = 18.0
+water_restore_amount = -3.0
+item_type = 10
+can_be_held_in_left_hand = true

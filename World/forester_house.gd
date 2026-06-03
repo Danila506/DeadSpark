@@ -30,7 +30,11 @@ const INSIDE_HOUSE_ANCHOR_META: StringName = &"inside_house_anchor"
 	preload("res://Resources/Food/apple.tres"),
 	preload("res://Resources/Food/tomate.tres"),
 	preload("res://Resources/Food/pepper.tres"),
-	preload("res://Resources/Food/eggplant.tres")
+	preload("res://Resources/Food/eggplant.tres"),
+	preload("res://Resources/Food/tushenka.tres"),
+	preload("res://Resources/Food/konservirovannye_tomaty.tres"),
+	preload("res://Resources/Food/malinovaya_gazirovka.tres"),
+	preload("res://Resources/Food/nonster.tres")
 ]
 @export var wardrobe_clothing_pool: Array[ItemData] = [
 	preload("res://Resources/Clothes/kurtka_demisezonka.tres"),

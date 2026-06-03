@@ -131,13 +131,14 @@ func _authorize_pickup_for_peer(requester_peer_id: int) -> void:
 	var granted: bool = _can_authorize_pickup_for_peer(requester_peer_id)
 	if granted:
 		_network_pickup_locked = true
+		_request_global_despawn()
 	rpc("rpc_finalize_pickup_authorization", requester_peer_id, granted)
 
 
 @rpc("any_peer", "call_local", "reliable")
 func rpc_finalize_pickup_authorization(requester_peer_id: int, granted: bool) -> void:
 	if granted:
-		remove_from_world()
+		_remove_pickups_with_same_runtime_id()
 	if NetworkManager != null and requester_peer_id == NetworkManager.get_local_peer_id():
 		network_pickup_result.emit(granted)
 
@@ -164,3 +165,47 @@ func _find_player_by_peer_id(peer_id: int) -> Node2D:
 		if int(node.get("peer_id")) == peer_id:
 			return node as Node2D
 	return null
+
+
+func _remove_pickups_with_same_runtime_id() -> void:
+	var runtime_id: String = ""
+	if item_data != null:
+		runtime_id = String(item_data.get("runtime_id"))
+	if runtime_id.is_empty():
+		remove_from_world()
+		return
+	var scene_tree: SceneTree = get_tree()
+	if scene_tree == null:
+		remove_from_world()
+		return
+	for node_variant: Variant in scene_tree.get_nodes_in_group("world_pickup"):
+		var pickup_node: Node = node_variant as Node
+		if pickup_node == null or not is_instance_valid(pickup_node):
+			continue
+		var pickup_item: ItemData = pickup_node.get("item_data") as ItemData
+		if pickup_item == null:
+			continue
+		if String(pickup_item.get("runtime_id")) != runtime_id:
+			continue
+		if pickup_node.has_method("remove_from_world"):
+			pickup_node.call("remove_from_world")
+		else:
+			pickup_node.queue_free()
+
+
+func _request_global_despawn() -> void:
+	if item_data == null:
+		return
+	var runtime_id: String = String(item_data.get("runtime_id")).strip_edges()
+	if runtime_id.is_empty():
+		return
+	var scene_tree: SceneTree = get_tree()
+	if scene_tree == null:
+		return
+	for node_variant: Variant in scene_tree.get_nodes_in_group("item_spawner_network"):
+		var spawner: Node = node_variant as Node
+		if spawner == null or not is_instance_valid(spawner):
+			continue
+		if spawner.has_method("request_network_despawn_by_runtime_id"):
+			spawner.call("request_network_despawn_by_runtime_id", runtime_id)
+			return

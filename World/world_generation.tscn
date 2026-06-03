@@ -47,6 +47,18 @@ config = ExtResource("5")
 script = ExtResource("1")
 config = ExtResource("19")
 
+[node name="ChunkBanditBaseSpawner" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("12")
+
+[node name="ChunkForesterHouseSpawner" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("18")
+
+[node name="ChunkBunkerSpawner" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("17")
+
 [node name="ChunkTreeSpawner" type="Node2D" parent="."]
 script = ExtResource("2")
 config = ExtResource("7")
@@ -74,18 +86,6 @@ config = ExtResource("14")
 [node name="ChunkBerryBushSpawner_Biom2" type="Node2D" parent="."]
 script = ExtResource("2")
 config = ExtResource("15")
-
-[node name="ChunkBanditBaseSpawner" type="Node2D" parent="."]
-script = ExtResource("2")
-config = ExtResource("12")
-
-[node name="ChunkBunkerSpawner" type="Node2D" parent="."]
-script = ExtResource("2")
-config = ExtResource("17")
-
-[node name="ChunkForesterHouseSpawner" type="Node2D" parent="."]
-script = ExtResource("2")
-config = ExtResource("18")
 
 [node name="ChunkDeerSpawner" type="Node2D" parent="."]
 script = ExtResource("2")

@@ -124,6 +124,10 @@ func consume_startup_is_continue_load() -> bool:
 	return value
 
 
+func has_pending_runtime_state() -> bool:
+	return _has_pending_load
+
+
 func register_persistent_node(node: Node) -> void:
 	if _has_pending_load:
 		_apply_state_to_node(node)

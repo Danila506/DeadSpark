@@ -1,259 +1,231 @@
-[gd_scene load_steps=10 format=3 uid="uid://bfidev1jl62yq"]
+[gd_scene format=3 uid="uid://bfidev1jl62yq"]
 
-[ext_resource type="Script" uid="uid://j4unv5lcyjeo" path="res://Menu/menu.gd" id="1_jf1j2"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hmyt2"]
-bg_color = Color(0.0588235, 0.0784314, 0.12549, 0.92)
-corner_radius_top_left = 24
-corner_radius_top_right = 24
-corner_radius_bottom_right = 24
-corner_radius_bottom_left = 24
-shadow_color = Color(0, 0, 0, 0.45)
-shadow_size = 20
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.298039, 0.372549, 0.533333, 0.8)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1jgxa"]
-bg_color = Color(0.12549, 0.509804, 0.717647, 1)
-corner_radius_top_left = 14
-corner_radius_top_right = 14
-corner_radius_bottom_right = 14
-corner_radius_bottom_left = 14
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ufu2n"]
-bg_color = Color(0.184314, 0.623529, 0.843137, 1)
-corner_radius_top_left = 14
-corner_radius_top_right = 14
-corner_radius_bottom_right = 14
-corner_radius_bottom_left = 14
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_f4too"]
-bg_color = Color(0.0823529, 0.388235, 0.556863, 1)
-corner_radius_top_left = 14
-corner_radius_top_right = 14
-corner_radius_bottom_right = 14
-corner_radius_bottom_left = 14
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i4uhh"]
-bg_color = Color(0.145098, 0.145098, 0.184314, 1)
-corner_radius_top_left = 14
-corner_radius_top_right = 14
-corner_radius_bottom_right = 14
-corner_radius_bottom_left = 14
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_w3orb"]
-bg_color = Color(0.219608, 0.219608, 0.282353, 1)
-corner_radius_top_left = 14
-corner_radius_top_right = 14
-corner_radius_bottom_right = 14
-corner_radius_bottom_left = 14
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ohmor"]
-bg_color = Color(0.129412, 0.133333, 0.184314, 0.9)
-corner_radius_top_left = 14
-corner_radius_top_right = 14
-corner_radius_bottom_right = 14
-corner_radius_bottom_left = 14
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xofl4"]
-bg_color = Color(0.180392, 0.188235, 0.258824, 0.95)
-corner_radius_top_left = 14
-corner_radius_top_right = 14
-corner_radius_bottom_right = 14
-corner_radius_bottom_left = 14
+[ext_resource type="Script" uid="uid://j4unv5lcyjeo" path="res://Menu/menu.gd" id="1_menu_script"]
+[ext_resource type="PackedScene" uid="uid://28fsgbpikgee" path="res://Menu/menu_world_preview.tscn" id="2_preview"]
+[ext_resource type="Script" uid="uid://bpmu2s8ry3rap" path="res://World/snowfall_layer.gd" id="3_snowfall"]
+[ext_resource type="Theme" uid="uid://q136bikol8ml" path="res://Themes/MainMenuTheme.tres" id="4_theme"]
 
 [node name="Menu" type="Node2D" unique_id=1697116334]
-script = ExtResource("1_jf1j2")
+script = ExtResource("1_menu_script")
 
-[node name="Background" type="ColorRect" parent="."]
-offset_right = 1920.0
-offset_bottom = 1080.0
-color = Color(0.0392157, 0.0470588, 0.0862745, 1)
+[node name="MenuWorldPreview" parent="." unique_id=1170890619 instance=ExtResource("2_preview")]
+modulate = Color(0.36, 0.39, 0.5, 1)
 
-[node name="GlowTop" type="ColorRect" parent="."]
-offset_right = 1920.0
-offset_bottom = 500.0
-color = Color(0.0627451, 0.168627, 0.278431, 0.35)
+[node name="Snowfall" type="CanvasLayer" parent="." unique_id=686474061]
+script = ExtResource("3_snowfall")
+enabled = true
+performance_scale = 0.45
+far_snowflake_count = 900
+near_snowflake_count = 500
+global_wind_speed = 0.18
+global_wind_strength = 24.0
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
-offset_right = 1920.0
-offset_bottom = 1080.0
+[node name="MainMenuCanvas" type="CanvasLayer" parent="." unique_id=1347999728]
+layer = 60
 
-[node name="DebugStatusLabel" type="Label" parent="."]
-offset_left = 16.0
-offset_top = 14.0
-offset_right = 1900.0
-offset_bottom = 70.0
-theme_override_colors/font_color = Color(1, 0.819608, 0.392157, 1)
-theme_override_font_sizes/font_size = 22
-autowrap_mode = 3
-text = "Status: boot"
+[node name="MainMenuRoot" type="Control" parent="MainMenuCanvas" unique_id=1180768454]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("4_theme")
 
-[node name="MenuPanel" type="PanelContainer" parent="CenterContainer"]
-custom_minimum_size = Vector2(640, 560)
-theme_override_styles/panel = SubResource("StyleBoxFlat_hmyt2")
+[node name="MainPanel" type="PanelContainer" parent="MainMenuCanvas/MainMenuRoot" unique_id=957606694]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(460, 720)
+layout_mode = 0
 
-[node name="VBox" type="VBoxContainer" parent="CenterContainer/MenuPanel"]
-theme_override_constants/separation = 22
+[node name="MenuContent" type="VBoxContainer" parent="MainMenuCanvas/MainMenuRoot/MainPanel" unique_id=1820614775]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 13
 
-[node name="TopSpace" type="Control" parent="CenterContainer/MenuPanel/VBox"]
-custom_minimum_size = Vector2(0, 22)
+[node name="Header" type="VBoxContainer" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent" unique_id=1426674729]
+layout_mode = 2
+theme_override_constants/separation = 6
 
-[node name="Title" type="Label" parent="CenterContainer/MenuPanel/VBox"]
-horizontal_alignment = 1
-theme_override_colors/font_color = Color(0.85098, 0.929412, 1, 1)
-theme_override_font_sizes/font_size = 78
+[node name="TitleLabel" type="Label" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent/Header" unique_id=1287630576]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.902, 0.871, 0.816, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 64
 text = "DEAD SPARK"
-
-[node name="Subtitle" type="Label" parent="CenterContainer/MenuPanel/VBox"]
 horizontal_alignment = 1
-theme_override_colors/font_color = Color(0.560784, 0.658824, 0.831373, 1)
-theme_override_font_sizes/font_size = 24
+
+[node name="SubtitleLabel" type="Label" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent/Header" unique_id=724356573]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.463, 0.165, 1)
+theme_override_font_sizes/font_size = 18
 text = "Выживание в зоне отчуждения"
+horizontal_alignment = 1
 
-[node name="ButtonsPadTop" type="Control" parent="CenterContainer/MenuPanel/VBox"]
+[node name="HeaderRule" type="ColorRect" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent/Header" unique_id=1293806588]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+color = Color(0.816, 0.478, 0.141, 0.72)
+
+[node name="TopSpacer" type="Control" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent" unique_id=16348300]
 custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
 
-[node name="NewGame" type="Button" parent="CenterContainer/MenuPanel/VBox" unique_id=1772400581]
-custom_minimum_size = Vector2(0, 86)
-theme_override_colors/font_color = Color(0.952941, 0.984314, 1, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_colors/font_pressed_color = Color(0.823529, 0.917647, 1, 1)
-theme_override_font_sizes/font_size = 42
-theme_override_styles/normal = SubResource("StyleBoxFlat_1jgxa")
-theme_override_styles/hover = SubResource("StyleBoxFlat_ufu2n")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_f4too")
-text = "Новая игра"
-
-[node name="Continue" type="Button" parent="CenterContainer/MenuPanel/VBox"]
-custom_minimum_size = Vector2(0, 86)
-theme_override_colors/font_color = Color(0.952941, 0.984314, 1, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_colors/font_pressed_color = Color(0.823529, 0.917647, 1, 1)
-theme_override_font_sizes/font_size = 42
-theme_override_styles/normal = SubResource("StyleBoxFlat_i4uhh")
-theme_override_styles/hover = SubResource("StyleBoxFlat_w3orb")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_i4uhh")
-text = "Продолжить"
-
-[node name="LanMvp" type="Button" parent="CenterContainer/MenuPanel/VBox"]
-custom_minimum_size = Vector2(0, 74)
-theme_override_colors/font_color = Color(0.92549, 0.941176, 0.972549, 1)
-theme_override_font_sizes/font_size = 34
-theme_override_styles/normal = SubResource("StyleBoxFlat_i4uhh")
-theme_override_styles/hover = SubResource("StyleBoxFlat_w3orb")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_i4uhh")
-text = "LAN MVP"
-
-[node name="Quit" type="Button" parent="CenterContainer/MenuPanel/VBox" unique_id=1798822672]
-custom_minimum_size = Vector2(0, 86)
-theme_override_colors/font_color = Color(0.92549, 0.941176, 0.972549, 1)
-theme_override_font_sizes/font_size = 42
-theme_override_styles/normal = SubResource("StyleBoxFlat_i4uhh")
-theme_override_styles/hover = SubResource("StyleBoxFlat_w3orb")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_i4uhh")
-text = "Выход"
-
-[node name="DonatePadTop" type="Control" parent="CenterContainer/MenuPanel/VBox"]
-custom_minimum_size = Vector2(0, 6)
-
-[node name="Donate" type="Button" parent="CenterContainer/MenuPanel/VBox"]
-custom_minimum_size = Vector2(0, 64)
-theme_override_colors/font_color = Color(0.768627, 0.803922, 0.890196, 0.95)
-theme_override_colors/font_hover_color = Color(0.843137, 0.878431, 0.94902, 1)
-theme_override_colors/font_pressed_color = Color(0.717647, 0.752941, 0.839216, 0.92)
-theme_override_font_sizes/font_size = 34
-theme_override_styles/normal = SubResource("StyleBoxFlat_ohmor")
-theme_override_styles/hover = SubResource("StyleBoxFlat_xofl4")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_ohmor")
-text = "Поддержать проект"
-
-[node name="BottomSpace" type="Control" parent="CenterContainer/MenuPanel/VBox"]
-custom_minimum_size = Vector2(0, 22)
-
-[node name="SoundTrack" type="AudioStreamPlayer" parent="."]
-volume_db = -8.0
-autoplay = true
-
-[node name="LanPanel" type="PanelContainer" parent="CenterContainer"]
-visible = false
-custom_minimum_size = Vector2(640, 400)
-theme_override_styles/panel = SubResource("StyleBoxFlat_hmyt2")
-
-[node name="VBoxLan" type="VBoxContainer" parent="CenterContainer/LanPanel"]
+[node name="ButtonList" type="VBoxContainer" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent" unique_id=774014278]
+layout_mode = 2
+size_flags_vertical = 3
 theme_override_constants/separation = 12
 
-[node name="LanTopSpace" type="Control" parent="CenterContainer/LanPanel/VBoxLan"]
-custom_minimum_size = Vector2(0, 12)
+[node name="ContinueButton" type="Button" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent/ButtonList" unique_id=1829891037]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+text = "Продолжить"
 
-[node name="LanTitle" type="Label" parent="CenterContainer/LanPanel/VBoxLan"]
+[node name="NewGameButton" type="Button" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent/ButtonList" unique_id=1537238751]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+text = "Новая игра"
+
+[node name="LanButton" type="Button" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent/ButtonList" unique_id=1122424328]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+text = "LAN"
+
+[node name="SettingsButton" type="Button" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent/ButtonList" unique_id=1792252012]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+text = "Настройки"
+
+[node name="LanguageButton" type="Button" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent/ButtonList" unique_id=815591263]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+text = "Язык: Русский"
+
+[node name="SupportButton" type="Button" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent/ButtonList" unique_id=1013503156]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+text = "Поддержать проект"
+
+[node name="ExitButton" type="Button" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent/ButtonList" unique_id=2086819746]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+text = "Выход"
+
+[node name="StatusLabel" type="Label" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent" unique_id=726256221]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.463, 0.165, 1)
+theme_override_font_sizes/font_size = 16
 horizontal_alignment = 1
-theme_override_colors/font_color = Color(0.85098, 0.929412, 1, 1)
-theme_override_font_sizes/font_size = 44
-text = "LAN Multiplayer"
+autowrap_mode = 3
 
-[node name="HostLanButton" type="Button" parent="CenterContainer/LanPanel/VBoxLan"]
-custom_minimum_size = Vector2(0, 74)
-theme_override_font_sizes/font_size = 30
-theme_override_styles/normal = SubResource("StyleBoxFlat_1jgxa")
-theme_override_styles/hover = SubResource("StyleBoxFlat_ufu2n")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_f4too")
+[node name="BottomSpacer" type="Control" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent" unique_id=1886293760]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="VersionLabel" type="Label" parent="MainMenuCanvas/MainMenuRoot/MainPanel/MenuContent" unique_id=2005049063]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.61, 0.49, 0.72)
+theme_override_font_sizes/font_size = 14
+text = "v0.1.0 alpha"
+
+[node name="LanOverlay" type="PanelContainer" parent="MainMenuCanvas/MainMenuRoot" unique_id=308929693]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -230.0
+offset_right = 300.0
+offset_bottom = 230.0
+grow_horizontal = 2
+grow_vertical = 2
+focus_mode = 2
+
+[node name="LanBox" type="VBoxContainer" parent="MainMenuCanvas/MainMenuRoot/LanOverlay" unique_id=654054431]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LanTitle" type="Label" parent="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox" unique_id=300425634]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.902, 0.871, 0.816, 1)
+theme_override_font_sizes/font_size = 26
+text = "LAN Multiplayer"
+horizontal_alignment = 1
+
+[node name="HostLanButton" type="Button" parent="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox" unique_id=1392071173]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
 text = "Host LAN"
 
-[node name="IPInput" type="LineEdit" parent="CenterContainer/LanPanel/VBoxLan"]
-custom_minimum_size = Vector2(0, 56)
+[node name="LanIpInput" type="LineEdit" parent="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox" unique_id=97614302]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
 placeholder_text = "Host IPv4 (example: 192.168.1.34)"
 
-[node name="PortInput" type="LineEdit" parent="CenterContainer/LanPanel/VBoxLan"]
-custom_minimum_size = Vector2(0, 56)
+[node name="LanPortInput" type="LineEdit" parent="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox" unique_id=79576314]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
 text = "2456"
 placeholder_text = "Port"
 
-[node name="FindLanHostButton" type="Button" parent="CenterContainer/LanPanel/VBoxLan"]
-custom_minimum_size = Vector2(0, 62)
-theme_override_font_sizes/font_size = 24
-theme_override_styles/normal = SubResource("StyleBoxFlat_ohmor")
-theme_override_styles/hover = SubResource("StyleBoxFlat_xofl4")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_ohmor")
-text = "Find LAN Host"
+[node name="FindLanHostsButton" type="Button" parent="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox" unique_id=988732963]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Find LAN Hosts"
 
-[node name="FoundHostsSelect" type="OptionButton" parent="CenterContainer/LanPanel/VBoxLan"]
-custom_minimum_size = Vector2(0, 56)
-text_overrun_behavior = 3
-clip_text = true
+[node name="LanHostsSelect" type="OptionButton" parent="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox" unique_id=2059710836]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
 
-[node name="JoinLanButton" type="Button" parent="CenterContainer/LanPanel/VBoxLan"]
-custom_minimum_size = Vector2(0, 74)
-theme_override_font_sizes/font_size = 30
-theme_override_styles/normal = SubResource("StyleBoxFlat_i4uhh")
-theme_override_styles/hover = SubResource("StyleBoxFlat_w3orb")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_i4uhh")
+[node name="JoinLanButton" type="Button" parent="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox" unique_id=1494000391]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
 text = "Join LAN"
 
-[node name="LanStatusLabel" type="Label" parent="CenterContainer/LanPanel/VBoxLan"]
-theme_override_colors/font_color = Color(1, 0.819608, 0.392157, 1)
-theme_override_font_sizes/font_size = 22
+[node name="LanStatusLabel" type="Label" parent="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox" unique_id=1175543756]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.463, 0.165, 1)
+theme_override_font_sizes/font_size = 15
 autowrap_mode = 3
-text = "Status: idle"
 
-[node name="BackToMenuButton" type="Button" parent="CenterContainer/LanPanel/VBoxLan"]
-custom_minimum_size = Vector2(0, 62)
-theme_override_font_sizes/font_size = 26
-theme_override_styles/normal = SubResource("StyleBoxFlat_ohmor")
-theme_override_styles/hover = SubResource("StyleBoxFlat_xofl4")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_ohmor")
-text = "Back"
+[node name="LanBackButton" type="Button" parent="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox" unique_id=877301184]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Назад"
 
-[connection signal="pressed" from="CenterContainer/MenuPanel/VBox/NewGame" to="." method="_on_new_game_pressed"]
-[connection signal="pressed" from="CenterContainer/MenuPanel/VBox/Continue" to="." method="_on_continue_pressed"]
-[connection signal="pressed" from="CenterContainer/MenuPanel/VBox/LanMvp" to="." method="_on_lan_mvp_pressed"]
-[connection signal="pressed" from="CenterContainer/MenuPanel/VBox/Donate" to="." method="_on_donate_pressed"]
-[connection signal="pressed" from="CenterContainer/MenuPanel/VBox/Quit" to="." method="_on_quit_pressed"]
-[connection signal="pressed" from="CenterContainer/LanPanel/VBoxLan/HostLanButton" to="." method="_on_host_lan_pressed"]
-[connection signal="pressed" from="CenterContainer/LanPanel/VBoxLan/FindLanHostButton" to="." method="_on_find_lan_host_pressed"]
-[connection signal="item_selected" from="CenterContainer/LanPanel/VBoxLan/FoundHostsSelect" to="." method="_on_found_host_selected"]
-[connection signal="pressed" from="CenterContainer/LanPanel/VBoxLan/JoinLanButton" to="." method="_on_join_lan_pressed"]
-[connection signal="pressed" from="CenterContainer/LanPanel/VBoxLan/BackToMenuButton" to="." method="_on_back_to_menu_pressed"]
+[node name="SoundTrack" type="AudioStreamPlayer" parent="." unique_id=1291255760]
+volume_db = -8.0
+autoplay = true
+
+[connection signal="pressed" from="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox/HostLanButton" to="." method="_on_host_lan_pressed"]
+[connection signal="pressed" from="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox/FindLanHostsButton" to="." method="_on_find_lan_hosts_pressed"]
+[connection signal="item_selected" from="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox/LanHostsSelect" to="." method="_on_lan_host_selected"]
+[connection signal="pressed" from="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox/JoinLanButton" to="." method="_on_join_lan_pressed"]
+[connection signal="pressed" from="MainMenuCanvas/MainMenuRoot/LanOverlay/LanBox/LanBackButton" to="." method="_on_lan_back_pressed"]

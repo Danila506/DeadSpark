@@ -23,7 +23,7 @@ const AKP_52_RESOURCE: ItemData = preload("res://Resources/AR_Weapons/akp_52/akp
 const AKP_52_AMMO_RESOURCE: ItemData = preload("res://Resources/AR_Weapons/akp_52/ammo_boxAkp52.tres")
 const FN_S_RESOURCE: ItemData = preload("res://Resources/Pistols/fn-s/fn-s.tres")
 const AXE_RESOURCE: ItemData = preload("res://Resources/Melee/axe.tres")
-const CLEAVER_RESOURCE: ItemData = preload("res://Resources/Melee/cleaver.tres")
+const CLEAVER_RESOURCE: ItemData = preload("res://Resources/Misc/cleaver.tres")
 const BANDAGE_RESOURCE: ItemData = preload("res://Resources/Medicine/bandage.tres")
 const WOOD_RESOURCE: ItemData = preload("res://Resources/Misc/wood.tres")
 const STONE_RESOURCE: ItemData = preload("res://Resources/Misc/stone.tres")
@@ -41,6 +41,10 @@ const SEWING_KIT_RESOURCE: ItemData = preload("res://Resources/Misc/sewing_kit.t
 const GLUE_RESOURCE: ItemData = preload("res://Resources/Misc/glue.tres")
 const WEAPON_CLEANING_KIT_RESOURCE: ItemData = preload("res://Resources/Misc/weapon_cleaning_kit.tres")
 const GEIGER_COUNTER_RESOURCE: ItemData = preload("res://Resources/Misc/geiger_counter.tres")
+const TUSHENKA_RESOURCE: ItemData = preload("res://Resources/Food/tushenka.tres")
+const CANNED_TOMATOES_RESOURCE: ItemData = preload("res://Resources/Food/konservirovannye_tomaty.tres")
+const RASPBERRY_SODA_RESOURCE: ItemData = preload("res://Resources/Food/malinovaya_gazirovka.tres")
+const NONSTER_RESOURCE: ItemData = preload("res://Resources/Food/nonster.tres")
 
 const FORCED_CRAFT_TEST_ITEMS: Array[ItemData] = [
 	BAG_RESOURCE,
@@ -66,6 +70,13 @@ const NEW_CRAFT_MATERIAL_ITEMS: Array[ItemData] = [
 	GLUE_RESOURCE,
 	WEAPON_CLEANING_KIT_RESOURCE,
 	GEIGER_COUNTER_RESOURCE
+]
+
+const NEW_FOOD_ITEMS: Array[ItemData] = [
+	TUSHENKA_RESOURCE,
+	CANNED_TOMATOES_RESOURCE,
+	RASPBERRY_SODA_RESOURCE,
+	NONSTER_RESOURCE
 ]
 
 const EXCLUDED_WORLD_SPAWN_RESOURCE_PATHS: Dictionary = {
@@ -95,10 +106,12 @@ var _world_items_spawned: bool = false
 var _starter_items_spawned: bool = false
 
 func _ready() -> void:
+	add_to_group("item_spawner_network")
 	rng.randomize()
 	_ensure_special_scope_items()
 	_ensure_craft_test_items()
 	_ensure_new_craft_material_items()
+	_ensure_new_food_items()
 	_ensure_guaranteed_weapon_items()
 	if not _can_spawn_on_this_peer():
 		return
@@ -144,6 +157,11 @@ func _ensure_new_craft_material_items() -> void:
 		return
 
 	for item in NEW_CRAFT_MATERIAL_ITEMS:
+		_append_if_missing(item)
+
+
+func _ensure_new_food_items() -> void:
+	for item in NEW_FOOD_ITEMS:
 		_append_if_missing(item)
 
 
@@ -500,6 +518,50 @@ func rpc_sync_pickups_snapshot(payloads: Array) -> void:
 	for payload in payloads:
 		if payload is Dictionary:
 			_spawn_pickup_from_payload(payload as Dictionary)
+
+
+func request_network_despawn_by_runtime_id(runtime_id: String) -> void:
+	var normalized_id: String = runtime_id.strip_edges()
+	if normalized_id.is_empty():
+		return
+	if multiplayer == null or multiplayer.multiplayer_peer == null:
+		_despawn_pickups_by_runtime_id(normalized_id)
+		return
+	if NetworkManager == null or not NetworkManager.is_server():
+		return
+	_despawn_pickups_by_runtime_id(normalized_id)
+	rpc("rpc_despawn_pickup_runtime_id", normalized_id)
+
+
+@rpc("authority", "reliable")
+func rpc_despawn_pickup_runtime_id(runtime_id: String) -> void:
+	var normalized_id: String = runtime_id.strip_edges()
+	if normalized_id.is_empty():
+		return
+	if NetworkManager != null and NetworkManager.is_server():
+		return
+	_despawn_pickups_by_runtime_id(normalized_id)
+
+
+func _despawn_pickups_by_runtime_id(runtime_id: String) -> void:
+	var parent_node := get_parent()
+	if parent_node == null:
+		return
+	for node in get_tree().get_nodes_in_group("world_pickup"):
+		var pickup := node as Node
+		if pickup == null or not is_instance_valid(pickup):
+			continue
+		if not parent_node.is_ancestor_of(pickup):
+			continue
+		var item: ItemData = pickup.get("item_data") as ItemData
+		if item == null:
+			continue
+		if String(item.get("runtime_id")) != runtime_id:
+			continue
+		if pickup.has_method("remove_from_world"):
+			pickup.call("remove_from_world")
+		else:
+			pickup.queue_free()
 
 
 func _apply_random_endurance_if_needed(item: ItemData) -> void:

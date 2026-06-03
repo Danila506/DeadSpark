@@ -1,23 +1,26 @@
 [gd_resource type="Resource" script_class="ChunkTreeSpawnerConfig" format=3 uid="uid://cr51v2taoqo8b"]
 
 [ext_resource type="Script" uid="uid://bnccupyunmtyw" path="res://World/chunk_tree_spawner_config.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://c6s063wnp8i5b" path="res://World/Assets/Trees/Scenes/OakTree.tscn" id="2_oak"]
-[ext_resource type="PackedScene" uid="uid://idvir86r3wxy" path="res://World/Assets/Trees/Scenes/MapleTree.tscn" id="3_maple"]
-[ext_resource type="PackedScene" uid="uid://cpufb6xugybsc" path="res://World/Assets/Trees/Scenes/BirchTree.tscn" id="4_birch"]
+[ext_resource type="PackedScene" uid="uid://bvnyn0y44u1iq" path="res://World/Assets/Biom1/Tree.tscn" id="2_biom1_tree"]
+[ext_resource type="PackedScene" uid="uid://c6s063wnp8i5b" path="res://World/Assets/Trees/Scenes/OakTree.tscn" id="3_oak"]
+[ext_resource type="PackedScene" uid="uid://idvir86r3wxy" path="res://World/Assets/Trees/Scenes/MapleTree.tscn" id="4_maple"]
+[ext_resource type="PackedScene" uid="uid://cpufb6xugybsc" path="res://World/Assets/Trees/Scenes/BirchTree.tscn" id="5_birch"]
 
 [resource]
 script = ExtResource("1")
-spawner_id = "trees_v2_mix"
+spawner_id = "biom1_trees"
 player_path = NodePath("../../Y-Sort_Objects/Player2")
 spawn_parent_path = NodePath("../../Y-Sort_Objects/Biom1/Trees")
 clear_generated_in_spawn_parent_on_start = true
-tree_scene = ExtResource("2_oak")
-tree_scenes = Array[PackedScene]([ExtResource("2_oak"), ExtResource("3_maple"), ExtResource("4_birch")])
-tree_scene_weights = Array[float]([1.0, 1.0, 1.0])
+tree_scene = ExtResource("2_biom1_tree")
+tree_scenes = Array[PackedScene]([ExtResource("2_biom1_tree"), ExtResource("3_oak"), ExtResource("4_maple"), ExtResource("5_birch")])
+tree_scene_weights = Array[float]([1.0, 1.0, 1.0, 1.0])
 spawn_probability = 0.42
 min_trees_per_chunk = 0
 min_spawn_distance_px = 42.0
+spawn_cell_jitter_px = Vector2(28, 28)
 footprint_size_px = Vector2(72, 110)
 footprint_offset_px = Vector2(0, -45)
+spawn_only_on_layer_path = NodePath("../../Y-Sort_Objects/Biom1/Biom1Layer")
 forbidden_layer_paths = Array[NodePath]([NodePath("../../RoadLayer"), NodePath("../../Y-Sort_Objects/LakeLayer"), NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer"), NodePath("../../Y-Sort_Objects/xz")])
 forbidden_layer_radius_tiles = 1

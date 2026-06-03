@@ -109,7 +109,8 @@ func _client_ready_retry_loop() -> void:
 func rpc_client_ready(peer_id: int, ready_seq: int, protocol_version: int, world_hash: int) -> void:
 	if NetworkManager == null or not NetworkManager.is_server():
 		return
-	if multiplayer.get_remote_sender_id() != peer_id:
+	var sender_id: int = _get_remote_sender_id_or_invalid()
+	if sender_id <= 0 or sender_id != peer_id:
 		return
 	client_ready_received.emit(peer_id, ready_seq, protocol_version, world_hash)
 
@@ -137,7 +138,8 @@ func rpc_server_request_client_ready() -> void:
 func rpc_client_spawn_ack(peer_id: int, spawn_token: int) -> void:
 	if NetworkManager == null or not NetworkManager.is_server():
 		return
-	if multiplayer.get_remote_sender_id() != peer_id:
+	var sender_id: int = _get_remote_sender_id_or_invalid()
+	if sender_id <= 0 or sender_id != peer_id:
 		return
 	client_spawn_ack_received.emit(peer_id, spawn_token)
 
@@ -152,3 +154,9 @@ func rpc_server_request_spawn_ack(spawn_token: int) -> void:
 	if spawn_token <= 0:
 		return
 	send_client_spawn_ack(local_peer_id, spawn_token)
+
+
+func _get_remote_sender_id_or_invalid() -> int:
+	if multiplayer == null:
+		return -1
+	return multiplayer.get_remote_sender_id()

@@ -2,6 +2,17 @@
 
 [ext_resource type="Texture2D" uid="uid://48egj7hwkhgm" path="res://Enemies/Bandits/banditBaseLayer2.png" id="1_x3tfn"]
 [ext_resource type="Script" path="res://Enemies/Bandits/bandit_base.gd" id="2_bandit_base_script"]
+[ext_resource type="SpriteFrames" uid="uid://d4dswf3gekngb" path="res://Resources/Misc/bonfire.tres" id="3_bonfire_frames"]
+[ext_resource type="Script" path="res://World/bonfire_light.gd" id="4_bonfire_light_script"]
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_near_left"]
+polygon = PackedVector2Array(-18, -7, -8, -14, 1, -9, 2, 12, -17, 13)
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_near_right"]
+polygon = PackedVector2Array(8, -11, 21, -7, 20, 14, 6, 10)
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_far_top"]
+polygon = PackedVector2Array(-13, -21, 13, -20, 11, -7, -12, -6)
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_wk83u"]
 texture = ExtResource("1_x3tfn")
@@ -61,3 +72,44 @@ script = ExtResource("2_bandit_base_script")
 z_index = 6
 tile_map_data = PackedByteArray("AAD///j/AAAjAAEAAAAJAAAAAAAdAAUAAAD0//v/AAAdAA4AAAABAAgAAAAHABAAAAAHAAUAAAAXAAkAAAD5//7/AAAOAAkAAADy/wMAAAALAAQAAAAHAPv/AAAGAAsAAAA=")
 tile_set = SubResource("TileSet_7cgkd")
+
+[node name="Bonfire" type="AnimatedSprite2D" parent="." unique_id=109413177]
+position = Vector2(0, 0)
+z_index = 7
+sprite_frames = ExtResource("3_bonfire_frames")
+animation = &"bonfire"
+autoplay = "bonfire"
+playing = true
+script = ExtResource("4_bonfire_light_script")
+medium_light_path = NodePath("SoftLight")
+core_light_path = NodePath("CoreLight")
+halo_light_path = NodePath("HaloLight")
+
+[node name="SoftLight" type="PointLight2D" parent="Bonfire" unique_id=193430778]
+offset = Vector2(0, 4)
+z_index = 1
+
+[node name="CoreLight" type="PointLight2D" parent="Bonfire" unique_id=193430779]
+offset = Vector2(0, 4)
+z_index = 2
+
+[node name="HaloLight" type="PointLight2D" parent="Bonfire" unique_id=193430784]
+offset = Vector2(0, 4)
+z_index = 0
+
+[node name="Occluders" type="Node2D" parent="Bonfire" unique_id=193430780]
+
+[node name="LeftCrateOccluder" type="LightOccluder2D" parent="Bonfire/Occluders" unique_id=193430781]
+position = Vector2(-31, 11)
+occluder = SubResource("OccluderPolygon2D_near_left")
+occluder_light_mask = 2
+
+[node name="RightBarrelOccluder" type="LightOccluder2D" parent="Bonfire/Occluders" unique_id=193430782]
+position = Vector2(30, 8)
+occluder = SubResource("OccluderPolygon2D_near_right")
+occluder_light_mask = 2
+
+[node name="TopTableOccluder" type="LightOccluder2D" parent="Bonfire/Occluders" unique_id=193430783]
+position = Vector2(0, -14)
+occluder = SubResource("OccluderPolygon2D_far_top")
+occluder_light_mask = 2
