@@ -1,11 +1,11 @@
 [gd_scene format=3 uid="uid://dpeca326tk5bb"]
 
-[ext_resource type="Texture2D" uid="uid://bf2myl3tkrqdd" path="res://World/Assets/ForesterHouse/foresterHouseInside.png" id="1_a2fq1"]
-[ext_resource type="Texture2D" uid="uid://b6jenuxjc83bf" path="res://World/Assets/ForesterHouse/wardrobeNormal.png" id="2_54uxd"]
-[ext_resource type="Texture2D" uid="uid://do0itb6x1ol06" path="res://World/Assets/ForesterHouse/ForesterHouseOutside.png" id="3_1r0iw"]
-[ext_resource type="Texture2D" uid="uid://oyvlpaip68aq" path="res://World/Assets/ForesterHouse/wardrobeNearest.png" id="4_3m0vj"]
-[ext_resource type="Texture2D" uid="uid://by6q40ha6t5vf" path="res://World/Assets/ForesterHouse/wardrobeOpened.png" id="5_2mspn"]
-[ext_resource type="Texture2D" uid="uid://t6de1kbyxu6y" path="res://World/Assets/ForesterHouse/wardrobeOpenedOutline.png" id="6_cg3yo"]
+[ext_resource type="Texture2D" uid="uid://bf2myl3tkrqdd" path="res://World/Assets/Houses/ForesterHouse/foresterHouseInside.png" id="1_a2fq1"]
+[ext_resource type="Texture2D" uid="uid://b6jenuxjc83bf" path="res://World/Assets/Houses/ForesterHouse/wardrobeNormal.png" id="2_54uxd"]
+[ext_resource type="Texture2D" uid="uid://do0itb6x1ol06" path="res://World/Assets/Houses/ForesterHouse/ForesterHouseOutside.png" id="3_1r0iw"]
+[ext_resource type="Texture2D" uid="uid://oyvlpaip68aq" path="res://World/Assets/Houses/ForesterHouse/wardrobeNearest.png" id="4_3m0vj"]
+[ext_resource type="Texture2D" uid="uid://by6q40ha6t5vf" path="res://World/Assets/Houses/ForesterHouse/wardrobeOpened.png" id="5_2mspn"]
+[ext_resource type="Texture2D" uid="uid://t6de1kbyxu6y" path="res://World/Assets/Houses/ForesterHouse/wardrobeOpenedOutline.png" id="6_cg3yo"]
 [ext_resource type="Script" uid="uid://cssarhefclf05" path="res://World/forester_house.gd" id="7_house_script"]
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_wardrobe"]
@@ -62,6 +62,7 @@ size = Vector2(35, 0)
 size = Vector2(18.5, 13)
 
 [node name="ForesterHouse" type="Node2D" unique_id=176547218]
+y_sort_enabled = true
 script = ExtResource("7_house_script")
 
 [node name="ForesterHouseOutside" type="Sprite2D" parent="." unique_id=794156031]
@@ -77,7 +78,6 @@ region_enabled = true
 region_rect = Rect2(83.16284, 29.705488, 8.131226, 32.35704)
 
 [node name="ForesterHouseOutsideShadow" type="Sprite2D" parent="." unique_id=794156032]
-z_index = 10
 position = Vector2(52, 14)
 texture = ExtResource("3_1r0iw")
 region_enabled = true

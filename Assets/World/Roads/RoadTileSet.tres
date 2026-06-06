@@ -1,0 +1,66 @@
+[gd_resource type="TileSet" format=3 uid="uid://dg8dxjg2go1qx"]
+
+[ext_resource type="Texture2D" uid="uid://dk7ac07ugy0px" path="res://Assets/World/RoadLayer.png" id="1_5i2t7"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_21gga"]
+texture = ExtResource("1_5i2t7")
+texture_region_size = Vector2i(256, 256)
+0:0/0 = 0
+0:0/0/terrain_set = 0
+0:0/0/terrains_peering_bit/bottom_side = 0
+0:0/0/terrains_peering_bit/top_side = 0
+1:0/0 = 0
+1:0/0/terrain_set = 0
+1:0/0/terrains_peering_bit/right_side = 0
+1:0/0/terrains_peering_bit/bottom_side = 0
+1:0/0/terrains_peering_bit/left_side = 0
+1:0/0/terrains_peering_bit/top_side = 0
+2:0/0 = 0
+2:0/0/terrain_set = 0
+2:0/0/terrains_peering_bit/right_side = 0
+2:0/0/terrains_peering_bit/left_side = 0
+2:0/0/terrains_peering_bit/top_side = 0
+3:0/0 = 0
+3:0/0/terrain_set = 0
+3:0/0/terrains_peering_bit/bottom_side = 0
+3:0/0/terrains_peering_bit/left_side = 0
+3:0/0/terrains_peering_bit/top_side = 0
+4:0/0 = 0
+4:0/0/terrain_set = 0
+4:0/0/terrains_peering_bit/right_side = 0
+4:0/0/terrains_peering_bit/bottom_side = 0
+4:0/0/terrains_peering_bit/top_side = 0
+5:0/0 = 0
+5:0/0/terrain_set = 0
+5:0/0/terrains_peering_bit/right_side = 0
+5:0/0/terrains_peering_bit/bottom_side = 0
+5:0/0/terrains_peering_bit/left_side = 0
+0:1/0 = 0
+0:1/0/terrain_set = 0
+0:1/0/terrains_peering_bit/right_side = 0
+0:1/0/terrains_peering_bit/left_side = 0
+1:1/0 = 0
+1:1/0/terrain_set = 0
+1:1/0/terrains_peering_bit/bottom_side = 0
+1:1/0/terrains_peering_bit/left_side = 0
+2:1/0 = 0
+2:1/0/terrain_set = 0
+2:1/0/terrains_peering_bit/right_side = 0
+2:1/0/terrains_peering_bit/top_side = 0
+3:1/0 = 0
+3:1/0/terrain_set = 0
+3:1/0/terrains_peering_bit/left_side = 0
+3:1/0/terrains_peering_bit/top_side = 0
+4:1/0 = 0
+4:1/0/terrain_set = 0
+4:1/0/terrains_peering_bit/right_side = 0
+4:1/0/terrains_peering_bit/bottom_side = 0
+5:1/0 = 0
+5:1/0/terrain_set = 0
+
+[resource]
+tile_size = Vector2i(60, 60)
+terrain_set_0/mode = 2
+terrain_set_0/terrain_0/name = "Road"
+terrain_set_0/terrain_0/color = Color(0.66150934, 0.43616498, 0.11775654, 1)
+sources/0 = SubResource("TileSetAtlasSource_21gga")

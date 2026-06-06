@@ -1,7 +1,9 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://cqgvlw4isebjk"]
 
 [ext_resource type="Texture2D" uid="uid://bwh5prqxtdm3q" path="res://Assets/itemAssets/animation_sprites/clothes/futbolka_ispravl.png" id="1_qmgi5"]
+[ext_resource type="Texture2D" path="res://Assets/itemAssets/inventory_icon/Clothes/tShirtInv.png" id="2_tshirt_inv"]
 [ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="3_iwxse"]
+[ext_resource type="Texture2D" path="res://Assets/itemAssets/on_world_icon/Clothes/tShirt.png" id="4_tshirt_world"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_qmgi5"]
 atlas = ExtResource("1_qmgi5")
@@ -217,18 +219,12 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_2xa4j"]
-load_path = "res://.godot/imported/tShirtInv.png-62462e0e243e57868e77b6d2978924c7.ctex"
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_fdk6b"]
-load_path = "res://.godot/imported/tShirt.png-b129ee8ee570a6d15bc54b6a0b1b72fd.ctex"
-
 [resource]
 script = ExtResource("3_iwxse")
 storage_category = 2
 can_be_stored_in_clothing = false
 item_name = "T_ShirtSprite"
-world_icon = SubResource("CompressedTexture2D_fdk6b")
-inventory_icon = SubResource("CompressedTexture2D_2xa4j")
+world_icon = ExtResource("4_tshirt_world")
+inventory_icon = ExtResource("2_tshirt_inv")
 item_type = 2
 equipped_frames = SubResource("SpriteFrames_qmgi5")

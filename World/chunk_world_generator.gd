@@ -54,6 +54,17 @@ const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 @export_range(0.0, 2.0, 0.05) var blob_lobe_offset_factor: float = 0.75
 @export_range(0.0, 0.8, 0.01) var blob_edge_jitter: float = 0.28
 @export_range(0.0, 1.0, 0.01) var blob_cell_keep_probability: float = 0.94
+@export var road_straight_vertical_atlas: Vector2i = Vector2i(-1, -1)
+@export var road_straight_horizontal_atlas: Vector2i = Vector2i(-1, -1)
+@export var road_corner_atlas_up_left: Vector2i = Vector2i(-1, -1)
+@export var road_corner_atlas_up_right: Vector2i = Vector2i(-1, -1)
+@export var road_corner_atlas_down_left: Vector2i = Vector2i(-1, -1)
+@export var road_corner_atlas_down_right: Vector2i = Vector2i(-1, -1)
+@export var road_t_atlas_missing_up: Vector2i = Vector2i(-1, -1)
+@export var road_t_atlas_missing_down: Vector2i = Vector2i(-1, -1)
+@export var road_t_atlas_missing_left: Vector2i = Vector2i(-1, -1)
+@export var road_t_atlas_missing_right: Vector2i = Vector2i(-1, -1)
+@export var road_cross_atlas_direct: Vector2i = Vector2i(-1, -1)
 @export var road_corner_atlas: Vector2i = Vector2i(-1, -1)
 @export var road_corner_alt_up_left: int = 0
 @export var road_corner_alt_up_right: int = -1
@@ -74,6 +85,9 @@ const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 @export_range(0, 100, 1) var road_continue_direction_chance: int = 82
 @export_range(1, 8, 1) var road_trim_dead_end_max_len: int = 4
 @export var road_force_center_connector: bool = true
+@export_range(-1, 100, 1) var road_border_connection_chance: int = -1
+@export var road_enable_trunk_chunks: bool = true
+@export var road_enable_guaranteed_internal_trunk: bool = true
 @export_range(2, 12, 1) var road_trunk_period_chunks: int = 5
 @export_range(1, 8, 1) var road_min_branch_spacing_tiles: int = 5
 @export var road_enable_service_pocket: bool = true
@@ -196,9 +210,7 @@ func _ready() -> void:
 		_clear_existing_cells()
 
 	_update_visible_chunks(true)
-	_prewarm_initial_visible_generation()
-	if load_entire_world_on_start and not unload_enabled:
-		_prewarm_full_generation()
+	if load_entire_world_on_start and not unload_enabled and not has_generation_pending():
 		set_process(false)
 
 
@@ -263,6 +275,17 @@ func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
 	blob_lobe_offset_factor = cfg.blob_lobe_offset_factor
 	blob_edge_jitter = cfg.blob_edge_jitter
 	blob_cell_keep_probability = cfg.blob_cell_keep_probability
+	road_straight_vertical_atlas = cfg.road_straight_vertical_atlas
+	road_straight_horizontal_atlas = cfg.road_straight_horizontal_atlas
+	road_corner_atlas_up_left = cfg.road_corner_atlas_up_left
+	road_corner_atlas_up_right = cfg.road_corner_atlas_up_right
+	road_corner_atlas_down_left = cfg.road_corner_atlas_down_left
+	road_corner_atlas_down_right = cfg.road_corner_atlas_down_right
+	road_t_atlas_missing_up = cfg.road_t_atlas_missing_up
+	road_t_atlas_missing_down = cfg.road_t_atlas_missing_down
+	road_t_atlas_missing_left = cfg.road_t_atlas_missing_left
+	road_t_atlas_missing_right = cfg.road_t_atlas_missing_right
+	road_cross_atlas_direct = cfg.road_cross_atlas_direct
 	road_corner_atlas = cfg.road_corner_atlas
 	road_corner_alt_up_left = cfg.road_corner_alt_up_left
 	road_corner_alt_up_right = cfg.road_corner_alt_up_right
@@ -283,6 +306,9 @@ func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
 	road_continue_direction_chance = cfg.road_continue_direction_chance
 	road_trim_dead_end_max_len = cfg.road_trim_dead_end_max_len
 	road_force_center_connector = cfg.road_force_center_connector
+	road_border_connection_chance = cfg.road_border_connection_chance
+	road_enable_trunk_chunks = cfg.road_enable_trunk_chunks
+	road_enable_guaranteed_internal_trunk = cfg.road_enable_guaranteed_internal_trunk
 	road_trunk_period_chunks = cfg.road_trunk_period_chunks
 	road_min_branch_spacing_tiles = cfg.road_min_branch_spacing_tiles
 	road_enable_service_pocket = cfg.road_enable_service_pocket
@@ -465,6 +491,12 @@ func _process_incremental_generate_chunk_task(chunk: Vector2i, payload: Dictiona
 		_profile_chunk_operation("generate", chunk, skipped_start_usec, _last_chunk_profile_stats)
 		return {"done": true}
 
+	var phase := str(payload.get("phase", "scan"))
+	if phase == "overlap_cleanup":
+		return _process_incremental_overlap_cleanup_phase(chunk, payload, budget)
+	if phase == "meta_sync":
+		return _process_incremental_meta_sync_phase(chunk, payload, budget)
+
 	var stats: Dictionary = payload.get("stats", {
 		"cells_set": 0,
 		"cells_erased": 0,
@@ -478,6 +510,7 @@ func _process_incremental_generate_chunk_task(chunk: Vector2i, payload: Dictiona
 	var origin := chunk * chunk_size_tiles
 	var total_cells := chunk_size_tiles * chunk_size_tiles
 	var step_start_usec := Time.get_ticks_usec()
+	var work_usec := int(payload.get("work_usec", 0))
 	var time_budget_usec := int(maxf(generation_step_time_budget_ms, 0.25) * 1000.0)
 	if budget.has("frame_start_usec") and budget.has("time_budget_usec"):
 		var frame_elapsed_usec := Time.get_ticks_usec() - int(budget.get("frame_start_usec", Time.get_ticks_usec()))
@@ -492,12 +525,14 @@ func _process_incremental_generate_chunk_task(chunk: Vector2i, payload: Dictiona
 
 	while cursor < total_cells:
 		if Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
+			work_usec += Time.get_ticks_usec() - step_start_usec
 			stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
 			payload["stats"] = stats
 			payload["occupied"] = occupied
 			payload["placed_cells"] = placed_cells
 			payload["placed_count"] = placed_count
 			payload["cursor"] = cursor
+			payload["work_usec"] = work_usec
 			return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
 
 		var local_x := cursor % chunk_size_tiles
@@ -538,11 +573,118 @@ func _process_incremental_generate_chunk_task(chunk: Vector2i, payload: Dictiona
 	var placed_cells_typed: Array[Vector2i] = []
 	for placed_cell in placed_cells:
 		placed_cells_typed.append(placed_cell as Vector2i)
-	var overlap_start_usec := Time.get_ticks_usec()
-	stats["overlap_erased"] = int(stats.get("overlap_erased", 0)) + _clear_overlapping_layers(placed_cells_typed)
-	stats["overlap_clear_usec"] = int(stats.get("overlap_clear_usec", 0)) + (Time.get_ticks_usec() - overlap_start_usec)
+	payload["phase"] = "overlap_cleanup"
+	payload["stats"] = stats
+	payload["occupied"] = occupied
+	payload["placed_cells"] = placed_cells_typed
+	payload["placed_count"] = placed_count
+	payload["cursor"] = cursor
+	payload["cleanup_cell_cursor"] = 0
+	payload["cleanup_layer_cursor"] = 0
+	payload["cleanup_erased_origins_by_layer"] = {}
+	payload["work_usec"] = work_usec + (Time.get_ticks_usec() - step_start_usec)
 	stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+	return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+
+func _process_incremental_overlap_cleanup_phase(chunk: Vector2i, payload: Dictionary, budget: Dictionary) -> Dictionary:
+	var stats: Dictionary = payload.get("stats", {})
+	var placed_cells: Array = payload.get("placed_cells", [])
+	var cleanup_cell_cursor := int(payload.get("cleanup_cell_cursor", 0))
+	var cleanup_layer_cursor := int(payload.get("cleanup_layer_cursor", 0))
+	var erased_origins_by_layer: Dictionary = payload.get("cleanup_erased_origins_by_layer", {})
+	var time_budget_usec := _resolve_generation_step_time_budget_usec(budget)
+	if time_budget_usec <= 0:
+		return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+	var radius: int = maxi(0, overlap_clear_radius_tiles)
+	var step_start_usec := Time.get_ticks_usec()
+	var overlap_start_usec := step_start_usec
+	var work_usec := int(payload.get("work_usec", 0))
+
+	while cleanup_cell_cursor < placed_cells.size():
+		if Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
+			var step_elapsed_usec := Time.get_ticks_usec() - step_start_usec
+			work_usec += step_elapsed_usec
+			stats["overlap_clear_usec"] = int(stats.get("overlap_clear_usec", 0)) + (Time.get_ticks_usec() - overlap_start_usec)
+			stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+			payload["stats"] = stats
+			payload["cleanup_cell_cursor"] = cleanup_cell_cursor
+			payload["cleanup_layer_cursor"] = cleanup_layer_cursor
+			payload["cleanup_erased_origins_by_layer"] = erased_origins_by_layer
+			payload["work_usec"] = work_usec
+			return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+		var cell := placed_cells[cleanup_cell_cursor] as Vector2i
+		var world_rect := _get_world_cell_rect(cell, Vector2i.ONE)
+		while cleanup_layer_cursor < _overlap_clear_layers.size():
+			if Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
+				var step_elapsed_usec := Time.get_ticks_usec() - step_start_usec
+				work_usec += step_elapsed_usec
+				stats["overlap_clear_usec"] = int(stats.get("overlap_clear_usec", 0)) + (Time.get_ticks_usec() - overlap_start_usec)
+				stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+				payload["stats"] = stats
+				payload["cleanup_cell_cursor"] = cleanup_cell_cursor
+				payload["cleanup_layer_cursor"] = cleanup_layer_cursor
+				payload["cleanup_erased_origins_by_layer"] = erased_origins_by_layer
+				payload["work_usec"] = work_usec
+				return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+			var layer := _overlap_clear_layers[cleanup_layer_cursor] as TileMapLayer
+			cleanup_layer_cursor += 1
+			if layer == null:
+				continue
+
+			var layer_id := int(layer.get_instance_id())
+			var erased_origins: Dictionary = erased_origins_by_layer.get(layer_id, {})
+			for target_cell in _get_layer_cells_in_world_rect(layer, world_rect, radius):
+				var erase_cell := _get_overlap_erase_cell(layer, target_cell)
+				if erase_cell == Vector2i(999999, 999999):
+					continue
+				if erased_origins.has(erase_cell):
+					continue
+				if layer.get_cell_source_id(erase_cell) == -1:
+					continue
+				layer.erase_cell(erase_cell)
+				erased_origins[erase_cell] = true
+				stats["overlap_erased"] = int(stats.get("overlap_erased", 0)) + 1
+			erased_origins_by_layer[layer_id] = erased_origins
+		cleanup_cell_cursor += 1
+		cleanup_layer_cursor = 0
+
+	stats["overlap_clear_usec"] = int(stats.get("overlap_clear_usec", 0)) + (Time.get_ticks_usec() - overlap_start_usec)
+	work_usec += Time.get_ticks_usec() - step_start_usec
+	for layer_item in _overlap_clear_layers:
+		var layer := layer_item as TileMapLayer
+		if layer == null:
+			continue
+		var layer_id := int(layer.get_instance_id())
+		var erased_origins: Dictionary = erased_origins_by_layer.get(layer_id, {})
+		if erased_origins.is_empty():
+			continue
+		_unmark_layer_generated_origins(layer, erased_origins)
+
+	payload["phase"] = "meta_sync"
+	payload["stats"] = stats
+	payload.erase("cleanup_cell_cursor")
+	payload.erase("cleanup_layer_cursor")
+	payload.erase("cleanup_erased_origins_by_layer")
+	payload["work_usec"] = work_usec
+	stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+	return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+
+func _process_incremental_meta_sync_phase(chunk: Vector2i, payload: Dictionary, budget: Dictionary) -> Dictionary:
+	var time_budget_usec := _resolve_generation_step_time_budget_usec(budget)
+	if time_budget_usec <= 0:
+		return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+	var stats: Dictionary = payload.get("stats", {})
+	var phase_start_usec := Time.get_ticks_usec()
 	_sync_generation_layer_meta_if_dirty()
+	payload["work_usec"] = int(payload.get("work_usec", 0)) + (Time.get_ticks_usec() - phase_start_usec)
+	stats["work_usec"] = int(payload.get("work_usec", 0))
+	stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
 	_last_chunk_profile_stats = stats
 	_loaded_chunks[chunk] = true
 	var start_usec := int(payload.get("start_usec", Time.get_ticks_usec()))
@@ -795,10 +937,21 @@ func _collect_connected_terrain_cells(chunk: Vector2i, origin: Vector2i, occupie
 	var result: Array[Vector2i] = []
 	var used_world: Dictionary = {}
 	var anchors: Array[Vector2i] = _get_chunk_road_anchors(chunk)
+	var force_internal_trunk := false
+	if road_enable_guaranteed_internal_trunk:
+		var guaranteed_chunk := _get_guaranteed_internal_road_chunk()
+		force_internal_trunk = chunk == guaranteed_chunk
+	if force_internal_trunk:
+		var trunk_y := clampi(int(chunk_size_tiles / 2), 1, maxi(1, chunk_size_tiles - 2))
+		anchors.append(Vector2i(0, trunk_y))
+		anchors.append(Vector2i(chunk_size_tiles - 1, trunk_y))
+	anchors = _enforce_anchor_spacing(anchors)
 	if anchors.is_empty():
 		return result
 	var target_count := maxi(0, int(round(float(chunk_size_tiles * chunk_size_tiles) * fill_probability)))
 	target_count = maxi(target_count, anchors.size() * 5)
+	if force_internal_trunk:
+		target_count = maxi(target_count, chunk_size_tiles + 6)
 	if target_count <= 0:
 		return result
 
@@ -809,11 +962,15 @@ func _collect_connected_terrain_cells(chunk: Vector2i, origin: Vector2i, occupie
 		clampi(int(round(float(hub_sum.x) / float(anchors.size()))), 0, chunk_size_tiles - 1),
 		clampi(int(round(float(hub_sum.y) / float(anchors.size()))), 0, chunk_size_tiles - 1)
 	)
+	if force_internal_trunk:
+		hub = Vector2i(int(chunk_size_tiles / 2), int(chunk_size_tiles / 2))
 
 	var jitter_hash := _hash_cell(chunk.x * 17, chunk.y * 23, world_seed + 7711)
 	hub += Vector2i((jitter_hash % 3) - 1, ((int(jitter_hash / 3)) % 3) - 1)
 	hub.x = clampi(hub.x, 0, chunk_size_tiles - 1)
 	hub.y = clampi(hub.y, 0, chunk_size_tiles - 1)
+	if force_internal_trunk:
+		hub.y = clampi(int(chunk_size_tiles / 2), 1, maxi(1, chunk_size_tiles - 2))
 
 	var path_id: int = 0
 	for anchor in anchors:
@@ -1182,8 +1339,11 @@ func _shrink_blob_to_target(chunk: Vector2i, cells: Array[Vector2i], target_coun
 func _get_chunk_road_anchors(chunk: Vector2i) -> Array[Vector2i]:
 	var anchors: Array[Vector2i] = []
 	var is_trunk := _is_trunk_chunk(chunk)
-	var border_chance := clampi(int(round(fill_probability * 220.0)), 8, 85)
-	if not is_trunk:
+	var border_chance := road_border_connection_chance
+	if border_chance < 0:
+		border_chance = clampi(int(round(fill_probability * 220.0)), 8, 85)
+	border_chance = clampi(border_chance, 0, 100)
+	if road_enable_trunk_chunks and not is_trunk:
 		border_chance = int(round(border_chance * 0.6))
 
 	if chunk.x > _world_min_chunk.x and _is_vertical_border_active(chunk.x - 1, chunk.y, border_chance):
@@ -1227,6 +1387,10 @@ func _is_horizontal_border_active(x_chunk: int, y_border: int, chance: int) -> b
 
 
 func _is_trunk_chunk(chunk: Vector2i) -> bool:
+	if not road_enable_trunk_chunks:
+		return false
+	if road_enable_guaranteed_internal_trunk and chunk == _get_guaranteed_internal_road_chunk():
+		return true
 	var period := maxi(2, road_trunk_period_chunks)
 	var x_lane := posmod(_hash_cell(1001, 73, world_seed + 8011), period)
 	var y_lane := posmod(_hash_cell(67, 2003, world_seed + 8039), period)
@@ -1273,6 +1437,22 @@ func _vertical_border_anchor(x_border: int, y_chunk: int) -> int:
 func _horizontal_border_anchor(x_chunk: int, y_border: int) -> int:
 	var h := _hash_cell(x_chunk * 467 + 53, y_border * 877 + 41, world_seed + 7699)
 	return h % chunk_size_tiles
+
+
+func _get_guaranteed_internal_road_chunk() -> Vector2i:
+	var min_chunk := _world_min_chunk + Vector2i.ONE
+	var max_chunk := _world_max_chunk - Vector2i.ONE
+	if min_chunk.x > max_chunk.x or min_chunk.y > max_chunk.y:
+		return Vector2i(
+			int(floor((_world_min_chunk.x + _world_max_chunk.x) * 0.5)),
+			int(floor((_world_min_chunk.y + _world_max_chunk.y) * 0.5))
+		)
+
+	var width := max_chunk.x - min_chunk.x + 1
+	var height := max_chunk.y - min_chunk.y + 1
+	var x := min_chunk.x + posmod(_hash_cell(world_seed + 9011, 41, 73), width)
+	var y := min_chunk.y + posmod(_hash_cell(world_seed + 9079, 59, 97), height)
+	return Vector2i(x, y)
 
 
 func _append_terrain_path(
@@ -1647,6 +1827,14 @@ func _clear_overlapping_layers(cells: Array[Vector2i]) -> int:
 	return erased_count
 
 
+func _resolve_generation_step_time_budget_usec(budget: Dictionary) -> int:
+	var time_budget_usec := int(maxf(generation_step_time_budget_ms, 0.25) * 1000.0)
+	if budget.has("frame_start_usec") and budget.has("time_budget_usec"):
+		var frame_elapsed_usec := Time.get_ticks_usec() - int(budget.get("frame_start_usec", Time.get_ticks_usec()))
+		time_budget_usec = mini(time_budget_usec, maxi(0, int(budget.get("time_budget_usec", time_budget_usec)) - frame_elapsed_usec))
+	return time_budget_usec
+
+
 func _is_near_prefer_layer(world_cell: Vector2i) -> bool:
 	if _prefer_layer == null or prefer_layer_radius_tiles <= 0:
 		return false
@@ -1688,15 +1876,18 @@ func _add_service_pocket(
 
 
 func _apply_corner_alternatives(terrain_cells: Array[Vector2i]) -> void:
-	var corner_enabled := road_corner_atlas.x >= 0 and road_corner_atlas.y >= 0
+	if _apply_direct_road_pattern_tiles(terrain_cells):
+		return
+
+	var corner_enabled := road_corner_atlas.x >= 0 and road_corner_atlas.y >= 0 and _is_valid_atlas_tile(road_corner_atlas)
 	var t_atlas := road_t_atlas
-	if t_atlas.x < 0 or t_atlas.y < 0:
+	if t_atlas.x < 0 or t_atlas.y < 0 or not _is_valid_atlas_tile(t_atlas):
 		t_atlas = road_corner_atlas
-	var t_enabled := t_atlas.x >= 0 and t_atlas.y >= 0
+	var t_enabled := t_atlas.x >= 0 and t_atlas.y >= 0 and _is_valid_atlas_tile(t_atlas)
 	var cross_atlas := road_cross_atlas
-	if cross_atlas.x < 0 or cross_atlas.y < 0:
+	if cross_atlas.x < 0 or cross_atlas.y < 0 or not _is_valid_atlas_tile(cross_atlas):
 		cross_atlas = road_corner_atlas
-	var cross_enabled := cross_atlas.x >= 0 and cross_atlas.y >= 0 and road_cross_alternative >= 0
+	var cross_enabled := cross_atlas.x >= 0 and cross_atlas.y >= 0 and _is_valid_atlas_tile(cross_atlas) and road_cross_alternative >= 0
 	if not corner_enabled and not t_enabled and not cross_enabled:
 		return
 
@@ -1749,8 +1940,77 @@ func _apply_corner_alternatives(terrain_cells: Array[Vector2i]) -> void:
 		push_warning("ChunkWorldGenerator: no road alternatives applied. Check road_corner/road_t/road_cross settings and alternative ids.")
 
 
+func _apply_direct_road_pattern_tiles(terrain_cells: Array[Vector2i]) -> bool:
+	var has_direct_patterns := (
+		_is_valid_atlas_tile(road_straight_vertical_atlas)
+		or _is_valid_atlas_tile(road_straight_horizontal_atlas)
+		or _is_valid_atlas_tile(road_corner_atlas_up_left)
+		or _is_valid_atlas_tile(road_corner_atlas_up_right)
+		or _is_valid_atlas_tile(road_corner_atlas_down_left)
+		or _is_valid_atlas_tile(road_corner_atlas_down_right)
+		or _is_valid_atlas_tile(road_t_atlas_missing_up)
+		or _is_valid_atlas_tile(road_t_atlas_missing_down)
+		or _is_valid_atlas_tile(road_t_atlas_missing_left)
+		or _is_valid_atlas_tile(road_t_atlas_missing_right)
+		or _is_valid_atlas_tile(road_cross_atlas_direct)
+	)
+	if not has_direct_patterns:
+		return false
+
+	var terrain_set: Dictionary = {}
+	for cell in terrain_cells:
+		terrain_set[cell] = true
+
+	for cell in terrain_cells:
+		var up := terrain_set.has(cell + Vector2i.UP)
+		var down := terrain_set.has(cell + Vector2i.DOWN)
+		var left := terrain_set.has(cell + Vector2i.LEFT)
+		var right := terrain_set.has(cell + Vector2i.RIGHT)
+		var atlas := _resolve_road_pattern_atlas(up, down, left, right)
+		if atlas.x < 0 or atlas.y < 0 or not _is_valid_atlas_tile(atlas):
+			continue
+		_tile_map.set_cell(cell, source_id, atlas, 0)
+	return true
+
+
+func _resolve_road_pattern_atlas(up: bool, down: bool, left: bool, right: bool) -> Vector2i:
+	var degree := int(up) + int(down) + int(left) + int(right)
+	if degree >= 4 and _is_valid_atlas_tile(road_cross_atlas_direct):
+		return road_cross_atlas_direct
+	if degree == 3:
+		if not up and _is_valid_atlas_tile(road_t_atlas_missing_up):
+			return road_t_atlas_missing_up
+		if not down and _is_valid_atlas_tile(road_t_atlas_missing_down):
+			return road_t_atlas_missing_down
+		if not left and _is_valid_atlas_tile(road_t_atlas_missing_left):
+			return road_t_atlas_missing_left
+		if not right and _is_valid_atlas_tile(road_t_atlas_missing_right):
+			return road_t_atlas_missing_right
+	if degree == 2:
+		if up and down and _is_valid_atlas_tile(road_straight_vertical_atlas):
+			return road_straight_vertical_atlas
+		if left and right and _is_valid_atlas_tile(road_straight_horizontal_atlas):
+			return road_straight_horizontal_atlas
+		if up and left and _is_valid_atlas_tile(road_corner_atlas_up_left):
+			return road_corner_atlas_up_left
+		if up and right and _is_valid_atlas_tile(road_corner_atlas_up_right):
+			return road_corner_atlas_up_right
+		if down and left and _is_valid_atlas_tile(road_corner_atlas_down_left):
+			return road_corner_atlas_down_left
+		if down and right and _is_valid_atlas_tile(road_corner_atlas_down_right):
+			return road_corner_atlas_down_right
+	if degree == 1:
+		if (up or down) and _is_valid_atlas_tile(road_straight_vertical_atlas):
+			return road_straight_vertical_atlas
+		if (left or right) and _is_valid_atlas_tile(road_straight_horizontal_atlas):
+			return road_straight_horizontal_atlas
+	if up or down:
+		return road_straight_vertical_atlas
+	return road_straight_horizontal_atlas
+
+
 func _remove_isolated_cells(cells: Array[Vector2i]) -> Array[Vector2i]:
-	if cells.size() <= 2:
+	if cells.is_empty():
 		return cells
 	var world_set: Dictionary = {}
 	for w in cells:
@@ -2245,7 +2505,11 @@ func _profile_chunk_operation(action: String, chunk: Vector2i, start_usec: int, 
 	if profiler == null or not profiler.has_method("record_chunk_operation"):
 		return
 	var payload := stats.duplicate()
-	payload["elapsed_ms"] = float(Time.get_ticks_usec() - start_usec) / 1000.0
+	var work_usec := int(stats.get("work_usec", 0))
+	if work_usec > 0:
+		payload["elapsed_ms"] = float(work_usec) / 1000.0
+	else:
+		payload["elapsed_ms"] = float(Time.get_ticks_usec() - start_usec) / 1000.0
 	payload["pending_load"] = _pending_load_chunks.size()
 	payload["pending_unload"] = _pending_unload_chunks.size()
 	payload["loaded_chunks"] = _loaded_chunks.size()

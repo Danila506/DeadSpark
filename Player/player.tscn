@@ -2491,7 +2491,6 @@ script = ExtResource("1_onrkg")
 passive_regen_per_sec = 3.0
 bleeding_damage_amount = 3.0
 bleeding_damage_interval = 3.0
-speed = 300.0
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2077669749]
 zoom = Vector2(2, 2)

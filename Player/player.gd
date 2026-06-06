@@ -7,6 +7,7 @@ signal status_effects_changed
 @export var max_water: float = 100.0
 @export var max_food: float = 100.0
 @export var max_stamina: float = 100.0
+@export var debug_invulnerable: bool = false
 
 var health: float = 100.0
 var water: float = 100.0
@@ -936,6 +937,9 @@ func _stop_walk_snow_sfx() -> void:
 func _go_to_menu(save_before_exit: bool = true) -> void:
 	if save_before_exit and GameSaveManager != null and GameSaveManager.has_method("save_game"):
 		GameSaveManager.save_game()
+	if GameSaveManager != null and GameSaveManager.has_method("change_scene_with_cleanup"):
+		GameSaveManager.change_scene_with_cleanup("res://Menu/Menu.tscn")
+		return
 	get_tree().change_scene_to_file("res://Menu/Menu.tscn")
 
 
@@ -1077,6 +1081,19 @@ func apply_medical_item_effect(item: ItemData) -> bool:
 func add_stamina(amount: float) -> void:
 	if vitals_controller != null:
 		vitals_controller.add_stamina(amount)
+
+
+func set_debug_invulnerable(enabled: bool) -> void:
+	debug_invulnerable = enabled
+	if debug_invulnerable and health <= 0.0:
+		health = clamp(max_health, 1.0, max_health)
+		is_dead = false
+		stats_changed.emit()
+
+
+func set_debug_base_move_speed(value: float) -> void:
+	base_move_speed = max(value, 1.0)
+	speed = base_move_speed
 
 
 func _set_bleeding(value: bool) -> void:

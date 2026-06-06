@@ -3656,6 +3656,14 @@ func _execute_dev_console_command(command_text: String) -> void:
 			_dev_console_aliases_cmd(tokens)
 		"alias":
 			_dev_console_alias_cmd(tokens)
+		"god", "invuln":
+			_dev_console_god_cmd(tokens)
+		"speed":
+			_dev_console_speed_cmd(tokens)
+		"list_houses":
+			_dev_console_list_houses_cmd()
+		"place_house":
+			_dev_console_place_house_cmd(tokens)
 		_:
 			_dev_console_log("Unknown command: %s" % command)
 
@@ -3663,7 +3671,7 @@ func _execute_dev_console_command(command_text: String) -> void:
 func _dev_console_help(tokens: Array[String]) -> void:
 	if tokens.size() <= 1:
 		_dev_console_log("help [command]")
-		_dev_console_log("list_items [filter] [limit], find_item <text> [limit], give/give_inv/spawn <id|path> [count], give_name \"Item Name\" [count], history [limit], aliases, alias <short> <command>, !!")
+		_dev_console_log("list_items [filter] [limit], find_item <text> [limit], give/give_inv/spawn <id|path> [count], give_name \"Item Name\" [count], god [on|off], speed <value>, list_houses, place_house <id>, history [limit], aliases, alias <short> <command>, !!")
 		return
 
 	var topic: String = tokens[1].to_lower()
@@ -3682,6 +3690,10 @@ func _dev_console_help(tokens: Array[String]) -> void:
 			_dev_console_log("find_item <text> [limit] -> поиск по id, имени и пути.")
 		"history":
 			_dev_console_log("history [limit] -> история команд. !! -> повторить последнюю.")
+		"god", "invuln":
+			_dev_console_log("god [on|off] -> РІРєР»СЋС‡РёС‚СЊ/РІС‹РєР»СЋС‡РёС‚СЊ РЅРµСѓСЏР·РІРёРјРѕСЃС‚СЊ.")
+		"speed":
+			_dev_console_log("speed <value> -> СѓСЃС‚Р°РЅРѕРІРёС‚СЊ Р±Р°Р·РѕРІСѓСЋ СЃРєРѕСЂРѕСЃС‚СЊ РїРµСЂСЃРѕРЅР°Р¶Р°.")
 		"aliases", "alias":
 			_dev_console_log("aliases -> список алиасов. alias <short> <command> -> добавить/изменить.")
 		"!!":
@@ -4024,6 +4036,105 @@ func _dev_console_alias_cmd(tokens: Array[String]) -> void:
 	_dev_console_log("Alias set: %s -> %s" % [alias_key, command_value])
 
 
+func _dev_console_god_cmd(tokens: Array[String]) -> void:
+	if _is_network_client_inventory_mutation_blocked():
+		_dev_console_log("РљРѕРјР°РЅРґР° РґРѕСЃС‚СѓРїРЅР° С‚РѕР»СЊРєРѕ РЅР° СЃРµСЂРІРµСЂРµ/РІ РѕРґРёРЅРѕС‡РЅРѕР№ РёРіСЂРµ.")
+		return
+	var player_node := _get_dev_console_player()
+	if player_node == null:
+		_dev_console_log("Player not found in group 'player'")
+		return
+	var enabled: bool = not bool(player_node.debug_invulnerable)
+	if tokens.size() >= 2:
+		var mode := tokens[1].to_lower()
+		if mode in ["on", "1", "true"]:
+			enabled = true
+		elif mode in ["off", "0", "false"]:
+			enabled = false
+		else:
+			_dev_console_log("Usage: god [on|off]")
+			return
+	if player_node.has_method("set_debug_invulnerable"):
+		player_node.call("set_debug_invulnerable", enabled)
+	else:
+		player_node.debug_invulnerable = enabled
+	_dev_console_log("Invulnerability: %s" % ("ON" if enabled else "OFF"))
+
+
+func _dev_console_speed_cmd(tokens: Array[String]) -> void:
+	if tokens.size() < 2:
+		_dev_console_log("Usage: speed <value>")
+		return
+	if _is_network_client_inventory_mutation_blocked():
+		_dev_console_log("РљРѕРјР°РЅРґР° РґРѕСЃС‚СѓРїРЅР° С‚РѕР»СЊРєРѕ РЅР° СЃРµСЂРІРµСЂРµ/РІ РѕРґРёРЅРѕС‡РЅРѕР№ РёРіСЂРµ.")
+		return
+	var speed_value := float(tokens[1])
+	if speed_value <= 0.0:
+		_dev_console_log("Speed must be > 0")
+		return
+	var player_node := _get_dev_console_player()
+	if player_node == null:
+		_dev_console_log("Player not found in group 'player'")
+		return
+	if player_node.has_method("set_debug_base_move_speed"):
+		player_node.call("set_debug_base_move_speed", speed_value)
+	else:
+		player_node.base_move_speed = speed_value
+		player_node.speed = speed_value
+	_dev_console_log("Player speed set to %.2f" % speed_value)
+
+
+func _get_dev_console_player() -> Node:
+	return get_tree().get_first_node_in_group("player")
+
+
+func _get_house_placement_controller() -> Node:
+	return get_tree().get_first_node_in_group("house_placement_controller")
+
+
+func _dev_console_list_houses_cmd() -> void:
+	var placement_controller := _get_house_placement_controller()
+	if placement_controller == null or not placement_controller.has_method("get_available_house_ids"):
+		_dev_console_log("House placement controller not found")
+		return
+
+	var raw_ids: Variant = placement_controller.call("get_available_house_ids")
+	if not (raw_ids is Array):
+		_dev_console_log("No houses available")
+		return
+
+	var house_ids: Array = raw_ids as Array
+	if house_ids.is_empty():
+		_dev_console_log("No houses available")
+		return
+
+	for raw_id in house_ids:
+		_dev_console_log(String(raw_id))
+
+
+func _dev_console_place_house_cmd(tokens: Array[String]) -> void:
+	if tokens.size() < 2:
+		_dev_console_log("Usage: place_house <id>")
+		return
+	if _is_network_client_inventory_mutation_blocked():
+		_dev_console_log("Command is available only on server or in single-player")
+		return
+
+	var placement_controller := _get_house_placement_controller()
+	if placement_controller == null or not placement_controller.has_method("start_house_placement"):
+		_dev_console_log("House placement controller not found")
+		return
+
+	var house_id: String = tokens[1].strip_edges().to_lower()
+	var started: bool = bool(placement_controller.call("start_house_placement", house_id))
+	if not started:
+		_dev_console_log("Unknown or unavailable house id: %s" % house_id)
+		return
+
+	close_inventory()
+	_dev_console_log("Placing house: %s | left click - place | right click/Esc - cancel" % house_id)
+
+
 func _on_dev_console_input_text_changed(new_text: String) -> void:
 	_refresh_dev_console_suggestions(new_text)
 
@@ -4041,7 +4152,7 @@ func _refresh_dev_console_suggestions(text: String) -> void:
 		_dev_console_suggestions.visible = false
 		return
 
-	var known_commands: Array[String] = ["help", "list_items", "find_item", "give", "give_inv", "spawn", "give_name", "history", "aliases", "alias"]
+	var known_commands: Array[String] = ["help", "list_items", "find_item", "give", "give_inv", "spawn", "give_name", "god", "invuln", "speed", "list_houses", "place_house", "history", "aliases", "alias"]
 	var tokens: Array[String] = _tokenize_dev_console_command(text)
 	if tokens.is_empty():
 		_dev_console_suggestions.visible = false
@@ -4094,6 +4205,21 @@ func _refresh_dev_console_suggestions(text: String) -> void:
 			if existing_filter.is_empty() or hint.begins_with(existing_filter):
 				_dev_console_suggestion_values.append(hint)
 				_dev_console_suggestions.add_item("filter: %s" % hint)
+	elif first == "place_house":
+		var placement_controller := _get_house_placement_controller()
+		if placement_controller != null and placement_controller.has_method("get_available_house_ids"):
+			var house_filter: String = ""
+			if tokens.size() >= 2:
+				house_filter = tokens[1].to_lower()
+			var raw_house_ids: Variant = placement_controller.call("get_available_house_ids")
+			if raw_house_ids is Array:
+				for raw_house_id in raw_house_ids:
+					var house_id: String = String(raw_house_id)
+					if house_filter.is_empty() or house_id.contains(house_filter):
+						_dev_console_suggestion_values.append(house_id)
+						_dev_console_suggestions.add_item("house: %s" % house_id)
+					if _dev_console_suggestion_values.size() >= max_hints:
+						break
 
 	_dev_console_suggestions.visible = not _dev_console_suggestion_values.is_empty()
 	if _dev_console_suggestions.visible:
@@ -4150,6 +4276,8 @@ func _apply_dev_console_selected_suggestion() -> void:
 		_dev_console_input.text = "give_name \"%s\" " % selected
 	elif first == "list_items":
 		_dev_console_input.text = "list_items %s " % selected
+	elif first == "place_house":
+		_dev_console_input.text = "place_house %s " % selected
 	else:
 		_dev_console_input.text = selected
 

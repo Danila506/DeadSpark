@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://oyvlpaip68aq"
-path="res://.godot/imported/wardrobeNearest.png-3665d7b5466ff5992546ddfb701cccc2.ctex"
+uid="uid://bf2myl3tkrqdd"
+path="res://.godot/imported/foresterHouseInside.png-bbc65d90898c1ca0850ce39ff75f67bd.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://World/Assets/ForesterHouse/wardrobeNearest.png"
-dest_files=["res://.godot/imported/wardrobeNearest.png-3665d7b5466ff5992546ddfb701cccc2.ctex"]
+source_file="res://World/Assets/Houses/ForesterHouse/foresterHouseInside.png"
+dest_files=["res://.godot/imported/foresterHouseInside.png-bbc65d90898c1ca0850ce39ff75f67bd.ctex"]
 
 [params]
 

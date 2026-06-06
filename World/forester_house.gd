@@ -2,6 +2,9 @@ extends Node2D
 
 const INSIDE_HOUSE_GROUP: StringName = &"inside_house"
 const INSIDE_HOUSE_ANCHOR_META: StringName = &"inside_house_anchor"
+const PLAYER_PRE_HOUSE_Z_INDEX_META: StringName = &"pre_house_z_index"
+const PLAYER_PRE_HOUSE_Z_AS_RELATIVE_META: StringName = &"pre_house_z_as_relative"
+const PLAYER_HOUSE_Z_INDEX: int = 2000
 
 @onready var outside_sprite: Sprite2D = $ForesterHouseOutside
 @onready var outside_right_sprite: Sprite2D = $ForesterHouseOutsideRight
@@ -55,11 +58,13 @@ var wardrobe_loot_slots: Array[ItemData] = []
 var wardrobe_loot_initialized: bool = false
 const ENEMY_GROUP: StringName = &"enemy"
 const HOUSE_ENEMY_EJECT_MARGIN: float = 6.0
+const OUTSIDE_FORESTER_Z: int = 0
 
 
 func _ready() -> void:
 	randomize()
 	add_to_group("primary_interactable")
+	_configure_visual_layers()
 	house_area.body_entered.connect(_on_house_body_entered)
 	house_area.body_exited.connect(_on_house_body_exited)
 	shadow_area.body_entered.connect(_on_shadow_body_entered)
@@ -108,6 +113,8 @@ func _on_house_body_entered(body: Node) -> void:
 	body.set_meta(INSIDE_HOUSE_ANCHOR_META, global_position)
 	if body is CanvasItem:
 		(body as CanvasItem).modulate = Color(0.72, 0.72, 0.72, 1.0)
+	if body is Node2D:
+		_force_player_visible_in_house(body as Node2D)
 	_update_house_visual()
 
 
@@ -122,7 +129,31 @@ func _on_house_body_exited(body: Node) -> void:
 		body.remove_meta(INSIDE_HOUSE_ANCHOR_META)
 	if body is CanvasItem:
 		(body as CanvasItem).modulate = Color.WHITE
+	if body is Node2D:
+		_restore_player_visibility_state(body as Node2D)
 	_update_house_visual()
+
+
+func _force_player_visible_in_house(player_node: Node2D) -> void:
+	if player_node == null:
+		return
+	if not player_node.has_meta(PLAYER_PRE_HOUSE_Z_INDEX_META):
+		player_node.set_meta(PLAYER_PRE_HOUSE_Z_INDEX_META, player_node.z_index)
+	if not player_node.has_meta(PLAYER_PRE_HOUSE_Z_AS_RELATIVE_META):
+		player_node.set_meta(PLAYER_PRE_HOUSE_Z_AS_RELATIVE_META, player_node.z_as_relative)
+	player_node.z_as_relative = false
+	player_node.z_index = PLAYER_HOUSE_Z_INDEX
+
+
+func _restore_player_visibility_state(player_node: Node2D) -> void:
+	if player_node == null:
+		return
+	if player_node.has_meta(PLAYER_PRE_HOUSE_Z_INDEX_META):
+		player_node.z_index = int(player_node.get_meta(PLAYER_PRE_HOUSE_Z_INDEX_META))
+		player_node.remove_meta(PLAYER_PRE_HOUSE_Z_INDEX_META)
+	if player_node.has_meta(PLAYER_PRE_HOUSE_Z_AS_RELATIVE_META):
+		player_node.z_as_relative = bool(player_node.get_meta(PLAYER_PRE_HOUSE_Z_AS_RELATIVE_META))
+		player_node.remove_meta(PLAYER_PRE_HOUSE_Z_AS_RELATIVE_META)
 
 
 func _try_eject_enemy_from_house(body: Node) -> void:
@@ -203,6 +234,14 @@ func _update_house_visual() -> void:
 	inside_sprite.visible = player_in_house
 	collision_outside.process_mode = Node.PROCESS_MODE_INHERIT
 	collision_inside.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+func _configure_visual_layers() -> void:
+	for sprite in [outside_sprite, outside_right_sprite, outside_shadow_overlay]:
+		if sprite == null:
+			continue
+		sprite.z_as_relative = true
+		sprite.z_index = OUTSIDE_FORESTER_Z
 
 
 func _update_wardrobe_visual() -> void:

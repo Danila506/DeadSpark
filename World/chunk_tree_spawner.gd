@@ -154,12 +154,8 @@ func _ready() -> void:
 	else:
 		_update_visible_chunks(true)
 
-	_prewarm_initial_visible_generation()
-
-	if load_entire_world_on_start and not unload_enabled:
-		_prewarm_full_generation()
-		if not revalidate_enabled:
-			set_process(false)
+	if load_entire_world_on_start and not unload_enabled and not revalidate_enabled and not has_generation_pending():
+		set_process(false)
 
 
 func _exit_tree() -> void:
@@ -263,7 +259,7 @@ func _clear_generated_spawn_parent_children() -> void:
 		_release_global_reservation_for_node(node)
 		if node is Node2D:
 			_unregister_spawn_position((node as Node2D).global_position)
-		node.queue_free()
+		_queue_generated_node_for_cleanup(node)
 
 
 func _init_world_bounds() -> void:
@@ -423,14 +419,16 @@ func _run_scheduled_generation_task(payload: Dictionary, budget: Dictionary) -> 
 		return result
 
 	if action == "unload":
-		_scheduled_unload_chunks.erase(chunk)
 		if _required_chunks.has(chunk) or not _loaded_chunks.has(chunk):
+			_scheduled_unload_chunks.erase(chunk)
 			return {"done": true}
-		var unload_start_usec := Time.get_ticks_usec()
-		_unload_chunk_trees(chunk)
-		_loaded_chunks.erase(chunk)
-		_profile_chunk_operation("unload", chunk, unload_start_usec, _last_chunk_profile_stats)
-		return {"done": true}
+		var result := _process_incremental_unload_chunk_task(chunk, payload, budget)
+		if bool(result.get("done", false)):
+			_scheduled_unload_chunks.erase(chunk)
+			return result
+		result["payload"] = result.get("payload", payload)
+		result["priority"] = _chunk_distance_squared(chunk, _last_center_chunk)
+		return result
 
 	return {"done": true}
 
@@ -445,10 +443,14 @@ func _run_generation_task_without_scheduler(chunk: Vector2i, action: String) -> 
 				break
 			guard += 1
 	elif action == "unload":
-		var unload_start_usec := Time.get_ticks_usec()
-		_unload_chunk_trees(chunk)
-		_loaded_chunks.erase(chunk)
-		_profile_chunk_operation("unload", chunk, unload_start_usec, _last_chunk_profile_stats)
+		var payload := {"chunk": chunk, "action": "unload"}
+		var guard := 0
+		while guard < 256:
+			var result := _process_incremental_unload_chunk_task(chunk, payload, {})
+			if bool(result.get("done", false)):
+				break
+			payload = result.get("payload", payload)
+			guard += 1
 
 
 func _make_scheduler_task_key(chunk: Vector2i, action: String) -> String:
@@ -485,10 +487,15 @@ func _start_spawn_chunk_job(chunk: Vector2i) -> void:
 	}
 	var base_cell := chunk * chunk_size_tiles
 	var random_cells: Array = []
+	var random_cell_count := chunk_cell_count
+	var random_order_seed := 0
+	var random_order_stride := 1
 	if large_structure_mode:
 		random_cells = _build_large_structure_candidates(chunk)
+		random_cell_count = random_cells.size()
 	else:
-		random_cells = _build_chunk_random_cell_order(base_cell)
+		random_order_seed = _seed_for_chunk_shuffle(base_cell)
+		random_order_stride = _compute_chunk_shuffle_stride(chunk_cell_count, random_order_seed)
 	var target_min_trees := clampi(min_trees_per_chunk, 0, chunk_cell_count)
 	var attempts_limit := _get_spawn_attempts_limit(chunk_cell_count, target_min_trees)
 	if large_structure_mode:
@@ -500,10 +507,14 @@ func _start_spawn_chunk_job(chunk: Vector2i) -> void:
 		"chunk": chunk,
 		"base_cell": base_cell,
 		"random_cells": random_cells,
-		"fallback_start": int(_hash_cell(chunk.x, chunk.y, world_seed + 12791) % maxi(random_cells.size(), 1)),
+		"random_cell_count": random_cell_count,
+		"random_order_seed": random_order_seed,
+		"random_order_stride": random_order_stride,
+		"fallback_start": int(_hash_cell(chunk.x, chunk.y, world_seed + 12791) % maxi(random_cell_count, 1)),
 		"nodes": [],
 		"chunk_spawn_positions": [],
 		"chunk_spawn_cells": {},
+		"candidate_static_validation": {},
 		"placed": 0,
 		"phase": SPAWN_JOB_PHASE_RANDOM,
 		"next_index": 0,
@@ -527,9 +538,13 @@ func _process_active_spawn_job(budget: Dictionary = {}) -> Dictionary:
 	var chunk: Vector2i = _active_spawn_job.get("chunk", Vector2i.ZERO) as Vector2i
 	var base_cell: Vector2i = _active_spawn_job.get("base_cell", chunk * chunk_size_tiles) as Vector2i
 	var random_cells: Array = _active_spawn_job.get("random_cells", [])
+	var random_cell_count := int(_active_spawn_job.get("random_cell_count", chunk_size_tiles * chunk_size_tiles))
+	var random_order_seed := int(_active_spawn_job.get("random_order_seed", 0))
+	var random_order_stride := int(_active_spawn_job.get("random_order_stride", 1))
 	var nodes: Array = _active_spawn_job.get("nodes", [])
 	var chunk_spawn_positions: Array = _active_spawn_job.get("chunk_spawn_positions", [])
 	var chunk_spawn_cells: Dictionary = _active_spawn_job.get("chunk_spawn_cells", {})
+	var candidate_static_validation: Dictionary = _active_spawn_job.get("candidate_static_validation", {})
 	var placed := int(_active_spawn_job.get("placed", 0))
 	var phase := int(_active_spawn_job.get("phase", SPAWN_JOB_PHASE_RANDOM))
 	var next_index := int(_active_spawn_job.get("next_index", 0))
@@ -562,7 +577,7 @@ func _process_active_spawn_job(budget: Dictionary = {}) -> Dictionary:
 		if Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
 			break
 
-		if phase == SPAWN_JOB_PHASE_RANDOM and next_index >= random_cells.size():
+		if phase == SPAWN_JOB_PHASE_RANDOM and next_index >= random_cell_count:
 			if large_structure_mode:
 				break
 			phase = SPAWN_JOB_PHASE_FALLBACK
@@ -588,7 +603,7 @@ func _process_active_spawn_job(budget: Dictionary = {}) -> Dictionary:
 				cell = candidate.get("cell", Vector2i.ZERO) as Vector2i
 				world_pos = candidate.get("world_pos", Vector2.ZERO) as Vector2
 			else:
-				cell = random_cells[next_index] as Vector2i
+				cell = _get_shuffled_chunk_cell(base_cell, next_index, random_order_seed, random_order_stride)
 				world_pos = _get_spawn_world_position(cell)
 			next_index += 1
 			attempts_this_step += 1
@@ -597,15 +612,15 @@ func _process_active_spawn_job(budget: Dictionary = {}) -> Dictionary:
 					stats["large_structure_rejected"] = int(stats.get("large_structure_rejected", 0)) + 1
 				continue
 		else:
-			if random_cells.is_empty():
+			if large_structure_mode:
 				cell = _fallback_cell(base_cell, next_index)
 			else:
-				cell = random_cells[(fallback_start + next_index) % random_cells.size()] as Vector2i
+				cell = _get_shuffled_chunk_cell(base_cell, (fallback_start + next_index) % maxi(random_cell_count, 1), random_order_seed, random_order_stride)
 			world_pos = _get_spawn_world_position(cell)
 			next_index += 1
 			attempts_this_step += 1
 
-		var n := _spawn_tree_at_candidate(cell, world_pos, chunk, placed, chunk_spawn_positions, chunk_spawn_cells, stats)
+		var n := _spawn_tree_at_candidate(cell, world_pos, chunk, placed, chunk_spawn_positions, chunk_spawn_cells, candidate_static_validation, stats)
 		expensive_checks_this_step += 1
 		if n == null:
 			if large_structure_mode:
@@ -619,7 +634,7 @@ func _process_active_spawn_job(budget: Dictionary = {}) -> Dictionary:
 		spawned_this_step += 1
 		stats["nodes_spawned"] = int(stats.get("nodes_spawned", 0)) + 1
 
-	if phase == SPAWN_JOB_PHASE_RANDOM and next_index >= random_cells.size():
+	if phase == SPAWN_JOB_PHASE_RANDOM and next_index >= random_cell_count:
 		if not large_structure_mode:
 			phase = SPAWN_JOB_PHASE_FALLBACK
 			next_index = 0
@@ -631,6 +646,7 @@ func _process_active_spawn_job(budget: Dictionary = {}) -> Dictionary:
 	_active_spawn_job["nodes"] = nodes
 	_active_spawn_job["chunk_spawn_positions"] = chunk_spawn_positions
 	_active_spawn_job["chunk_spawn_cells"] = chunk_spawn_cells
+	_active_spawn_job["candidate_static_validation"] = candidate_static_validation
 	_active_spawn_job["placed"] = placed
 	_active_spawn_job["phase"] = phase
 	_active_spawn_job["next_index"] = next_index
@@ -709,32 +725,42 @@ func _large_structure_candidate_jitter(chunk: Vector2i, candidate_index: int) ->
 	return Vector2(nx * jitter, ny * jitter)
 
 
-func _build_chunk_random_cell_order(chunk_origin: Vector2i) -> Array[Vector2i]:
-	var cells: Array[Vector2i] = []
-	cells.resize(chunk_size_tiles * chunk_size_tiles)
-	var idx := 0
-	for y in range(chunk_size_tiles):
-		for x in range(chunk_size_tiles):
-			cells[idx] = chunk_origin + Vector2i(x, y)
-			idx += 1
-
-	var state := _seed_for_chunk_shuffle(chunk_origin)
-	for i in range(cells.size() - 1, 0, -1):
-		state = _xorshift32(state)
-		var j := int(posmod(state, i + 1))
-		if i == j:
-			continue
-		var tmp := cells[i]
-		cells[i] = cells[j]
-		cells[j] = tmp
-	return cells
-
-
 func _seed_for_chunk_shuffle(chunk_origin: Vector2i) -> int:
 	var shuffle_seed := _hash_cell(chunk_origin.x, chunk_origin.y, world_seed + 11939)
 	if shuffle_seed == 0:
 		shuffle_seed = 1
 	return shuffle_seed
+
+
+func _compute_chunk_shuffle_stride(chunk_cell_count: int, shuffle_seed: int) -> int:
+	var count := maxi(1, chunk_cell_count)
+	var stride := int(posmod(shuffle_seed, count))
+	if stride <= 0:
+		stride = 1
+	while _gcd_int(stride, count) != 1:
+		stride += 1
+		if stride >= count:
+			stride = 1
+	return stride
+
+
+func _get_shuffled_chunk_cell(base_cell: Vector2i, index: int, shuffle_seed: int, shuffle_stride: int) -> Vector2i:
+	var count := maxi(1, chunk_size_tiles * chunk_size_tiles)
+	var start := int(posmod(int(shuffle_seed / 7), count))
+	var linear_index := int(posmod(start + index * shuffle_stride, count))
+	var local_x := linear_index % chunk_size_tiles
+	var local_y := int(floor(float(linear_index) / float(chunk_size_tiles)))
+	return base_cell + Vector2i(local_x, local_y)
+
+
+func _gcd_int(a: int, b: int) -> int:
+	var x := absi(a)
+	var y := absi(b)
+	while y != 0:
+		var remainder := x % y
+		x = y
+		y = remainder
+	return maxi(1, x)
 
 
 func _xorshift32(value: int) -> int:
@@ -778,7 +804,7 @@ func _cancel_active_spawn_job() -> void:
 		if node is Node2D:
 			_unregister_spawn_position((node as Node2D).global_position)
 		_release_global_reservation_for_node(node)
-		node.queue_free()
+		_queue_generated_node_for_cleanup(node)
 	_active_spawn_job.clear()
 
 
@@ -814,7 +840,7 @@ func _spawn_tree_at_cell(
 	stats: Dictionary
 ) -> Node2D:
 	var world_pos := _get_spawn_world_position(cell)
-	return _spawn_tree_at_candidate(cell, world_pos, chunk, placed_index, chunk_spawn_positions, chunk_spawn_cells, stats)
+	return _spawn_tree_at_candidate(cell, world_pos, chunk, placed_index, chunk_spawn_positions, chunk_spawn_cells, {}, stats)
 
 
 func _spawn_tree_at_candidate(
@@ -824,27 +850,34 @@ func _spawn_tree_at_candidate(
 	placed_index: int,
 	chunk_spawn_positions: Array,
 	chunk_spawn_cells: Dictionary,
+	candidate_static_validation: Dictionary,
 	stats: Dictionary
 ) -> Node2D:
 	var checks_start_usec := Time.get_ticks_usec()
 	if chunk_spawn_cells.has(cell):
 		_record_spawn_check_time(stats, checks_start_usec)
 		return null
-	if not _is_allowed_by_biome_layers(world_pos):
-		_record_spawn_check_time(stats, checks_start_usec)
-		return null
-	if _overlaps_blocked(world_pos):
-		_record_spawn_check_time(stats, checks_start_usec)
-		return null
-	if _overlaps_world_collision(world_pos):
-		_record_spawn_check_time(stats, checks_start_usec)
-		return null
+
+	var static_validation_key := "%d:%d" % [cell.x, cell.y]
+	if candidate_static_validation.has(static_validation_key):
+		if not bool(candidate_static_validation[static_validation_key]):
+			_record_spawn_check_time(stats, checks_start_usec)
+			return null
+	else:
+		var is_static_candidate_valid := _is_allowed_by_biome_layers(world_pos) and not _overlaps_blocked(world_pos)
+		candidate_static_validation[static_validation_key] = is_static_candidate_valid
+		if not is_static_candidate_valid:
+			_record_spawn_check_time(stats, checks_start_usec)
+			return null
+
+	var candidate_rect: Rect2 = _get_candidate_spawn_rect(world_pos)
 	if _too_close_to_other_spawns(world_pos, chunk_spawn_positions):
 		_record_spawn_check_time(stats, checks_start_usec)
 		return null
-
-	var candidate_rect: Rect2 = _get_candidate_spawn_rect(world_pos)
 	if _is_globally_occupied(candidate_rect):
+		_record_spawn_check_time(stats, checks_start_usec)
+		return null
+	if _overlaps_world_collision(world_pos):
 		_record_spawn_check_time(stats, checks_start_usec)
 		return null
 	var scene := _pick_tree_scene(cell, chunk, placed_index)
@@ -885,6 +918,58 @@ func _record_spawn_check_time(stats: Dictionary, start_usec: int) -> void:
 		stats["large_structure_checks_usec"] = int(stats.get("large_structure_checks_usec", 0)) + elapsed_usec
 
 
+func _process_incremental_unload_chunk_task(chunk: Vector2i, payload: Dictionary, budget: Dictionary) -> Dictionary:
+	var stats: Dictionary = payload.get("stats", {
+		"nodes_spawned": 0,
+		"nodes_freed": 0,
+		"revalidated_removed": 0
+	})
+	if not unload_enabled:
+		_last_chunk_profile_stats = stats
+		return {"done": true}
+	if not _spawned_trees_by_chunk.has(chunk):
+		_last_chunk_profile_stats = stats
+		return {"done": true}
+
+	var nodes := _spawned_trees_by_chunk[chunk] as Array
+	var cursor := int(payload.get("node_cursor", 0))
+	var time_budget_usec := _resolve_spawn_step_time_budget_usec(budget)
+	var step_start_usec := Time.get_ticks_usec()
+	var work_usec := int(payload.get("work_usec", 0))
+	if not payload.has("start_usec"):
+		payload["start_usec"] = step_start_usec
+
+	while cursor < nodes.size():
+		if time_budget_usec > 0 and Time.get_ticks_usec() - step_start_usec >= time_budget_usec:
+			work_usec += Time.get_ticks_usec() - step_start_usec
+			stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+			payload["stats"] = stats
+			payload["node_cursor"] = cursor
+			payload["work_usec"] = work_usec
+			return {"done": false, "payload": payload}
+
+		var node: Node = _as_valid_generated_node(nodes[cursor])
+		cursor += 1
+		if node == null:
+			continue
+		if node is Node2D:
+			_unregister_spawn_position((node as Node2D).global_position)
+		_record_generated_object_state(node)
+		_release_global_reservation_for_node(node)
+		_queue_generated_node_for_cleanup(node)
+		stats["nodes_freed"] = int(stats.get("nodes_freed", 0)) + 1
+
+	work_usec += Time.get_ticks_usec() - step_start_usec
+	stats["work_usec"] = work_usec
+	_spawned_trees_by_chunk.erase(chunk)
+	_spawn_positions_by_chunk.erase(chunk)
+	_loaded_chunks.erase(chunk)
+	_last_chunk_profile_stats = stats
+	var start_usec := int(payload.get("start_usec", step_start_usec))
+	_profile_chunk_operation("unload", chunk, start_usec, _last_chunk_profile_stats)
+	return {"done": true}
+
+
 func _unload_chunk_trees(chunk: Vector2i) -> void:
 	var stats := {
 		"nodes_spawned": 0,
@@ -906,11 +991,19 @@ func _unload_chunk_trees(chunk: Vector2i) -> void:
 			_unregister_spawn_position((node as Node2D).global_position)
 		_record_generated_object_state(node)
 		_release_global_reservation_for_node(node)
-		node.queue_free()
+		_queue_generated_node_for_cleanup(node)
 		stats["nodes_freed"] = int(stats["nodes_freed"]) + 1
 	_spawned_trees_by_chunk.erase(chunk)
 	_spawn_positions_by_chunk.erase(chunk)
 	_last_chunk_profile_stats = stats
+
+
+func _resolve_spawn_step_time_budget_usec(budget: Dictionary) -> int:
+	var time_budget_usec := int(maxf(spawn_step_time_budget_ms, 0.25) * 1000.0)
+	if budget.has("frame_start_usec") and budget.has("time_budget_usec"):
+		var frame_elapsed := Time.get_ticks_usec() - int(budget.get("frame_start_usec", Time.get_ticks_usec()))
+		time_budget_usec = mini(time_budget_usec, maxi(0, int(budget.get("time_budget_usec", time_budget_usec)) - frame_elapsed))
+	return time_budget_usec
 
 
 func _is_chunk_in_world(chunk: Vector2i) -> bool:
@@ -1422,7 +1515,7 @@ func _revalidate_spawn_chunk(chunk: Vector2i) -> void:
 			_unregister_spawn_position(node.global_position)
 			_record_generated_object_state(node)
 			_release_global_reservation_for_node(node)
-			node.queue_free()
+			_queue_generated_node_for_cleanup(node)
 			stats["nodes_freed"] = int(stats["nodes_freed"]) + 1
 			stats["revalidated_removed"] = int(stats["revalidated_removed"]) + 1
 			continue
@@ -1707,11 +1800,25 @@ func _profile_chunk_operation(action: String, chunk: Vector2i, start_usec: int, 
 	if profiler == null or not profiler.has_method("record_chunk_operation"):
 		return
 	var payload := stats.duplicate()
-	payload["elapsed_ms"] = float(Time.get_ticks_usec() - start_usec) / 1000.0
+	var work_usec := int(stats.get("work_usec", 0))
+	if work_usec > 0:
+		payload["elapsed_ms"] = float(work_usec) / 1000.0
+	else:
+		payload["elapsed_ms"] = float(Time.get_ticks_usec() - start_usec) / 1000.0
 	payload["pending_load"] = _pending_load_chunks.size()
 	payload["pending_unload"] = _pending_unload_chunks.size()
 	payload["loaded_chunks"] = _loaded_chunks.size()
 	profiler.call("record_chunk_operation", name, action, chunk, payload)
+
+
+func _queue_generated_node_for_cleanup(node: Node) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	var cleanup_queue := get_node_or_null("/root/NodeCleanupQueue")
+	if cleanup_queue != null and cleanup_queue.has_method("enqueue"):
+		cleanup_queue.call("enqueue", node)
+	else:
+		node.queue_free()
 
 
 func get_debug_world_generation_info() -> Dictionary:

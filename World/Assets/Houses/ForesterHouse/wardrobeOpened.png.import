@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b6jenuxjc83bf"
-path="res://.godot/imported/wardrobeNormal.png-d402875ba37dc6893f1c7485e536be89.ctex"
+uid="uid://by6q40ha6t5vf"
+path="res://.godot/imported/wardrobeOpened.png-0d1937885a6c62d9946dabd1ef69cad4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://World/Assets/ForesterHouse/wardrobeNormal.png"
-dest_files=["res://.godot/imported/wardrobeNormal.png-d402875ba37dc6893f1c7485e536be89.ctex"]
+source_file="res://World/Assets/Houses/ForesterHouse/wardrobeOpened.png"
+dest_files=["res://.godot/imported/wardrobeOpened.png-0d1937885a6c62d9946dabd1ef69cad4.ctex"]
 
 [params]
 

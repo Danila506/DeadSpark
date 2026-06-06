@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://c8pbs4ohtrggr"]
+
+[ext_resource type="TileSet" uid="uid://dg8dxjg2go1qx" path="res://Assets/World/Roads/RoadTileSet.tres" id="1_d6lh6"]
+
+[node name="ROADTEST" type="Node2D" unique_id=1187848927]
+
+[node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=812693993]
+tile_set = ExtResource("1_d6lh6")

@@ -12,11 +12,14 @@
 [ext_resource type="PackedScene" uid="uid://bj0l7bwgc5amm" path="res://Enemies/Wolf/wolf.tscn" id="13_8b0r0"]
 [ext_resource type="Texture2D" uid="uid://beb0l7v4kjlo2" path="res://World/Assets/xz.png" id="14_fedht"]
 [ext_resource type="PackedScene" uid="uid://e3uqauak7fap" path="res://Projectile/projectile.tscn" id="17_fedht"]
+[ext_resource type="PackedScene" uid="uid://5agijmgrakp3" path="res://World/Assets/Houses/House1/house_1.tscn" id="18_4c15r"]
 [ext_resource type="Texture2D" uid="uid://b8c27l6m6swpl" path="res://World/Assets/тайлмап воды.png" id="22_fj6e6"]
 [ext_resource type="Texture2D" uid="uid://bnrt520qd0h0t" path="res://Assets/World/biom2.png" id="25_uuqa8"]
 [ext_resource type="Script" uid="uid://bpmu2s8ry3rap" path="res://World/snowfall_layer.gd" id="39_snowfall"]
 [ext_resource type="PackedScene" path="res://World/world_generation.tscn" id="40_worldgen"]
 [ext_resource type="Script" uid="uid://b7drf4vbjkp6q" path="res://World/farming_placement_controller.gd" id="41_farming"]
+[ext_resource type="Script" uid="uid://klr6aopv1hmu" path="res://World/house_placement_controller.gd" id="42_house_placement"]
+[ext_resource type="TileSet" uid="uid://dg8dxjg2go1qx" path="res://Assets/World/Roads/RoadTileSet.tres" id="43_road_tiles"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_n6hdu"]
 texture = ExtResource("2_f2txt")
@@ -361,10 +364,10 @@ sources/0 = SubResource("TileSetAtlasSource_oaehd")
 [node name="Level" type="Node2D" unique_id=372047388]
 script = ExtResource("1_u52ul")
 world_bounds_generator_path = NodePath("WorldGeneration/ChunkWorldGenerator")
-world_mood_targets = Array[NodePath]([NodePath("SnowLayer"), NodePath("WoodLayer"), NodePath(""), NodePath("FarmRowsLayer"), NodePath(""), NodePath("Y-Sort_Objects"), NodePath("Snowfall")])
-startup_hidden_nodes = Array[NodePath]([NodePath("SnowLayer"), NodePath("WoodLayer"), NodePath(""), NodePath("Y-Sort_Objects"), NodePath("UI"), NodePath("Snowfall"), NodePath("Projectile")])
+world_mood_targets = Array[NodePath]([NodePath("SnowLayer"), NodePath("WoodLayer"), NodePath("Y-Sort_Objects/RoadLayer"), NodePath("FarmRowsLayer"), NodePath(""), NodePath("Y-Sort_Objects"), NodePath("Snowfall")])
+startup_hidden_nodes = Array[NodePath]([NodePath("SnowLayer"), NodePath("WoodLayer"), NodePath("Y-Sort_Objects/RoadLayer"), NodePath("Y-Sort_Objects"), NodePath("UI"), NodePath("Snowfall"), NodePath("Projectile")])
 
-[node name="NightCanvasModulate" type="CanvasModulate" parent="."]
+[node name="NightCanvasModulate" type="CanvasModulate" parent="." unique_id=722370870]
 color = Color(0.35, 0.38, 0.5, 1)
 
 [node name="WorldGeneration" parent="." unique_id=13881982 instance=ExtResource("40_worldgen")]
@@ -372,6 +375,9 @@ color = Color(0.35, 0.38, 0.5, 1)
 [node name="FarmingPlacementController" type="Node2D" parent="." unique_id=1586729883]
 script = ExtResource("41_farming")
 blocked_layer_paths = Array[NodePath]([NodePath(""), NodePath("../Y-Sort_Objects/LakeLayer"), NodePath("../Y-Sort_Objects/Biom1/Biom1Layer"), NodePath("../Y-Sort_Objects/Biom2/Biom2Layer"), NodePath("../Y-Sort_Objects/xz")])
+
+[node name="HousePlacementController" type="Node2D" parent="." unique_id=1586729884]
+script = ExtResource("42_house_placement")
 
 [node name="SnowLayer" type="TileMapLayer" parent="." unique_id=1540319895]
 z_index = -1
@@ -430,6 +436,10 @@ player_path = NodePath("../Player2")
 [node name="LakeLayer" type="TileMapLayer" parent="Y-Sort_Objects" unique_id=1176762630]
 z_index = -1
 tile_set = SubResource("TileSet_yjxuc")
+
+[node name="RoadLayer" type="TileMapLayer" parent="Y-Sort_Objects" unique_id=1176762631]
+z_index = -1
+tile_set = ExtResource("43_road_tiles")
 
 [node name="xz" type="TileMapLayer" parent="Y-Sort_Objects" unique_id=1584039653]
 y_sort_enabled = true
@@ -495,7 +505,7 @@ y_sort_enabled = true
 position = Vector2(-16, 271)
 
 [node name="Player2" parent="Y-Sort_Objects" unique_id=1619190814 groups=["player"] instance=ExtResource("3_oi3di")]
-position = Vector2(-464, 512)
+position = Vector2(535, 600)
 
 [node name="UI" parent="." unique_id=127416507 instance=ExtResource("6_1ainy")]
 
@@ -503,3 +513,6 @@ position = Vector2(-464, 512)
 script = ExtResource("39_snowfall")
 
 [node name="Projectile" parent="." unique_id=637228377 instance=ExtResource("17_fedht")]
+
+[node name="House1" parent="Y-Sort_Objects" unique_id=259329565 instance=ExtResource("18_4c15r")]
+position = Vector2(543, 512)

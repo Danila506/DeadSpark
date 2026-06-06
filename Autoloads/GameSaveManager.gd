@@ -109,13 +109,30 @@ func load_game(path: String = SAVE_FILE_PATH) -> int:
 
 	if current_scene_path == scene_path:
 		if reload_same_scene_for_generation:
-			return get_tree().reload_current_scene()
+			return reload_current_scene_with_cleanup()
 		if has_runtime_state:
 			call_deferred("_apply_pending_runtime_state")
 		return OK
 
-	get_tree().change_scene_to_file(scene_path)
+	change_scene_with_cleanup(scene_path)
 	return OK
+
+
+func change_scene_with_cleanup(scene_path: String, deferred: bool = false) -> int:
+	if scene_path.is_empty():
+		return ERR_INVALID_PARAMETER
+	if NodeCleanupQueue != null and NodeCleanupQueue.has_method("begin_scene_transition"):
+		NodeCleanupQueue.begin_scene_transition()
+	if deferred:
+		get_tree().change_scene_to_file.call_deferred(scene_path)
+		return OK
+	return get_tree().change_scene_to_file(scene_path)
+
+
+func reload_current_scene_with_cleanup() -> int:
+	if NodeCleanupQueue != null and NodeCleanupQueue.has_method("begin_scene_transition"):
+		NodeCleanupQueue.begin_scene_transition()
+	return get_tree().reload_current_scene()
 
 
 func consume_startup_is_continue_load() -> bool:

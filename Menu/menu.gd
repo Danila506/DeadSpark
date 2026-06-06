@@ -262,6 +262,9 @@ func _on_settings_pressed() -> void:
 		push_warning("MainMenu: settings_scene_path is not configured.")
 		_set_status("Настройки пока недоступны")
 		return
+	if GameSaveManager != null and GameSaveManager.has_method("change_scene_with_cleanup"):
+		GameSaveManager.change_scene_with_cleanup(settings_scene_path)
+		return
 	get_tree().change_scene_to_file(settings_scene_path)
 
 
@@ -302,6 +305,9 @@ func _change_scene_if_exists(scene_path: String, action_name: String) -> void:
 	if sanitized.is_empty() or not ResourceLoader.exists(sanitized):
 		push_warning("MainMenu: cannot start %s, scene is missing: %s" % [action_name, scene_path])
 		_set_status("Сцена не настроена")
+		return
+	if GameSaveManager != null and GameSaveManager.has_method("change_scene_with_cleanup"):
+		GameSaveManager.change_scene_with_cleanup(sanitized)
 		return
 	get_tree().change_scene_to_file(sanitized)
 
@@ -568,6 +574,9 @@ func _on_network_server_started() -> void:
 	_is_connecting_lan = false
 	_lan_reconnect_attempted = false
 	_set_lan_status("LAN server started. Loading world...")
+	if GameSaveManager != null and GameSaveManager.has_method("change_scene_with_cleanup"):
+		GameSaveManager.change_scene_with_cleanup(NETWORK_WORLD_PATH, true)
+		return
 	get_tree().change_scene_to_file.bind(NETWORK_WORLD_PATH).call_deferred()
 
 
@@ -575,6 +584,9 @@ func _on_network_connected_to_server() -> void:
 	_is_connecting_lan = false
 	_lan_reconnect_attempted = false
 	_set_lan_status("Connected to server. Loading world...")
+	if GameSaveManager != null and GameSaveManager.has_method("change_scene_with_cleanup"):
+		GameSaveManager.change_scene_with_cleanup(NETWORK_WORLD_PATH, true)
+		return
 	get_tree().change_scene_to_file.bind(NETWORK_WORLD_PATH).call_deferred()
 
 

@@ -23,8 +23,7 @@ func update_needs(delta: float) -> void:
 		player.water = clamp(player.water - player.water_drain_amount, 0.0, player.max_water)
 
 		if player.water <= 0.0:
-			player.health = clamp(player.health - 5.0, 0.0, player.max_health)
-			if player.health <= 0.0:
+			if _apply_health_loss(5.0):
 				player.die()
 				break
 
@@ -36,8 +35,7 @@ func update_needs(delta: float) -> void:
 		player.food = clamp(player.food - player.food_drain_amount, 0.0, player.max_food)
 
 		if player.food <= 0.0:
-			player.health = clamp(player.health - 5.0, 0.0, player.max_health)
-			if player.health <= 0.0:
+			if _apply_health_loss(5.0):
 				player.die()
 				break
 
@@ -75,10 +73,12 @@ func update_stamina(delta: float, inventory_root) -> void:
 func take_damage(amount: float, damage_type: int = ItemData.DamageType.GENERIC, apply_clothing_damage: bool = true) -> void:
 	if player == null or player.is_dead:
 		return
+	if _is_invulnerable():
+		return
 	if apply_clothing_damage:
 		player._apply_clothing_endurance_from_damage(amount, damage_type)
 
-	player.health = clamp(player.health - amount, 0.0, player.max_health)
+	_apply_health_loss(amount)
 	player.stats_changed.emit()
 
 	if player.health <= 0.0:
@@ -207,8 +207,7 @@ func _update_bleeding(delta: float) -> void:
 
 		while player.bleeding_timer >= tick_interval and player.is_bleeding:
 			player.bleeding_timer -= tick_interval
-			player.health = clamp(player.health - player.bleeding_damage_amount, 0.0, player.max_health)
-			if player.health <= 0.0:
+			if _apply_health_loss(player.bleeding_damage_amount):
 				player.die()
 				break
 
@@ -226,8 +225,7 @@ func _update_disease(delta: float) -> void:
 		var disease_interval: float = max(player.disease_damage_interval, 0.01)
 		while player.disease_tick_timer >= disease_interval and player.is_diseased:
 			player.disease_tick_timer -= disease_interval
-			player.health = clamp(player.health - player.disease_damage_amount, 0.0, player.max_health)
-			if player.health <= 0.0:
+			if _apply_health_loss(player.disease_damage_amount):
 				player.die()
 				break
 
@@ -235,3 +233,16 @@ func _update_disease(delta: float) -> void:
 			set_diseased(false)
 	else:
 		player.disease_tick_timer = 0.0
+
+
+func _is_invulnerable() -> bool:
+	return player != null and bool(player.debug_invulnerable)
+
+
+func _apply_health_loss(amount: float) -> bool:
+	if player == null:
+		return false
+	if amount <= 0.0 or _is_invulnerable():
+		return player.health <= 0.0
+	player.health = clamp(player.health - amount, 0.0, player.max_health)
+	return player.health <= 0.0

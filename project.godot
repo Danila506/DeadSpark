@@ -27,6 +27,8 @@ StutterMonitor="*res://Autoloads/StutterMonitor.gd"
 ChunkProfiler="*res://Autoloads/ChunkProfiler.gd"
 WorldGenerationScheduler="*res://Autoloads/WorldGenerationScheduler.gd"
 NetworkManager="*res://Autoloads/NetworkManager.gd"
+NodeCleanupQueue="*res://Autoloads/NodeCleanupQueue.gd"
+FpsOverlay="*res://Autoloads/FpsOverlay.gd"
 
 [display]
 

@@ -18,6 +18,7 @@ func die() -> void:
 		return
 
 	player.is_dead = true
+	_log_lifecycle_event("PLAYER_DIED")
 	if player.has_method("_is_networked_game") and player.call("_is_networked_game"):
 		if player.has_method("_is_local_network_player") and not player.call("_is_local_network_player"):
 			player._stop_walk_snow_sfx()
@@ -56,6 +57,7 @@ func play_death_screen_and_go_to_menu() -> void:
 	fade_out_tween.parallel().tween_property(player.death_overlay_label, "modulate:a", 0.0, DEATH_FADE_OUT_SEC * 0.8)
 	await fade_out_tween.finished
 
+	_log_lifecycle_event("DEATH_GO_TO_MENU")
 	player._go_to_menu(false)
 
 
@@ -88,3 +90,11 @@ func ensure_death_overlay() -> void:
 	player.death_overlay_label.add_theme_color_override("font_color", Color(0.95, 0.95, 0.95, 1.0))
 	player.death_overlay_label.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	player.death_overlay_layer.add_child(player.death_overlay_label)
+
+
+func _log_lifecycle_event(event_name: String) -> void:
+	if player == null:
+		return
+	var monitor: Node = player.get_node_or_null("/root/StutterMonitor")
+	if monitor != null and monitor.has_method("append_log_file_only"):
+		monitor.call("append_log_file_only", "[PLAYER_EVENT] %s" % event_name)

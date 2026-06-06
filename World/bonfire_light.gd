@@ -7,6 +7,8 @@ enum LightLayer {
 	HALO,
 }
 
+static var _radial_texture_cache: Dictionary = {}
+
 @export var core_light_path: NodePath
 @export var medium_light_path: NodePath
 @export var halo_light_path: NodePath
@@ -161,6 +163,10 @@ func _setup_light(light: PointLight2D, layer: int) -> void:
 
 
 func _build_radial_texture(center_color: Color, mid_color: Color, outer_color: Color) -> Texture2D:
+	var cache_key := _make_radial_texture_cache_key(center_color, mid_color, outer_color)
+	if _radial_texture_cache.has(cache_key):
+		return _radial_texture_cache[cache_key] as Texture2D
+
 	var gradient := Gradient.new()
 	gradient.offsets = PackedFloat32Array([0.0, 0.2, 0.58, 1.0])
 	gradient.colors = PackedColorArray([
@@ -179,10 +185,12 @@ func _build_radial_texture(center_color: Color, mid_color: Color, outer_color: C
 	radial.height = radial_texture_size
 
 	if edge_noise_strength <= 0.001:
+		_radial_texture_cache[cache_key] = radial
 		return radial
 
 	var image := radial.get_image()
 	if image == null:
+		_radial_texture_cache[cache_key] = radial
 		return radial
 
 	var image_width := image.get_width()
@@ -198,7 +206,20 @@ func _build_radial_texture(center_color: Color, mid_color: Color, outer_color: C
 			var pixel := image.get_pixel(x, y)
 			pixel.a = clampf(pixel.a - edge_mix * grain * edge_noise_strength, 0.0, 1.0)
 			image.set_pixel(x, y, pixel)
-	return ImageTexture.create_from_image(image)
+	var texture := ImageTexture.create_from_image(image)
+	_radial_texture_cache[cache_key] = texture
+	return texture
+
+
+func _make_radial_texture_cache_key(center_color: Color, mid_color: Color, outer_color: Color) -> String:
+	return "%s|%s|%s|%d|%.3f|%.3f" % [
+		str(center_color),
+		str(mid_color),
+		str(outer_color),
+		radial_texture_size,
+		edge_noise_strength,
+		edge_noise_scale
+	]
 
 
 func _apply_flicker(light: PointLight2D, base_energy: float, energy_variation: float, base_scale: float, scale_variation: float, pulse: float) -> void:

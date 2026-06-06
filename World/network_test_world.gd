@@ -349,18 +349,27 @@ func _on_server_disconnected() -> void:
 		print("LAN host migration started")
 		return
 	if get_tree() != null:
+		if GameSaveManager != null and GameSaveManager.has_method("change_scene_with_cleanup"):
+			GameSaveManager.change_scene_with_cleanup("res://Menu/Menu.tscn", true)
+			return
 		get_tree().change_scene_to_file.call_deferred("res://Menu/Menu.tscn")
 
 
 func _on_host_migration_completed(is_new_host: bool) -> void:
 	print("LAN host migration completed. is_new_host=%s" % str(is_new_host))
 	if get_tree() != null:
+		if GameSaveManager != null and GameSaveManager.has_method("change_scene_with_cleanup"):
+			GameSaveManager.change_scene_with_cleanup("res://World/network_test_world.tscn", true)
+			return
 		get_tree().change_scene_to_file.call_deferred("res://World/network_test_world.tscn")
 
 
 func _on_host_migration_failed(reason: String) -> void:
 	print("LAN host migration failed: %s" % reason)
 	if get_tree() != null:
+		if GameSaveManager != null and GameSaveManager.has_method("change_scene_with_cleanup"):
+			GameSaveManager.change_scene_with_cleanup("res://Menu/Menu.tscn", true)
+			return
 		get_tree().change_scene_to_file.call_deferred("res://Menu/Menu.tscn")
 
 

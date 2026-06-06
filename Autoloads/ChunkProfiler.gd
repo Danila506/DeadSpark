@@ -1,9 +1,10 @@
 extends Node
 
-@export var enabled: bool = false
+@export var enabled: bool = true
 @export var log_all_operations: bool = false
-@export var spike_threshold_ms: float = 50.0
+@export var spike_threshold_ms: float = 150.0
 @export var destructive_operation_threshold: int = 9999
+@export var mirror_to_console: bool = false
 
 
 func record_chunk_operation(source_name: String, action: String, chunk: Vector2i, stats: Dictionary) -> void:
@@ -19,30 +20,40 @@ func record_chunk_operation(source_name: String, action: String, chunk: Vector2i
 	if not should_log:
 		return
 
-	print(
-		"[CHUNK] source=", source_name,
-		" action=", action,
-		" chunk=", chunk,
-		" ms=", snappedf(elapsed_ms, 0.01),
-		" cells_set=", int(stats.get("cells_set", 0)),
-		" cells_erased=", cells_erased,
-		" nodes_spawned=", int(stats.get("nodes_spawned", 0)),
-		" nodes_freed=", nodes_freed,
-		" revalidated_removed=", int(stats.get("revalidated_removed", 0)),
-		" kind=", str(stats.get("generation_kind", "")),
-		" steps=", int(stats.get("scheduler_steps", 0)),
-		" attempts=", int(stats.get("spawn_attempts", 0)),
-		" expensive_checks=", int(stats.get("expensive_checks", 0)),
-		" checks_ms=", snappedf(float(stats.get("spawn_checks_usec", 0)) / 1000.0, 0.01),
-		" large_structure_candidates=", int(stats.get("large_structure_candidates", 0)),
-		" large_structure_rejected=", int(stats.get("large_structure_rejected", 0)),
-		" large_structure_checks_usec=", int(stats.get("large_structure_checks_usec", 0)),
-		" large_structure_checks_ms=", snappedf(float(stats.get("large_structure_checks_usec", 0)) / 1000.0, 0.01),
-		" instantiate_ms=", snappedf(float(stats.get("instantiate_usec", 0)) / 1000.0, 0.01),
-		" add_child_ms=", snappedf(float(stats.get("add_child_usec", 0)) / 1000.0, 0.01),
-		" register_ms=", snappedf(float(stats.get("register_usec", 0)) / 1000.0, 0.01),
-		" overlap_ms=", snappedf(float(stats.get("overlap_clear_usec", 0)) / 1000.0, 0.01),
-		" pending_load=", int(stats.get("pending_load", 0)),
-		" pending_unload=", int(stats.get("pending_unload", 0)),
-		" loaded=", int(stats.get("loaded_chunks", 0))
-	)
+	var line := "[CHUNK] source=%s action=%s chunk=%s ms=%.2f cells_set=%d cells_erased=%d nodes_spawned=%d nodes_freed=%d revalidated_removed=%d kind=%s steps=%d attempts=%d expensive_checks=%d checks_ms=%.2f large_structure_candidates=%d large_structure_rejected=%d large_structure_checks_ms=%.2f instantiate_ms=%.2f add_child_ms=%.2f register_ms=%.2f overlap_ms=%.2f pending_load=%d pending_unload=%d loaded=%d" % [
+		source_name,
+		action,
+		str(chunk),
+		elapsed_ms,
+		int(stats.get("cells_set", 0)),
+		cells_erased,
+		int(stats.get("nodes_spawned", 0)),
+		nodes_freed,
+		int(stats.get("revalidated_removed", 0)),
+		str(stats.get("generation_kind", "")),
+		int(stats.get("scheduler_steps", 0)),
+		int(stats.get("spawn_attempts", 0)),
+		int(stats.get("expensive_checks", 0)),
+		float(stats.get("spawn_checks_usec", 0)) / 1000.0,
+		int(stats.get("large_structure_candidates", 0)),
+		int(stats.get("large_structure_rejected", 0)),
+		float(stats.get("large_structure_checks_usec", 0)) / 1000.0,
+		float(stats.get("instantiate_usec", 0)) / 1000.0,
+		float(stats.get("add_child_usec", 0)) / 1000.0,
+		float(stats.get("register_usec", 0)) / 1000.0,
+		float(stats.get("overlap_clear_usec", 0)) / 1000.0,
+		int(stats.get("pending_load", 0)),
+		int(stats.get("pending_unload", 0)),
+		int(stats.get("loaded_chunks", 0))
+	]
+	_emit_log(line)
+
+
+func _emit_log(text: String) -> void:
+	if mirror_to_console:
+		print(text)
+	var monitor := get_node_or_null("/root/StutterMonitor")
+	if monitor != null and monitor.has_method("append_log_file_only"):
+		monitor.call("append_log_file_only", text)
+	elif monitor != null and monitor.has_method("_log_line"):
+		monitor.call("_log_line", text)
