@@ -2,6 +2,7 @@
 
 [ext_resource type="Texture2D" uid="uid://brvp1xobxwrdh" path="res://World/Assets/Houses/derevnya.png" id="1_w8cjd"]
 [ext_resource type="Script" uid="uid://hn7wkk41x1bk" path="res://World/house1.gd" id="2_house1"]
+[ext_resource type="Texture2D" uid="uid://dvbs30wdnp3qe" path="res://World/Assets/Houses/tsuke.png" id="3_hh2io"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_ph06y"]
 atlas = ExtResource("1_w8cjd")
@@ -28,7 +29,7 @@ atlas = ExtResource("1_w8cjd")
 region = Rect2(630, 184, 25, 39)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wardrobe_area"]
-size = Vector2(24, 30)
+size = Vector2(39, 30)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_rbvy5"]
 atlas = ExtResource("1_w8cjd")
@@ -39,12 +40,12 @@ atlas = ExtResource("1_w8cjd")
 region = Rect2(84, 61, 22, 35)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_fimqk"]
-atlas = ExtResource("1_w8cjd")
-region = Rect2(114, 57, 3, 44)
+atlas = ExtResource("3_hh2io")
+region = Rect2(4, 5, 3, 36)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_6km6v"]
-atlas = ExtResource("1_w8cjd")
-region = Rect2(68, 56, 5, 46)
+atlas = ExtResource("3_hh2io")
+region = Rect2(10, 4, 5, 38)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_door_area"]
 size = Vector2(33, 30)
@@ -146,6 +147,7 @@ texture = SubResource("AtlasTexture_rbbg5")
 position = Vector2(-16, 5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="WardrobeArea" unique_id=201007]
+position = Vector2(-0.5, 0)
 shape = SubResource("RectangleShape2D_wardrobe_area")
 
 [node name="Door\'sSprites" type="Node2D" parent="." unique_id=446555314]
@@ -156,16 +158,17 @@ texture = SubResource("AtlasTexture_rbvy5")
 offset = Vector2(0.5, -0.5)
 
 [node name="DoorOutline" type="Sprite2D" parent="Door\'sSprites" unique_id=403104685]
+visible = false
 position = Vector2(-66, 42)
 texture = SubResource("AtlasTexture_nl7bi")
 offset = Vector2(0.5, -0.5)
 
 [node name="DoorOpened" type="Sprite2D" parent="Door\'sSprites" unique_id=619460090]
-position = Vector2(-74, 36)
+position = Vector2(-75, 42)
 texture = SubResource("AtlasTexture_fimqk")
 
 [node name="DoorOutlineOpened" type="Sprite2D" parent="Door\'sSprites" unique_id=933209507]
-position = Vector2(-74, 36)
+position = Vector2(-75, 42)
 texture = SubResource("AtlasTexture_6km6v")
 
 [node name="InteractLabel" type="Label" parent="." unique_id=201001]
@@ -179,6 +182,7 @@ horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
 [node name="DoorArea" type="Area2D" parent="." unique_id=201002]
+visible = false
 position = Vector2(-66, 40)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="DoorArea" unique_id=201003]
@@ -186,12 +190,14 @@ position = Vector2(1.5, 11)
 shape = SubResource("RectangleShape2D_door_area")
 
 [node name="HouseArea" type="Area2D" parent="." unique_id=1401016838]
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="HouseArea" unique_id=1755444193]
 position = Vector2(-5, 26)
 shape = SubResource("RectangleShape2D_w8cjd")
 
 [node name="ShadowArea" type="Area2D" parent="." unique_id=676203056]
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="ShadowArea" unique_id=889356542]
 position = Vector2(84, 29)
@@ -199,6 +205,7 @@ scale = Vector2(1.03, 1)
 shape = SubResource("RectangleShape2D_ph06y")
 
 [node name="CollisionOutside" type="StaticBody2D" parent="." unique_id=1318792167]
+visible = false
 
 [node name="LeftWall" type="CollisionShape2D" parent="CollisionOutside" unique_id=984426939]
 position = Vector2(-84, 27.743452)
@@ -224,6 +231,7 @@ position = Vector2(9, 55)
 shape = SubResource("RectangleShape2D_02hrc")
 
 [node name="DoorwayBlocker" type="StaticBody2D" parent="." unique_id=201004]
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="DoorwayBlocker" unique_id=201005]
 position = Vector2(-64, 53)
@@ -246,6 +254,7 @@ position = Vector2(-4.764969, 0)
 shape = SubResource("RectangleShape2D_b37nl")
 
 [node name="Divan" type="CollisionShape2D" parent="CollisionInside" unique_id=1260627604]
+visible = false
 position = Vector2(-71.5, 12.75)
 shape = SubResource("RectangleShape2D_bhbdh")
 
@@ -287,3 +296,6 @@ shape = SubResource("RectangleShape2D_2m5fs")
 [node name="xz4" type="CollisionShape2D" parent="CollisionInside" unique_id=34067295]
 position = Vector2(51.5175, 52)
 shape = SubResource("RectangleShape2D_nmqwi")
+
+[node name="SpawnMarker" type="Marker2D" parent="." unique_id=109287217]
+position = Vector2(54, 28)

@@ -22,6 +22,7 @@
 [ext_resource type="Resource" path="res://Resources/WorldGen/spawner_deer.tres" id="20"]
 [ext_resource type="Script" path="res://World/roadside_house_spawner.gd" id="21"]
 [ext_resource type="Script" path="res://World/guaranteed_road_corridor.gd" id="22"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_ruins.tres" id="23"]
 
 [node name="WorldGeneration" type="Node"]
 
@@ -69,10 +70,15 @@ internal_margin_chunks = 0
 min_straight_segment_tiles = 4
 house_spacing_tiles = 3
 max_houses_to_spawn = 8
+debug_log = true
 
 [node name="ChunkBunkerSpawner" type="Node2D" parent="."]
 script = ExtResource("2")
 config = ExtResource("17")
+
+[node name="ChunkRuinsSpawner" type="Node2D" parent="."]
+script = ExtResource("2")
+config = ExtResource("23")
 
 [node name="ChunkTreeSpawner" type="Node2D" parent="."]
 script = ExtResource("2")

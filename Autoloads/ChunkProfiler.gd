@@ -20,7 +20,7 @@ func record_chunk_operation(source_name: String, action: String, chunk: Vector2i
 	if not should_log:
 		return
 
-	var line := "[CHUNK] source=%s action=%s chunk=%s ms=%.2f cells_set=%d cells_erased=%d nodes_spawned=%d nodes_freed=%d revalidated_removed=%d kind=%s steps=%d attempts=%d expensive_checks=%d checks_ms=%.2f large_structure_candidates=%d large_structure_rejected=%d large_structure_checks_ms=%.2f instantiate_ms=%.2f add_child_ms=%.2f register_ms=%.2f overlap_ms=%.2f pending_load=%d pending_unload=%d loaded=%d" % [
+	var line := "[CHUNK] source=%s action=%s chunk=%s ms=%.2f cells_set=%d cells_erased=%d nodes_spawned=%d nodes_freed=%d revalidated_removed=%d kind=%s steps=%d attempts=%d expensive_checks=%d checks_ms=%.2f large_structure_candidates=%d large_structure_rejected=%d large_structure_checks_ms=%.2f prepass_candidates=%d prepass_placed=%d prepass_ms=%.2f prepass_scan_ms=%.2f prepass_sort_ms=%.2f prepass_place_ms=%.2f instantiate_ms=%.2f add_child_ms=%.2f register_ms=%.2f overlap_ms=%.2f pending_load=%d pending_unload=%d loaded=%d" % [
 		source_name,
 		action,
 		str(chunk),
@@ -38,6 +38,12 @@ func record_chunk_operation(source_name: String, action: String, chunk: Vector2i
 		int(stats.get("large_structure_candidates", 0)),
 		int(stats.get("large_structure_rejected", 0)),
 		float(stats.get("large_structure_checks_usec", 0)) / 1000.0,
+		int(stats.get("prepass_candidate_count", 0)),
+		int(stats.get("prepass_placed", 0)),
+		float(stats.get("prepass_total_usec", 0)) / 1000.0,
+		float(stats.get("prepass_scan_usec", 0)) / 1000.0,
+		float(stats.get("prepass_sort_usec", 0)) / 1000.0,
+		float(stats.get("prepass_place_usec", 0)) / 1000.0,
 		float(stats.get("instantiate_usec", 0)) / 1000.0,
 		float(stats.get("add_child_usec", 0)) / 1000.0,
 		float(stats.get("register_usec", 0)) / 1000.0,

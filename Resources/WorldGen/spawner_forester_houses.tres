@@ -8,7 +8,7 @@
 
 [resource]
 script = ExtResource("1")
-enabled = false
+enabled = true
 spawner_id = "forester_houses"
 player_path = NodePath("../../Y-Sort_Objects/Player2")
 spawn_parent_path = NodePath("../../Y-Sort_Objects/GeneratedForesterHouses")
@@ -23,5 +23,5 @@ blocked_node_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/Bunker"), N
 blocked_node_radius_px = 320.0
 spawn_clearance_radius_px = 0.0
 footprint_size_px = Vector2(360, 300)
-forbidden_layer_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/LakeLayer"), NodePath("../../Y-Sort_Objects/RoadLayer"), NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer"), NodePath("../../Y-Sort_Objects/xz")])
+forbidden_layer_paths = Array[NodePath]([NodePath("../../Y-Sort_Objects/LakeLayer"), NodePath("../../Y-Sort_Objects/RoadLayer"), NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer")])
 forbidden_layer_radius_tiles = 2

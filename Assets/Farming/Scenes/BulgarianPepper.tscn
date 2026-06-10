@@ -41,41 +41,35 @@ radius = 36.0
 script = ExtResource("1_qd0uk")
 
 [node name="Stage1" type="Sprite2D" parent="." unique_id=495911505]
-position = Vector2(0, -16)
-scale = Vector2(2, 2)
+position = Vector2(0, -4)
 texture = SubResource("AtlasTexture_y0j1e")
 
 [node name="Stage2" type="Sprite2D" parent="." unique_id=1696533163]
-position = Vector2(0, -16)
-scale = Vector2(2, 2)
+position = Vector2(0, -4)
 texture = SubResource("AtlasTexture_qvxi1")
 
 [node name="Stage3" type="Sprite2D" parent="." unique_id=1192202937]
-position = Vector2(0, -16)
-scale = Vector2(2, 2)
+position = Vector2(0, -4)
 texture = SubResource("AtlasTexture_o22pc")
 
 [node name="Stage4" type="Sprite2D" parent="." unique_id=218520341]
-position = Vector2(0, -16)
-scale = Vector2(2, 2)
+position = Vector2(0, -4)
 texture = SubResource("AtlasTexture_3q4u2")
 
 [node name="CultivatedOutline" type="Sprite2D" parent="." unique_id=567717416]
-position = Vector2(0, -16)
-scale = Vector2(2, 2)
+position = Vector2(0, -4)
 texture = SubResource("AtlasTexture_kancj")
 
 [node name="TaintedPepper" type="Sprite2D" parent="." unique_id=1285450826]
-position = Vector2(0, -16)
-scale = Vector2(2, 2)
+position = Vector2(0, -4)
 texture = SubResource("AtlasTexture_oyw5e")
 
 [node name="TaintedOutline" type="Sprite2D" parent="." unique_id=1008976212]
-position = Vector2(0, -16)
-scale = Vector2(2, 2)
+position = Vector2(0, -4)
 texture = SubResource("AtlasTexture_0krco")
 
 [node name="InteractArea" type="Area2D" parent="." unique_id=1383221546]
+position = Vector2(0, 12)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="InteractArea" unique_id=1588776429]
 shape = SubResource("CircleShape2D_interact")

@@ -2,16 +2,24 @@ extends Node2D
 
 const GENERATED_GROUP: StringName = &"generated_world_object"
 const META_GENERATED_CELLS: StringName = &"world_generation_generated_cells"
+const PATTERN_OPEN_TOP: int = 0
+const PATTERN_OPEN_BOTTOM: int = 1
+const PATTERN_OPEN_LEFT: int = 2
+const PATTERN_OPEN_RIGHT: int = 3
+const MIN_PATTERN_CHUNKS: int = 2
+const MAX_PATTERN_CHUNKS: int = 3
 
 @export var enabled: bool = true
 @export var player_path: NodePath = NodePath("../../Y-Sort_Objects/Player2")
 @export var road_layer_path: NodePath = NodePath("../../Y-Sort_Objects/RoadLayer")
+@export var road_generator_path: NodePath = NodePath("../ChunkLayerGenerator_Road")
 @export var spawn_parent_path: NodePath = NodePath("../../Y-Sort_Objects/GeneratedForesterHouses")
+@export var wait_for_tile_generators: bool = true
 @export_range(4, 256, 1) var chunk_size_tiles: int = 16
 @export_range(1, 64, 1) var world_chunks_x: int = 6
 @export_range(1, 64, 1) var world_chunks_y: int = 6
-@export_range(1, 4, 1) var edge_margin_chunks: int = 1
-@export_range(1, 8, 1) var road_width_tiles: int = 2
+@export_range(0, 4, 1) var edge_margin_chunks: int = 1
+@export_range(1, 8, 1) var road_width_tiles: int = 1
 @export_range(1, 8, 1) var road_margin_inside_chunk_tiles: int = 3
 @export_range(1, 24, 1) var house_spacing_tiles: int = 5
 @export_range(0.0, 512.0, 1.0) var roadside_house_margin_px: float = 28.0
@@ -24,6 +32,7 @@ const META_GENERATED_CELLS: StringName = &"world_generation_generated_cells"
 
 var _player: Node2D
 var _road_layer: TileMapLayer
+var _road_generator: Node
 var _spawn_parent: Node2D
 var _generated: bool = false
 var _spawned_scene_counts: Dictionary = {}
@@ -31,11 +40,19 @@ var _spawned_scene_counts: Dictionary = {}
 
 func _ready() -> void:
 	_resolve_nodes()
-	set_process(false)
+	set_process(enabled)
+
+
+func _process(_delta: float) -> void:
+	force_generate_step()
 
 
 func has_generation_pending() -> bool:
 	return enabled and not _generated
+
+
+func is_world_generation_tile_source() -> bool:
+	return true
 
 
 func get_pending_generation_chunk_count() -> int:
@@ -48,13 +65,16 @@ func force_generate_step(_chunk_budget: int = -1) -> void:
 	_resolve_nodes()
 	if _player == null or _road_layer == null:
 		return
-	_generate_corridor_and_houses()
+	if _has_pending_tile_generation_dependencies():
+		return
+	_generate_pattern_road_and_houses()
 	_generated = true
+	set_process(false)
 
 
 func get_debug_world_generation_info() -> Dictionary:
 	return {
-		"type": "spawner",
+		"type": "tile_layer",
 		"name": name,
 		"loaded_chunks": [],
 		"spawn_scene_counts": _spawned_scene_counts.duplicate()
@@ -64,117 +84,278 @@ func get_debug_world_generation_info() -> Dictionary:
 func _resolve_nodes() -> void:
 	_player = get_node_or_null(player_path) as Node2D
 	_road_layer = get_node_or_null(road_layer_path) as TileMapLayer
+	_road_generator = get_node_or_null(road_generator_path)
 	_spawn_parent = get_node_or_null(spawn_parent_path) as Node2D
 
 
-func _generate_corridor_and_houses() -> void:
-	var corridor_cells: Array[Vector2i] = _build_corridor_cells()
-	if corridor_cells.is_empty():
+func _has_pending_tile_generation_dependencies() -> bool:
+	if not wait_for_tile_generators:
+		return false
+	var generation_root := get_parent()
+	if generation_root == null:
+		return false
+	for sibling in generation_root.get_children():
+		if sibling == self or not _is_tile_generation_source(sibling):
+			continue
+		if bool(sibling.call("has_generation_pending")):
+			return true
+	return false
+
+
+func _is_tile_generation_source(source: Node) -> bool:
+	if source == null or not source.has_method("has_generation_pending"):
+		return false
+	if source.has_method("is_world_generation_tile_source"):
+		return bool(source.call("is_world_generation_tile_source"))
+	return not source is Node2D
+
+
+func _generate_pattern_road_and_houses() -> void:
+	var layout := _build_pattern_layout()
+	var road_cells: Array[Vector2i] = []
+	for cell_variant in layout.get("cells", []):
+		road_cells.append(cell_variant as Vector2i)
+	var segments: Array = layout.get("segments", [])
+	if road_cells.is_empty():
 		if debug_log:
-			push_warning("GuaranteedRoadCorridor: no corridor cells were generated.")
+			push_warning("GuaranteedRoadCorridor: no patterned road cells were generated.")
 		return
 
 	_road_layer.clear()
-	_paint_corridor_cells(corridor_cells)
-	_mark_generated_cells(corridor_cells)
-	_spawn_roadside_houses(corridor_cells)
+	_paint_corridor_cells(road_cells)
+	_mark_generated_cells(road_cells)
+	_spawn_roadside_houses(segments)
 
 
-func _build_corridor_cells() -> Array[Vector2i]:
-	var cells: Array[Vector2i] = []
-	var world_bounds: Dictionary = _get_world_chunk_bounds()
+func _build_pattern_layout() -> Dictionary:
+	var world_bounds := _get_world_chunk_bounds()
 	var min_chunk: Vector2i = world_bounds["min"] as Vector2i
 	var max_chunk: Vector2i = world_bounds["max"] as Vector2i
-	var interior_min: Vector2i = min_chunk + Vector2i(edge_margin_chunks, edge_margin_chunks)
-	var interior_max: Vector2i = max_chunk - Vector2i(edge_margin_chunks, edge_margin_chunks)
+	var interior_min := min_chunk + Vector2i(edge_margin_chunks, edge_margin_chunks)
+	var interior_max := max_chunk - Vector2i(edge_margin_chunks, edge_margin_chunks)
 	if interior_min.x > interior_max.x or interior_min.y > interior_max.y:
 		interior_min = min_chunk
 		interior_max = max_chunk
 
-	var corridor_seed := _get_corridor_seed()
-	var orientation_hash: int = _stable_hash(world_chunks_x * 17 + corridor_seed, world_chunks_y * 29 + corridor_seed, 9103)
-	var horizontal: bool = true
-	if (interior_max.y - interior_min.y) > 0 and (interior_max.x - interior_min.x) > 0:
-		horizontal = (orientation_hash % 2) == 0
-	elif (interior_max.y - interior_min.y) > 0:
-		horizontal = false
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _get_corridor_seed()
 
-	var width: int = maxi(1, road_width_tiles)
-	if horizontal:
-		var chunk_y: int = interior_min.y + posmod(_stable_hash(11 + corridor_seed, 37 + corridor_seed, 9209), interior_max.y - interior_min.y + 1)
-		var local_y: int = clampi(int(chunk_size_tiles / 2), road_margin_inside_chunk_tiles, chunk_size_tiles - road_margin_inside_chunk_tiles - 1)
-		var world_y := chunk_y * chunk_size_tiles + local_y
-		var start_x := interior_min.x * chunk_size_tiles + road_margin_inside_chunk_tiles
-		var end_x := (interior_max.x + 1) * chunk_size_tiles - road_margin_inside_chunk_tiles - 1
-		for x in range(start_x, end_x + 1):
-			for offset in range(width):
-				cells.append(Vector2i(x, world_y + offset))
-	else:
-		var chunk_x: int = interior_min.x + posmod(_stable_hash(19 + corridor_seed, 43 + corridor_seed, 9281), interior_max.x - interior_min.x + 1)
-		var local_x: int = clampi(int(chunk_size_tiles / 2), road_margin_inside_chunk_tiles, chunk_size_tiles - road_margin_inside_chunk_tiles - 1)
-		var world_x := chunk_x * chunk_size_tiles + local_x
-		var start_y := interior_min.y * chunk_size_tiles + road_margin_inside_chunk_tiles
-		var end_y := (interior_max.y + 1) * chunk_size_tiles - road_margin_inside_chunk_tiles - 1
-		for y in range(start_y, end_y + 1):
-			for offset in range(width):
-				cells.append(Vector2i(world_x + offset, y))
-	return cells
+	var pattern_id := rng.randi_range(PATTERN_OPEN_TOP, PATTERN_OPEN_RIGHT)
+	var footprint := _pick_pattern_footprint(pattern_id, interior_min, interior_max, rng)
+	var origin_chunk := _pick_pattern_origin(interior_min, interior_max, footprint, rng)
+	var polyline := _build_pattern_polyline(pattern_id, origin_chunk, footprint)
+	return _build_layout_from_polyline(polyline)
 
 
-func _spawn_roadside_houses(corridor_cells: Array[Vector2i]) -> void:
+func _pick_pattern_footprint(
+	_pattern_id: int,
+	interior_min: Vector2i,
+	interior_max: Vector2i,
+	rng: RandomNumberGenerator
+) -> Vector2i:
+	var max_width := maxi(1, interior_max.x - interior_min.x + 1)
+	var max_height := maxi(1, interior_max.y - interior_min.y + 1)
+	var width := _pick_pattern_chunk_span(max_width, rng)
+	var height := _pick_pattern_chunk_span(max_height, rng)
+	return Vector2i(width, height)
+
+
+func _pick_pattern_chunk_span(max_available: int, rng: RandomNumberGenerator) -> int:
+	var max_span := mini(MAX_PATTERN_CHUNKS, maxi(1, max_available))
+	var min_span := mini(MIN_PATTERN_CHUNKS, max_span)
+	if max_span <= min_span:
+		return max_span
+	return rng.randi_range(min_span, max_span)
+
+
+func _pick_pattern_origin(
+	interior_min: Vector2i,
+	interior_max: Vector2i,
+	footprint: Vector2i,
+	rng: RandomNumberGenerator
+) -> Vector2i:
+	var max_origin_x := interior_max.x - footprint.x + 1
+	var max_origin_y := interior_max.y - footprint.y + 1
+	var origin_x := interior_min.x
+	var origin_y := interior_min.y
+	if max_origin_x > interior_min.x:
+		origin_x = rng.randi_range(interior_min.x, max_origin_x)
+	if max_origin_y > interior_min.y:
+		origin_y = rng.randi_range(interior_min.y, max_origin_y)
+	return Vector2i(origin_x, origin_y)
+
+
+func _build_pattern_polyline(pattern_id: int, origin_chunk: Vector2i, footprint: Vector2i) -> Array[Vector2i]:
+	var tile_origin := origin_chunk * chunk_size_tiles
+	var width_tiles := maxi(1, footprint.x * chunk_size_tiles)
+	var height_tiles := maxi(1, footprint.y * chunk_size_tiles)
+	var left := tile_origin.x + road_margin_inside_chunk_tiles
+	var right := tile_origin.x + width_tiles - road_margin_inside_chunk_tiles - 1
+	var top := tile_origin.y + road_margin_inside_chunk_tiles
+	var bottom := tile_origin.y + height_tiles - road_margin_inside_chunk_tiles - 1
+
+	if right < left:
+		right = left
+	if bottom < top:
+		bottom = top
+
+	match pattern_id:
+		PATTERN_OPEN_TOP:
+			return [
+				Vector2i(left, top),
+				Vector2i(left, bottom),
+				Vector2i(right, bottom),
+				Vector2i(right, top)
+			]
+		PATTERN_OPEN_BOTTOM:
+			return [
+				Vector2i(left, bottom),
+				Vector2i(left, top),
+				Vector2i(right, top),
+				Vector2i(right, bottom)
+			]
+		PATTERN_OPEN_LEFT:
+			return [
+				Vector2i(right, top),
+				Vector2i(left, top),
+				Vector2i(left, bottom),
+				Vector2i(right, bottom)
+			]
+		_:
+			return [
+				Vector2i(left, top),
+				Vector2i(right, top),
+				Vector2i(right, bottom),
+				Vector2i(left, bottom)
+			]
+
+
+func _build_layout_from_polyline(polyline: Array[Vector2i]) -> Dictionary:
+	var cells: Array[Vector2i] = []
+	var road_set: Dictionary = {}
+	var segments: Array = []
+	if polyline.size() < 2:
+		return {"cells": cells, "segments": segments}
+
+	for i in range(polyline.size() - 1):
+		var start := polyline[i]
+		var finish := polyline[i + 1]
+		var axis := _segment_axis_from_points(start, finish)
+		var centerline_cells := _trace_axis_segment(start, finish)
+		if centerline_cells.is_empty():
+			continue
+		var paint_cells := _expand_segment_cells(centerline_cells, axis)
+		for cell in paint_cells:
+			if road_set.has(cell):
+				continue
+			road_set[cell] = true
+			cells.append(cell)
+		segments.append({
+			"start": start,
+			"end": finish,
+			"axis": axis,
+			"cells": centerline_cells
+		})
+
+	return {"cells": cells, "segments": segments}
+
+
+func _trace_axis_segment(start: Vector2i, finish: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if start.x != finish.x and start.y != finish.y:
+		return out
+
+	var current := start
+	var step := Vector2i.ZERO
+	if finish.x > start.x:
+		step = Vector2i.RIGHT
+	elif finish.x < start.x:
+		step = Vector2i.LEFT
+	elif finish.y > start.y:
+		step = Vector2i.DOWN
+	elif finish.y < start.y:
+		step = Vector2i.UP
+
+	out.append(current)
+	while current != finish:
+		current += step
+		out.append(current)
+	return out
+
+
+func _segment_axis_from_points(start: Vector2i, finish: Vector2i) -> Vector2i:
+	return Vector2i.RIGHT if start.y == finish.y else Vector2i.DOWN
+
+
+func _expand_segment_cells(centerline_cells: Array[Vector2i], axis: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var seen: Dictionary = {}
+	var half_width := maxi(0, road_width_tiles - 1)
+	for center_cell in centerline_cells:
+		for offset in range(half_width + 1):
+			var shifted := center_cell
+			if axis == Vector2i.RIGHT:
+				shifted += Vector2i(0, offset)
+			else:
+				shifted += Vector2i(offset, 0)
+			if seen.has(shifted):
+				continue
+			seen[shifted] = true
+			out.append(shifted)
+	return out
+
+
+func _spawn_roadside_houses(segments: Array) -> void:
 	if _spawn_parent == null or road_house_scenes.is_empty():
 		return
 
-	var horizontal: bool = _is_horizontal_corridor(corridor_cells)
-	var sorted_cells: Array[Vector2i] = corridor_cells.duplicate()
-	sorted_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		return a.x < b.x if horizontal else a.y < b.y
-	)
+	var spawned := 0
+	var scene_cursor := 0
+	var side_toggle := 0
+	var road_half_width_px := _get_road_half_width_px()
 
-	var unique_centers: Array[Vector2i] = []
-	var seen: Dictionary = {}
-	for cell_variant in sorted_cells:
-		var cell := cell_variant as Vector2i
-		var key: int = cell.x if horizontal else cell.y
-		if seen.has(key):
-			continue
-		seen[key] = true
-		unique_centers.append(cell)
-
-	var spawned: int = 0
-	var scene_cursor: int = 0
-	var side_toggle: int = 0
-	var normals: Array[Vector2i] = []
-	var road_half_width_px: float = _get_road_half_width_px()
-	if horizontal:
-		normals.append(Vector2i.UP)
-		normals.append(Vector2i.DOWN)
-	else:
-		normals.append(Vector2i.LEFT)
-		normals.append(Vector2i.RIGHT)
-
-	for i in range(0, unique_centers.size(), maxi(1, house_spacing_tiles)):
+	for segment_variant in segments:
 		if spawned >= max_houses_to_spawn:
 			break
-		var road_cell := unique_centers[i] as Vector2i
-		var road_world: Vector2 = _road_layer.to_global(_road_layer.map_to_local(road_cell))
-		var scene: PackedScene = _next_house_scene(scene_cursor)
-		if scene == null:
-			break
-		var order: Array[Vector2i] = []
-		order.append(normals[side_toggle % 2])
-		order.append(normals[(side_toggle + 1) % 2])
-		for normal in order:
-			var house_half_extent_px: float = _get_scene_half_extent_along_normal(scene, normal)
-			var offset_px: float = road_half_width_px + house_half_extent_px + roadside_house_margin_px
-			var pos: Vector2 = road_world + Vector2(normal) * offset_px
-			if not _can_place_house(scene, pos):
-				continue
-			_spawn_house(scene, pos, spawned)
-			spawned += 1
-			side_toggle += 1
-			break
-		scene_cursor += 1
+		if not (segment_variant is Dictionary):
+			continue
+		var segment := segment_variant as Dictionary
+		var centerline_cells: Array[Vector2i] = []
+		for cell_variant in segment.get("cells", []):
+			centerline_cells.append(cell_variant as Vector2i)
+		if centerline_cells.size() < 2:
+			continue
+		var axis := segment.get("axis", Vector2i.RIGHT) as Vector2i
+		var normals: Array = [Vector2i.UP, Vector2i.DOWN] if axis == Vector2i.RIGHT else [Vector2i.LEFT, Vector2i.RIGHT]
+		var start_index := mini(maxi(1, int(floor(house_spacing_tiles * 0.5))), maxi(1, centerline_cells.size() - 1))
+
+		for i in range(start_index, centerline_cells.size() - 1, maxi(1, house_spacing_tiles)):
+			if spawned >= max_houses_to_spawn:
+				break
+			var road_cell := centerline_cells[i]
+			var road_world := _road_layer.to_global(_road_layer.map_to_local(road_cell))
+			var scene := _next_house_scene(scene_cursor)
+			if scene == null:
+				break
+			var normal_order: Array[Vector2i] = [
+				normals[side_toggle % normals.size()],
+				normals[(side_toggle + 1) % normals.size()]
+			]
+			var placed := false
+			for normal in normal_order:
+				var house_half_extent_px := _get_scene_half_extent_along_normal(scene, normal)
+				var offset_px := road_half_width_px + house_half_extent_px + roadside_house_margin_px
+				var world_pos := road_world + Vector2(normal) * offset_px
+				if not _can_place_house(scene, world_pos):
+					continue
+				_spawn_house(scene, world_pos, spawned)
+				spawned += 1
+				side_toggle += 1
+				placed = true
+				break
+			scene_cursor += 1
+			if placed and spawned >= max_houses_to_spawn:
+				break
 
 
 func _next_house_scene(index: int) -> PackedScene:
@@ -328,14 +509,14 @@ func _spawn_house(scene: PackedScene, world_pos: Vector2, index: int) -> void:
 	var house := scene.instantiate() as Node2D
 	if house == null:
 		return
-	var object_id := "guaranteed_road_house:%d:%s" % [index, scene.resource_path]
+	var object_id := "pattern_road_house:%d:%s" % [index, scene.resource_path]
 	house.set_meta("world_generation_id", object_id)
 	house.set_meta("world_generation_scene_path", scene.resource_path)
 	house.add_to_group(GENERATED_GROUP)
 	if "persistent_id" in house:
 		house.persistent_id = object_id
+	house.position = _spawn_parent.to_local(world_pos)
 	_spawn_parent.add_child(house)
-	house.global_position = world_pos
 	var key := scene.resource_path if not scene.resource_path.is_empty() else scene.resource_name
 	_spawned_scene_counts[key] = int(_spawned_scene_counts.get(key, 0)) + 1
 
@@ -351,29 +532,60 @@ func _paint_corridor_cells(cells: Array[Vector2i]) -> void:
 	if cells.is_empty() or _road_layer == null:
 		return
 
-	var horizontal := _is_horizontal_corridor(cells)
-	var road_generator := get_node_or_null("../ChunkLayerGenerator_Road")
-	var source_id := 0
-	var atlas := Vector2i(0, 1) if horizontal else Vector2i(0, 0)
-
-	if road_generator != null:
-		var source_value: Variant = road_generator.get("source_id")
-		if source_value != null:
-			source_id = int(source_value)
-		var atlas_value: Variant = road_generator.get("road_straight_horizontal_atlas" if horizontal else "road_straight_vertical_atlas")
-		if atlas_value is Vector2i and atlas_value.x >= 0 and atlas_value.y >= 0:
-			atlas = atlas_value as Vector2i
-
+	var road_set: Dictionary = {}
 	for cell in cells:
+		road_set[cell] = true
+
+	var source_id := int(_get_road_generator_value("source_id", 0))
+	for cell in cells:
+		var atlas := _resolve_road_atlas(cell, road_set)
 		_road_layer.set_cell(cell, source_id, atlas, 0)
 
 
-func _is_horizontal_corridor(cells: Array[Vector2i]) -> bool:
-	if cells.size() < 2:
-		return true
-	var first := cells[0] as Vector2i
-	var last := cells[cells.size() - 1] as Vector2i
-	return abs(first.x - last.x) >= abs(first.y - last.y)
+func _resolve_road_atlas(cell: Vector2i, road_set: Dictionary) -> Vector2i:
+	var up := road_set.has(cell + Vector2i.UP)
+	var down := road_set.has(cell + Vector2i.DOWN)
+	var left := road_set.has(cell + Vector2i.LEFT)
+	var right := road_set.has(cell + Vector2i.RIGHT)
+	var connections := 0
+	connections += 1 if up else 0
+	connections += 1 if down else 0
+	connections += 1 if left else 0
+	connections += 1 if right else 0
+
+	if connections >= 3:
+		if (up and down) or (connections == 4):
+			return _get_road_atlas_value("road_straight_vertical_atlas", Vector2i(0, 0))
+		return _get_road_atlas_value("road_straight_horizontal_atlas", Vector2i(0, 1))
+	if connections == 2:
+		if up and down:
+			return _get_road_atlas_value("road_straight_vertical_atlas", Vector2i(0, 0))
+		if left and right:
+			return _get_road_atlas_value("road_straight_horizontal_atlas", Vector2i(0, 1))
+		if up and left:
+			return _get_road_atlas_value("road_corner_atlas_up_left", Vector2i(3, 1))
+		if up and right:
+			return _get_road_atlas_value("road_corner_atlas_up_right", Vector2i(2, 1))
+		if down and left:
+			return _get_road_atlas_value("road_corner_atlas_down_left", Vector2i(1, 1))
+		return _get_road_atlas_value("road_corner_atlas_down_right", Vector2i(4, 1))
+	if up or down:
+		return _get_road_atlas_value("road_straight_vertical_atlas", Vector2i(0, 0))
+	return _get_road_atlas_value("road_straight_horizontal_atlas", Vector2i(0, 1))
+
+
+func _get_road_atlas_value(property_name: String, fallback: Vector2i) -> Vector2i:
+	var value: Variant = _get_road_generator_value(property_name, fallback)
+	if value is Vector2i:
+		return value as Vector2i
+	return fallback
+
+
+func _get_road_generator_value(property_name: String, fallback: Variant) -> Variant:
+	if _road_generator == null:
+		return fallback
+	var value: Variant = _road_generator.get(property_name)
+	return fallback if value == null else value
 
 
 func _get_world_chunk_bounds() -> Dictionary:
@@ -393,16 +605,7 @@ func _get_world_chunk_bounds() -> Dictionary:
 
 
 func _get_corridor_seed() -> int:
-	var road_generator := get_node_or_null("../ChunkLayerGenerator_Road")
-	if road_generator != null:
-		var seed_value: Variant = road_generator.get("world_seed")
-		if seed_value != null:
-			return int(seed_value)
+	var seed_value: Variant = _get_road_generator_value("world_seed", null)
+	if seed_value != null:
+		return int(seed_value)
 	return int(_player.global_position.x) ^ (int(_player.global_position.y) << 1)
-
-
-func _stable_hash(x: int, y: int, salt: int) -> int:
-	var h := int((x * 73856093) ^ (y * 19349663) ^ salt)
-	if h < 0:
-		h = -h
-	return h

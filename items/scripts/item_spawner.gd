@@ -135,6 +135,27 @@ func spawn_starter_items_near_player_if_enabled() -> void:
 	_spawn_starter_items_near_player(0)
 
 
+func spawn_random_world_pickup_at_position(spawn_position: Vector2, forced_runtime_id: String = "") -> bool:
+	if not _can_spawn_on_this_peer():
+		return false
+	if pickup_scene == null:
+		push_warning("ItemSpawner: pickup_scene is not assigned")
+		return false
+
+	var valid_items: Array[ItemData] = _get_valid_world_spawn_items()
+	if valid_items.is_empty():
+		return false
+
+	var item_data: ItemData = valid_items[rng.randi_range(0, valid_items.size() - 1)]
+	if item_data == null:
+		return false
+	return _spawn_pickup(item_data, spawn_position, forced_runtime_id)
+
+
+func get_valid_world_spawn_items() -> Array[ItemData]:
+	return _get_valid_world_spawn_items()
+
+
 func _ensure_special_scope_items() -> void:
 	if not force_include_ts39_scope:
 		return
@@ -371,6 +392,16 @@ func _append_item_unique(result: Array, seen_paths: Dictionary, item: ItemData) 
 	result.append(item)
 
 
+func _get_valid_world_spawn_items() -> Array[ItemData]:
+	var valid_items: Array[ItemData] = []
+	var seen_paths: Dictionary = {}
+	for template_item in possible_items:
+		_append_item_unique(valid_items, seen_paths, template_item)
+	if spawn_all_item_resources_from_resources:
+		_collect_item_resources_from_directory(spawn_all_resources_root, valid_items, seen_paths)
+	return valid_items
+
+
 func _is_excluded_world_spawn_item(item: ItemData) -> bool:
 	if item == null:
 		return false
@@ -384,11 +415,17 @@ func _is_excluded_world_spawn_resource_path(resource_path: String) -> bool:
 	return EXCLUDED_WORLD_SPAWN_RESOURCE_PATHS.has(normalized_path)
 
 
-func _spawn_pickup(item_data: ItemData, spawn_position: Vector2) -> void:
+func _spawn_pickup(item_data: ItemData, spawn_position: Vector2, forced_runtime_id: String = "") -> bool:
 	if item_data == null or pickup_scene == null:
-		return
+		return false
 
 	var item_copy: ItemData = item_data.create_instance()
+	var normalized_runtime_id := forced_runtime_id.strip_edges()
+	if not normalized_runtime_id.is_empty():
+		if _has_pickup_runtime_id(normalized_runtime_id):
+			return false
+		if item_copy != null and item_copy.has_method("get_runtime_id"):
+			item_copy.set("runtime_id", normalized_runtime_id)
 	# In temporary spawn-all mode each entry should appear as a single piece.
 	if spawn_all_possible_items_near_player:
 		item_copy.stack_count = 1
@@ -409,6 +446,7 @@ func _spawn_pickup(item_data: ItemData, spawn_position: Vector2) -> void:
 	_spawn_pickup_from_payload(payload)
 	if multiplayer != null and multiplayer.multiplayer_peer != null and multiplayer.is_server():
 		rpc("rpc_spawn_pickup_payload", payload)
+	return true
 
 
 func _spawn_pickup_from_payload(payload: Dictionary) -> void:

@@ -2,6 +2,7 @@ extends Node2D
 
 const MOBILE_CONTROLS_SCENE: PackedScene = preload("res://Smartphone/mobile_controls.tscn")
 const MOBILE_PROFILER_OVERLAY_SCRIPT = preload("res://Autoloads/mobile_profiler_overlay.gd")
+const MAX_GENERATION_DRAIN_ROUNDS: int = 64
 
 @export_category("World Bounds")
 @export var player_path: NodePath
@@ -158,6 +159,11 @@ func _preload_world_generation() -> void:
 	var world_generation_root := get_node_or_null(world_generation_root_path)
 	if world_generation_root == null:
 		return
+	var generation_scheduler := get_node_or_null("/root/WorldGenerationScheduler")
+	var scheduler_was_enabled := false
+	if generation_scheduler != null:
+		scheduler_was_enabled = bool(generation_scheduler.get("enabled"))
+		generation_scheduler.set("enabled", false)
 
 	var tile_sources: Array[Node] = []
 	var spawner_sources: Array[Node] = []
@@ -174,21 +180,22 @@ func _preload_world_generation() -> void:
 
 	_pause_world_generation_processing(tile_sources)
 	_pause_world_generation_processing(spawner_sources)
-	await _drain_world_generation_sources(
+	await _drain_world_generation_sources_to_completion(
 		tile_sources,
 		"Генерация мира...",
 		-1,
 		_startup_is_continue_load
 	)
+	_resume_world_generation_processing_for(tile_sources)
 	if not (_startup_is_continue_load and startup_fast_continue_loading_enabled):
-		await _drain_world_generation_sources(
+		await _drain_world_generation_sources_in_order(
 			spawner_sources,
 			"Размещение объектов...",
 			startup_spawner_preload_max_frames,
 			false
 		)
 	else:
-		await _drain_world_generation_sources(
+		await _drain_world_generation_sources_in_order(
 			spawner_sources,
 			"Размещение объектов...",
 			startup_continue_spawner_preload_max_frames,
@@ -198,6 +205,8 @@ func _preload_world_generation() -> void:
 		if spawner.has_method("revalidate_loaded_spawns"):
 			spawner.call("revalidate_loaded_spawns", false)
 	_resume_world_generation_processing()
+	if generation_scheduler != null and is_instance_valid(generation_scheduler):
+		generation_scheduler.set("enabled", scheduler_was_enabled)
 
 
 func _pause_world_generation_processing(sources: Array[Node]) -> void:
@@ -215,6 +224,16 @@ func _resume_world_generation_processing() -> void:
 			continue
 		source.set_process(true)
 	_startup_paused_generators.clear()
+
+
+func _resume_world_generation_processing_for(sources: Array[Node]) -> void:
+	for source in sources:
+		if source == null or not is_instance_valid(source):
+			continue
+		if not _startup_paused_generators.has(source):
+			continue
+		source.set_process(true)
+		_startup_paused_generators.erase(source)
 
 
 func _drain_world_generation_sources(
@@ -237,18 +256,28 @@ func _drain_world_generation_sources(
 	var frame_time_budget_usec := int(maxf(1.0, frame_time_budget_ms) * 1000.0)
 	for _frame in range(max_frames):
 		var step_start_usec := Time.get_ticks_usec()
-		var budget_left := total_budget
+		var active_sources: Array[Node] = []
 		for source in sources:
 			if source == null or not is_instance_valid(source):
 				continue
-			if budget_left <= 0:
-				continue
+			if bool(source.call("has_generation_pending")):
+				active_sources.append(source)
+		if active_sources.is_empty():
+			_set_loading_status(loading_text)
+			return
 
-			var source_budget := maxi(1, int(ceil(float(budget_left) / float(sources.size()))))
-			source.call("force_generate_step", source_budget)
-			budget_left -= source_budget
+		var budget_left := total_budget
+		for source_index in range(active_sources.size()):
+			if budget_left <= 0:
+				break
 			if Time.get_ticks_usec() - step_start_usec >= frame_time_budget_usec:
 				break
+
+			var source := active_sources[source_index]
+			var remaining_sources := maxi(1, active_sources.size() - source_index)
+			var source_budget := maxi(1, int(ceil(float(budget_left) / float(remaining_sources))))
+			source.call("force_generate_step", source_budget)
+			budget_left -= source_budget
 
 		var pending_total := _count_pending_world_generation_sources(sources)
 		if pending_total <= 0:
@@ -256,6 +285,47 @@ func _drain_world_generation_sources(
 			return
 		_set_loading_status("%s (%d)" % [loading_text, pending_total])
 		await get_tree().process_frame
+
+
+func _drain_world_generation_sources_to_completion(
+	sources: Array[Node],
+	loading_text: String,
+	max_frames_per_round: int,
+	use_continue_profile: bool
+) -> void:
+	var rounds := 0
+	while _count_pending_world_generation_sources(sources) > 0 and rounds < MAX_GENERATION_DRAIN_ROUNDS:
+		await _drain_world_generation_sources(
+			sources,
+			loading_text,
+			max_frames_per_round,
+			use_continue_profile
+		)
+		rounds += 1
+	if _count_pending_world_generation_sources(sources) > 0:
+		push_error("World generation tile phase did not finish.")
+
+
+func _drain_world_generation_sources_in_order(
+	sources: Array[Node],
+	loading_text: String,
+	max_frames_per_source: int,
+	use_continue_profile: bool
+) -> void:
+	for source in sources:
+		if source == null or not is_instance_valid(source):
+			continue
+		var rounds := 0
+		while bool(source.call("has_generation_pending")) and rounds < MAX_GENERATION_DRAIN_ROUNDS:
+			await _drain_world_generation_sources(
+				[source],
+				"%s %s" % [loading_text, source.name],
+				max_frames_per_source,
+				use_continue_profile
+			)
+			rounds += 1
+		if bool(source.call("has_generation_pending")):
+			push_error("World generation source did not finish: %s" % source.name)
 
 
 func _consume_continue_load_hint() -> bool:
@@ -349,6 +419,11 @@ func _apply_world_mood_grade() -> void:
 		if node == null or not (node is CanvasItem):
 			continue
 		(node as CanvasItem).modulate = world_mood_color
+
+
+func apply_world_mood_color(color: Color) -> void:
+	world_mood_color = color
+	_apply_world_mood_grade()
 
 
 func _setup_world_bounds() -> void:

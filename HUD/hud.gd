@@ -16,13 +16,15 @@ var player: Node = null
 @onready var stamina_bar: TextureProgressBar = $StaminaBar
 @onready var clock_time_label: Label = $HUDTexture/ClockTimeLabel
 @onready var hud_texture: TextureRect = $HUDTexture
-@onready var bleeding_icon: Sprite2D = $HUDTexture/Stats/Bleeding
-@onready var fracture_icon: Sprite2D = $HUDTexture/Stats/Fracture
-@onready var disease_icon: Sprite2D = $HUDTexture/Stats/Disease
-@onready var regeneration_icon: Sprite2D = $HUDTexture/Stats/Regeneration
+@onready var bleeding_icon: Sprite2D = $HUDTexture/Bleeding
+@onready var fracture_icon: Sprite2D = $HUDTexture/Fracture
+@onready var disease_icon: Sprite2D = $HUDTexture/Disease
+@onready var regeneration_icon: Sprite2D = $HUDTexture/Regeneration
 
 const MINUTES_PER_DAY: int = 24 * 60
 const SAVE_KEY: String = "hud_game_clock"
+const STATUS_SHAKE_AMPLITUDE: float = 1.5
+const STATUS_SHAKE_SPEED: float = 18.0
 const CLOCK_GLYPH_PATHS: Dictionary = {
 	"0": "res://Assets/Misc/Alphabet&Numbers/zero.png",
 	"1": "res://Assets/Misc/Alphabet&Numbers/one.png",
@@ -49,10 +51,13 @@ var _clock_glyph_textures: Dictionary = {}
 var _clock_glyph_slots: Array[TextureRect] = []
 var _clock_glyph_container: HBoxContainer = null
 var _clock_glyphs_ready: bool = false
+var _status_shake_time: float = 0.0
+var _status_icon_base_positions: Dictionary = {}
 
 
 func _ready() -> void:
 	_setup_clock_glyphs()
+	_cache_status_icon_base_positions()
 	add_to_group("game_clock")
 	game_time_total_minutes = float(_resolve_start_time_minutes())
 	game_time_minutes = _normalize_time_minutes_float(game_time_total_minutes)
@@ -74,9 +79,11 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_status_shake_time += maxf(delta, 0.0)
 	_update_game_clock(delta)
 	_update_bleeding_blink(delta)
 	_update_fracture_blink(delta)
+	_update_status_icon_shake()
 
 
 func update_stats() -> void:
@@ -117,14 +124,19 @@ func update_status_effects() -> void:
 		bleeding_icon.visible = false
 		bleeding_blink_timer = 0.0
 		bleeding_blink_visible = false
+		_reset_status_icon_position(bleeding_icon)
 
 	if not ("is_fractured" in player and player.is_fractured):
 		fracture_icon.visible = false
 		fracture_blink_timer = 0.0
 		fracture_blink_visible = false
+		_reset_status_icon_position(fracture_icon)
 
 	regeneration_icon.visible = player.has_method("has_passive_regeneration") and player.has_passive_regeneration()
 	disease_icon.visible = "is_diseased" in player and player.is_diseased
+	if not disease_icon.visible:
+		_reset_status_icon_position(disease_icon)
+	_reset_status_icon_position(regeneration_icon)
 
 
 func _update_bleeding_blink(delta: float) -> void:
@@ -149,6 +161,41 @@ func _update_fracture_blink(delta: float) -> void:
 		fracture_blink_visible = not fracture_blink_visible
 
 	fracture_icon.visible = fracture_blink_visible
+
+
+func _cache_status_icon_base_positions() -> void:
+	_status_icon_base_positions = {
+		bleeding_icon: bleeding_icon.position,
+		fracture_icon: fracture_icon.position,
+		disease_icon: disease_icon.position,
+		regeneration_icon: regeneration_icon.position
+	}
+
+
+func _update_status_icon_shake() -> void:
+	_update_icon_shake(bleeding_icon, player != null and player.is_bleeding)
+	_update_icon_shake(fracture_icon, player != null and ("is_fractured" in player and player.is_fractured))
+	_update_icon_shake(disease_icon, player != null and ("is_diseased" in player and player.is_diseased))
+	_reset_status_icon_position(regeneration_icon)
+
+
+func _update_icon_shake(icon: Sprite2D, is_active: bool) -> void:
+	if not is_active:
+		_reset_status_icon_position(icon)
+		return
+
+	var base_position: Vector2 = _status_icon_base_positions.get(icon, icon.position)
+	var phase: float = float(icon.get_instance_id() % 10) * 0.45
+	var shake_offset := Vector2(
+		sin(_status_shake_time * STATUS_SHAKE_SPEED + phase),
+		cos(_status_shake_time * STATUS_SHAKE_SPEED * 1.25 + phase)
+	) * STATUS_SHAKE_AMPLITUDE
+	icon.position = base_position + shake_offset
+
+
+func _reset_status_icon_position(icon: Sprite2D) -> void:
+	var base_position: Vector2 = _status_icon_base_positions.get(icon, icon.position)
+	icon.position = base_position
 
 
 func _update_game_clock(delta: float) -> void:

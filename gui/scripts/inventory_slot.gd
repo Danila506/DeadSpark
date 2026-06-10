@@ -25,6 +25,9 @@ enum IconVAlign {
 @export var slot_type: ItemData.ItemType = ItemData.ItemType.AR_Weapon
 
 @export var icon_size: Vector2 = Vector2(64, 64)
+@export var use_native_texture_size: bool = false
+@export var native_texture_scale: float = 1.0
+@export var apply_item_inventory_icon_scale: bool = true
 @export var icon_rotation_degrees: float = 0.0
 @export var show_name: bool = true
 @export var show_endurance: bool = true
@@ -207,7 +210,10 @@ func _layout_icon_normal() -> void:
 	icon.anchor_bottom = 0.0
 
 	var effective_icon_size: Vector2 = icon_size
-	if item_data != null:
+	if use_native_texture_size and item_data != null and item_data.inventory_icon != null:
+		effective_icon_size = item_data.inventory_icon.get_size() * max(native_texture_scale, 0.1)
+
+	if item_data != null and apply_item_inventory_icon_scale:
 		effective_icon_size *= max(item_data.inventory_icon_scale, 0.1)
 
 	icon.size = effective_icon_size

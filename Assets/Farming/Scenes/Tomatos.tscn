@@ -46,42 +46,42 @@ script = ExtResource("1_nkymd")
 
 [node name="Stage1" type="Sprite2D" parent="." unique_id=1624788306]
 position = Vector2(0, -15)
-scale = Vector2(2, 2)
+scale = Vector2(1, 1)
 texture = SubResource("AtlasTexture_3ayi0")
 
 [node name="Stage2" type="Sprite2D" parent="." unique_id=871852620]
 position = Vector2(0, -15)
-scale = Vector2(2, 2)
+scale = Vector2(1, 1)
 texture = SubResource("AtlasTexture_wdg4b")
 
 [node name="Stage3" type="Sprite2D" parent="." unique_id=990141246]
 position = Vector2(0, -15)
-scale = Vector2(2, 2)
+scale = Vector2(1, 1)
 texture = SubResource("AtlasTexture_01pl3")
 
 [node name="Stage4" type="Sprite2D" parent="." unique_id=1268573063]
 position = Vector2(0, -15)
-scale = Vector2(2, 2)
+scale = Vector2(1, 1)
 texture = SubResource("AtlasTexture_01eqa")
 
 [node name="Stage5" type="Sprite2D" parent="." unique_id=1454314491]
 position = Vector2(0, -15)
-scale = Vector2(2, 2)
+scale = Vector2(1, 1)
 texture = SubResource("AtlasTexture_pjm26")
 
 [node name="CultivatedOutline" type="Sprite2D" parent="." unique_id=618804928]
 position = Vector2(0, -16)
-scale = Vector2(2, 2)
+scale = Vector2(1, 1)
 texture = SubResource("AtlasTexture_6exyy")
 
 [node name="TaintedTomate" type="Sprite2D" parent="." unique_id=573885785]
 position = Vector2(0, -15)
-scale = Vector2(2, 2)
+scale = Vector2(1, 1)
 texture = SubResource("AtlasTexture_hcj05")
 
 [node name="TaintedOutline" type="Sprite2D" parent="." unique_id=1784147920]
 position = Vector2(0, -15)
-scale = Vector2(2, 2)
+scale = Vector2(1, 1)
 texture = SubResource("AtlasTexture_jh2h2")
 
 [node name="InteractArea" type="Area2D" parent="." unique_id=1717751200]

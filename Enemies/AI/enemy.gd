@@ -70,6 +70,7 @@ const DEFAULT_BANDIT_MEDICAL_POOL: Array[ItemData] = [
 @export var hit_blood_fly_distance: float = 14.0
 @export var hit_blood_fly_duration_sec: float = 0.16
 @export var hit_blood_z_index: int = 35
+@export var dead_body_z_index: int = -1
 @export var use_directional_death_animation: bool = true
 @export_range(0.1, 6.0, 0.05) var head_damage_multiplier: float = 2.0
 @export_range(0.1, 6.0, 0.05) var body_damage_multiplier: float = 1.0
@@ -1132,6 +1133,7 @@ func kill(hit_direction: StringName = StringName("")) -> void:
 			hitbox_shape.set_deferred("disabled", true)
 	if health_bar_root != null:
 		health_bar_root.visible = false
+	_apply_dead_render_state()
 	request_animation(&"death")
 
 	if state_machine != null:
@@ -1173,6 +1175,7 @@ func rpc_sync_enemy_state(server_health: float, server_dead: bool, hit_direction
 					hitbox_shape.set_deferred("disabled", true)
 			if health_bar_root != null:
 				health_bar_root.visible = false
+			_apply_dead_render_state()
 			request_animation(&"death")
 			if state_machine != null:
 				state_machine.change_state(STATE_DEAD, {}, true)
@@ -1798,6 +1801,15 @@ func _resolve_body_sprite() -> AnimatedSprite2D:
 	if sprite != null:
 		return sprite
 	return get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+
+
+func _apply_dead_render_state() -> void:
+	if body_sprite == null:
+		return
+
+	# Keep corpses under living actors so the player walks over them.
+	body_sprite.z_as_relative = true
+	body_sprite.z_index = dead_body_z_index
 
 
 func _apply_melee_damage_to_target() -> void:

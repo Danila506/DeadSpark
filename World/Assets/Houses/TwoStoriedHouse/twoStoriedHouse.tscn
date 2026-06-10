@@ -68,10 +68,6 @@ region = Rect2(153, 427, 16, 29)
 atlas = ExtResource("1_4pgvp")
 region = Rect2(115, 426, 18, 31)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_0uey1"]
-atlas = ExtResource("1_4pgvp")
-region = Rect2(143, 424, 3, 34)
-
 [sub_resource type="AtlasTexture" id="AtlasTexture_q1jiy"]
 atlas = ExtResource("1_4pgvp")
 region = Rect2(105, 423, 5, 36)
@@ -201,8 +197,10 @@ position = Vector2(24, 7)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="floor1/BedsideArea" unique_id=180001002]
 shape = SubResource("RectangleShape2D_bedside_area")
 
+[node name="SpawnMarker" type="Marker2D" parent="floor1" unique_id=1632389300]
+position = Vector2(31.389076, 47.18895)
+
 [node name="floor2" type="Node2D" parent="." unique_id=374441211]
-visible = false
 
 [node name="HouseInside2floor" type="Sprite2D" parent="floor2" unique_id=805829250]
 position = Vector2(5.849716, 18.014595)
@@ -234,8 +232,10 @@ shape = SubResource("RectangleShape2D_3dpuo")
 position = Vector2(-31.863964, 9.650239)
 shape = SubResource("RectangleShape2D_rjjr1")
 
+[node name="SpawnMarker" type="Marker2D" parent="floor2" unique_id=170306725]
+position = Vector2(28.861107, 26.122452)
+
 [node name="HouseOutside" type="Sprite2D" parent="." unique_id=1091335183]
-visible = false
 texture = SubResource("AtlasTexture_h2fw3")
 
 [node name="Door\'sSprites" type="Node2D" parent="." unique_id=1511047458]
@@ -252,17 +252,16 @@ offset = Vector2(0.5, -0.5)
 
 [node name="DoorOpened" type="Sprite2D" parent="Door\'sSprites" unique_id=1019737071]
 position = Vector2(-47, 60)
-texture = SubResource("AtlasTexture_0uey1")
 
 [node name="DoorOutlineOpened" type="Sprite2D" parent="Door\'sSprites" unique_id=1648771903]
 position = Vector2(-47, 60)
 texture = SubResource("AtlasTexture_q1jiy")
 
 [node name="InteractLabel" type="Label" parent="." unique_id=357912004]
-offset_left = -129.49072
-offset_top = -59.50477
-offset_right = -28.490723
-offset_bottom = -36.50477
+offset_left = -78.01071
+offset_top = 16.812103
+offset_right = 22.989288
+offset_bottom = 39.812103
 theme_override_font_sizes/font_size = 16
 text = "[E] - открыть"
 horizontal_alignment = 1
@@ -277,6 +276,7 @@ shape = SubResource("RectangleShape2D_63fnf")
 debug_color = Color(0.7064899, 0.47714698, 0.2976204, 0.41960785)
 
 [node name="HouseArea" type="Area2D" parent="." unique_id=287743583]
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="HouseArea" unique_id=2059254467]
 position = Vector2(-8.300573, 35.759365)
@@ -287,6 +287,7 @@ position = Vector2(50.566364, 36.48891)
 shape = SubResource("RectangleShape2D_4pgvp")
 
 [node name="ShadowArea" type="Area2D" parent="." unique_id=603077006]
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="ShadowArea" unique_id=10919237]
 position = Vector2(74.71445, 44.47981)
@@ -294,6 +295,7 @@ scale = Vector2(1.03, 1)
 shape = SubResource("RectangleShape2D_egtgp")
 
 [node name="CollisionOutside" type="StaticBody2D" parent="." unique_id=1953918891]
+visible = false
 
 [node name="LeftWall" type="CollisionShape2D" parent="CollisionOutside" unique_id=1754132551]
 position = Vector2(-55.606873, 37.425888)
@@ -339,12 +341,14 @@ shape = SubResource("RectangleShape2D_kix4j")
 debug_color = Color(0.16481346, 0.6394704, 0.23676899, 0.41960785)
 
 [node name="DoorwayBlocker" type="StaticBody2D" parent="." unique_id=601120265]
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="DoorwayBlocker" unique_id=1760875315]
 position = Vector2(-37.01569, 70.7256)
 shape = SubResource("RectangleShape2D_qljjd")
 
 [node name="CollisionInside" type="StaticBody2D" parent="." unique_id=856110883]
+visible = false
 
 [node name="Wardrobe" type="CollisionShape2D" parent="CollisionInside" unique_id=1596853554]
 position = Vector2(24.749962, 1.8519363)

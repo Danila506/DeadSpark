@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://6jsfbe6vp550"]
+
+[ext_resource type="Texture2D" uid="uid://0v53g3qs7l" path="res://Assets/World/Ruiny.png" id="1_xcyl2"]
+[ext_resource type="Script" uid="uid://b6hpp3voiqe62" path="res://World/ruins_loot.gd" id="2_ruins_loot"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ir1lc"]
+atlas = ExtResource("1_xcyl2")
+region = Rect2(149, 13, 60, 87)
+
+[node name="Ruins2" type="Node2D" unique_id=1764542813]
+scale = Vector2(2, 2)
+script = ExtResource("2_ruins_loot")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=459095358]
+position = Vector2(0, 31.5)
+texture = SubResource("AtlasTexture_ir1lc")
+
+[node name="Walls" type="StaticBody2D" parent="." unique_id=1989394031]
+position = Vector2(0, 73.5)
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Walls" unique_id=1262214328]
+polygon = PackedVector2Array(-26, 1, -13, 1, -12, -13, -16, -13, -20, -8, -26, -6, -26, -73, -29, -73, -29, 1)
+
+[node name="CollisionPolygon2D2" type="CollisionPolygon2D" parent="Walls" unique_id=1668752091]
+position = Vector2(35, 0)
+polygon = PackedVector2Array(-31, 1, -12, 0, -11, -56, -12, -84, -17, -85, -26, -75, -33, -79, -40, -80, -45, -75, -25, -74, -18, -69, -16, -40, -16, -32, -15, -2, -23, -3, -31, -9)
+
+[node name="Marker2D" type="Marker2D" parent="." unique_id=1347967954]
+position = Vector2(-4, 45.5)
+
+[node name="Marker2D2" type="Marker2D" parent="." unique_id=1523568768]
+position = Vector2(5, 11.5)

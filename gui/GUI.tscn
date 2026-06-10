@@ -256,16 +256,18 @@ offset_bottom = 381.0
 layout_mode = 0
 offset_left = 147.0
 offset_top = 99.0
-offset_right = 557.0
-offset_bottom = 219.0
+offset_right = 352.0
+offset_bottom = 159.0
+scale = Vector2(2, 2)
 theme_override_styles/panel = SubResource("StyleBoxEmpty_uysf7")
 icon_size = Vector2(256, 256)
+use_native_texture_size = true
+apply_item_inventory_icon_scale = false
 hint_sprite_path = NodePath("AR_Weapon")
 
 [node name="AR_Weapon" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/AR_Weapon" unique_id=1630757697]
-position = Vector2(204, 61)
+position = Vector2(103, 30.5)
 rotation = 1.5707964
-scale = Vector2(1.5, 1.5)
 texture = ExtResource("5_ouivx")
 
 [node name="EnduranceIndicators" type="Control" parent="InventoryRoot/InventoryContent/NavInv/AR_Weapon" unique_id=282016041]
@@ -276,34 +278,38 @@ offset_bottom = 40.0
 
 [node name="CriticalEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/AR_Weapon/EnduranceIndicators" unique_id=1053333988]
 layout_mode = 0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = 30.0
-offset_bottom = 30.0
+offset_left = -176.0
+offset_top = 49.0
+offset_right = -166.0
+offset_bottom = 59.0
+scale = Vector2(0.5, 0.5)
 texture = ExtResource("11_5or8p")
 
 [node name="LowEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/AR_Weapon/EnduranceIndicators" unique_id=472207197]
 layout_mode = 0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = 30.0
-offset_bottom = 30.0
+offset_left = -176.0
+offset_top = 49.0
+offset_right = -166.0
+offset_bottom = 59.0
+scale = Vector2(0.5, 0.5)
 texture = ExtResource("12_ryiew")
 
 [node name="MediumEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/AR_Weapon/EnduranceIndicators" unique_id=1160785605]
 layout_mode = 0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = 30.0
-offset_bottom = 30.0
+offset_left = -176.0
+offset_top = 49.0
+offset_right = -166.0
+offset_bottom = 59.0
+scale = Vector2(0.5, 0.5)
 texture = ExtResource("13_84uxx")
 
 [node name="HighEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/AR_Weapon/EnduranceIndicators" unique_id=1159230919]
 layout_mode = 0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = 30.0
-offset_bottom = 30.0
+offset_left = -176.0
+offset_top = 49.0
+offset_right = -166.0
+offset_bottom = 59.0
+scale = Vector2(0.5, 0.5)
 texture = ExtResource("11_khlg7")
 
 [node name="T_Shirts" parent="InventoryRoot/InventoryContent/NavInv" unique_id=816680176 instance=ExtResource("3_xtoeb")]
@@ -314,6 +320,8 @@ offset_right = 465.0
 offset_bottom = 615.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_kkqi7")
 slot_type = 2
+use_native_texture_size = true
+apply_item_inventory_icon_scale = false
 hint_sprite_path = NodePath("TShirts")
 
 [node name="TShirts" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/T_Shirts" unique_id=2094205794]
@@ -367,6 +375,9 @@ offset_right = 465.0
 offset_bottom = 351.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_kkqi7")
 slot_type = 8
+use_native_texture_size = true
+native_texture_scale = 2.0
+apply_item_inventory_icon_scale = false
 hint_sprite_path = NodePath("Cap")
 
 [node name="Cap" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/Cap" unique_id=1968489328]
@@ -420,6 +431,9 @@ offset_right = 691.0
 offset_bottom = 219.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_kkqi7")
 slot_type = 7
+use_native_texture_size = true
+native_texture_scale = 2.0
+apply_item_inventory_icon_scale = false
 hint_sprite_path = NodePath("MeleeWeapons")
 
 [node name="MeleeWeapons" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/MeleeWeapons" unique_id=1643393994]
@@ -473,6 +487,9 @@ offset_right = 312.0
 offset_bottom = 342.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_kkqi7")
 slot_type = 4
+use_native_texture_size = true
+native_texture_scale = 2.0
+apply_item_inventory_icon_scale = false
 hint_sprite_path = NodePath("HeavyArmour")
 
 [node name="HeavyArmourStoragePanel" type="Panel" parent="InventoryRoot/InventoryContent/NavInv/HeavyArmour" unique_id=882200106]
@@ -543,6 +560,9 @@ offset_right = 308.0
 offset_bottom = 605.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_a41ah")
 slot_type = 5
+use_native_texture_size = true
+native_texture_scale = 2.0
+apply_item_inventory_icon_scale = false
 icon_offset = Vector2(0, -12)
 hint_sprite_path = NodePath("Trousers")
 
@@ -613,6 +633,9 @@ offset_right = 331.0
 offset_bottom = 483.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_me6xb")
 slot_type = 3
+use_native_texture_size = true
+native_texture_scale = 2.0
+apply_item_inventory_icon_scale = false
 hint_sprite_path = NodePath("Jacket")
 
 [node name="ClothingStoragePanel" type="Panel" parent="InventoryRoot/InventoryContent/NavInv/Jacket" unique_id=1706000107]
@@ -683,6 +706,9 @@ offset_bottom = 219.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_6n8ie")
 slot_type = 1
 icon_size = Vector2(100, 100)
+use_native_texture_size = true
+native_texture_scale = 2.0
+apply_item_inventory_icon_scale = false
 hint_sprite_path = NodePath("Pistols")
 
 [node name="Pistols" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/Pistols" unique_id=166296610]
@@ -736,6 +762,9 @@ offset_right = 463.0
 offset_bottom = 478.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_6n8ie")
 slot_type = 9
+use_native_texture_size = true
+native_texture_scale = 2.0
+apply_item_inventory_icon_scale = false
 allowed_storage_categories = Array[int]([3, 4, 5])
 use_allowed_item_types = true
 
@@ -754,6 +783,9 @@ offset_right = 603.0
 offset_bottom = 619.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_6n8ie")
 slot_type = 6
+use_native_texture_size = true
+native_texture_scale = 2.0
+apply_item_inventory_icon_scale = false
 hint_sprite_path = NodePath("Bag")
 
 [node name="BagStoragePanel" type="Panel" parent="InventoryRoot/InventoryContent/NavInv/Bag" unique_id=1314131359]

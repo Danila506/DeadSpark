@@ -7,6 +7,7 @@ const HOUSE_ENEMY_EJECT_MARGIN: float = 6.0
 const PLAYER_PRE_BUNKER_Z_INDEX_META: StringName = &"pre_bunker_z_index"
 const PLAYER_PRE_BUNKER_Z_AS_RELATIVE_META: StringName = &"pre_bunker_z_as_relative"
 const PLAYER_BUNKER_Z_INDEX: int = 2000
+const WorldGenerationBlockerUtils = preload("res://World/world_generation_blocker_utils.gd")
 
 @onready var outside_sprite: Sprite2D = $BunkerOutside
 @onready var inside_sprite: Sprite2D = $BunkerInside
@@ -56,9 +57,18 @@ func _ready() -> void:
 	_update_house_visual()
 	_update_box_visual()
 	set_physics_process(false)
+	_refresh_world_generation_blocker()
 	call_deferred("_eject_current_overlapping_enemies")
 	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
 		GameSaveManager.register_persistent_node(self)
+
+
+func _refresh_world_generation_blocker() -> void:
+	WorldGenerationBlockerUtils.configure_blocker(self, house_area)
+
+
+func get_world_generation_blocker_rect() -> Rect2:
+	return WorldGenerationBlockerUtils.build_area_rect(house_area)
 
 
 func _eject_current_overlapping_enemies() -> void:
@@ -265,8 +275,15 @@ func _ensure_loot() -> void:
 	if box_slot_count <= 0:
 		return
 
-	var min_spawn: int = clamp(box_spawn_min, 0, box_slot_count)
-	var max_spawn: int = clamp(box_spawn_max, min_spawn, box_slot_count)
+	var effective_loot_pool: Array[ItemData] = _get_effective_loot_pool()
+	var min_spawn_source: int = box_spawn_min
+	if min_spawn_source <= 0:
+		min_spawn_source = 1
+	var min_spawn: int = clamp(min_spawn_source, 0, box_slot_count)
+	var max_spawn_source: int = box_spawn_max
+	if max_spawn_source <= 0:
+		max_spawn_source = box_slot_count
+	var max_spawn: int = clamp(max_spawn_source, min_spawn, box_slot_count)
 
 	var free_indices: Array[int] = []
 	for i in range(box_slot_count):
@@ -285,7 +302,7 @@ func _ensure_loot() -> void:
 		var guaranteed_item_instance: ItemData = guaranteed_item.create_instance(1)
 		loot_slots[guaranteed_slot_index] = guaranteed_item_instance
 
-	if loot_pool.is_empty() or free_indices.is_empty():
+	if effective_loot_pool.is_empty() or free_indices.is_empty():
 		return
 
 	var spawn_count: int = randi_range(min_spawn, max_spawn)
@@ -298,12 +315,42 @@ func _ensure_loot() -> void:
 		var slot_index: int = free_indices[free_pos]
 		free_indices.remove_at(free_pos)
 
-		var template_item: ItemData = loot_pool[randi_range(0, loot_pool.size() - 1)]
+		var template_item: ItemData = effective_loot_pool[randi_range(0, effective_loot_pool.size() - 1)]
 		if template_item == null:
 			continue
 
 		var item_instance: ItemData = template_item.create_instance(1)
 		loot_slots[slot_index] = item_instance
+
+
+func _get_effective_loot_pool() -> Array[ItemData]:
+	var effective_pool: Array[ItemData] = []
+	for item in loot_pool:
+		if item != null:
+			effective_pool.append(item)
+	if not effective_pool.is_empty():
+		return effective_pool
+
+	var item_spawner := _find_item_spawner()
+	if item_spawner != null and item_spawner.has_method("get_valid_world_spawn_items"):
+		var fallback_items: Variant = item_spawner.call("get_valid_world_spawn_items")
+		if fallback_items is Array:
+			for item_variant in fallback_items:
+				var item := item_variant as ItemData
+				if item != null:
+					effective_pool.append(item)
+	return effective_pool
+
+
+func _find_item_spawner() -> Node:
+	var scene_tree := get_tree()
+	if scene_tree == null:
+		return null
+	for candidate in scene_tree.get_nodes_in_group("item_spawner_network"):
+		var node := candidate as Node
+		if node != null and is_instance_valid(node):
+			return node
+	return null
 
 
 func get_save_key() -> String:

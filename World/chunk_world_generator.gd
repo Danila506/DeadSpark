@@ -3,6 +3,7 @@ extends Node
 const META_GENERATED_CELLS: StringName = &"world_generation_generated_cells"
 const META_PRESERVE_EDITOR_TILES: StringName = &"world_generation_preserve_editor_tiles"
 const META_PROTECTED_CELLS: StringName = &"world_generation_protected_cells"
+const META_BLOCKER_FOOTPRINT_RECT: StringName = &"world_generation_footprint_rect"
 const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 
 @export var enabled: bool = true
@@ -22,6 +23,7 @@ const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 @export var update_interval_sec: float = 0.20
 @export_range(1, 32, 1) var max_chunk_operations_per_update: int = 1
 @export_range(0.25, 16.0, 0.25) var generation_step_time_budget_ms: float = 1.5
+@export var generation_dependency_paths: Array[NodePath] = []
 
 @export_category("Generation")
 @export var world_seed: int = 1337
@@ -100,15 +102,18 @@ const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 @export var physics_collision_padding_px: float = 0.0
 @export var avoid_layer_path: NodePath
 @export_range(0, 8, 1) var avoid_layer_radius_tiles: int = 0
+@export_range(-1.0, 512.0, 1.0) var avoid_layer_padding_px: float = -1.0
 @export var avoid_layer_paths: Array[NodePath] = []
 @export var overlap_clear_layer_paths: Array[NodePath] = []
 @export_range(0, 8, 1) var overlap_clear_radius_tiles: int = 0
+@export_range(0, 8, 1) var occupancy_inset_tiles: int = 0
 @export var prefer_layer_path: NodePath
 @export_range(0, 8, 1) var prefer_layer_radius_tiles: int = 0
 @export_range(0.0, 1.0, 0.01) var prefer_layer_fill_bonus: float = 0.0
 
 @export_category("Debug")
 @export var debug_log: bool = false
+@export var debug_watch_atlas_tiles: Array[Vector2i] = []
 
 var _tile_map: TileMapLayer
 var _avoid_layer: TileMapLayer
@@ -127,6 +132,7 @@ var _update_timer: float = 0.0
 var _world_min_chunk: Vector2i
 var _world_max_chunk: Vector2i
 var _blocked_world_positions: Array[Vector2] = []
+var _blocked_world_rects: Array[Rect2] = []
 var _protected_cells := {}
 var _generated_cells := {}
 var _atlas_source: TileSetAtlasSource
@@ -138,11 +144,15 @@ var _first_available_atlas_tile: Vector2i = Vector2i.ZERO
 var _tile_span_cache := {}
 var _generation_meta_dirty: bool = false
 var _last_chunk_profile_stats: Dictionary = {}
+var _debug_watched_tile_stats: Dictionary = {}
+var _generation_initialized: bool = false
+var _initial_generation_started: bool = false
 
 
 func _ready() -> void:
 	if config != null:
 		_apply_config(config)
+	_generation_initialized = true
 
 	if not enabled:
 		set_process(false)
@@ -202,6 +212,11 @@ func _ready() -> void:
 		set_process(false)
 		return
 	_rebuild_tile_cache()
+	if not use_terrain_connect and _valid_tile_options.is_empty():
+		push_error("ChunkWorldGenerator: no valid atlas tiles remain after validating tile_options_atlas and source_id")
+		set_process(false)
+		return
+	_ensure_watched_tile_stats_initialized()
 
 	_collect_blocked_positions()
 	_init_world_bounds()
@@ -209,7 +224,8 @@ func _ready() -> void:
 	if clear_existing_on_start:
 		_clear_existing_cells()
 
-	_update_visible_chunks(true)
+	if not _has_pending_generation_dependencies():
+		_start_initial_generation()
 	if load_entire_world_on_start and not unload_enabled and not has_generation_pending():
 		set_process(false)
 
@@ -249,6 +265,7 @@ func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
 	update_interval_sec = cfg.update_interval_sec
 	max_chunk_operations_per_update = cfg.max_chunk_operations_per_update
 	generation_step_time_budget_ms = cfg.generation_step_time_budget_ms
+	generation_dependency_paths = cfg.generation_dependency_paths.duplicate()
 	world_seed = cfg.world_seed
 	randomize_seed_on_start = cfg.randomize_seed_on_start
 	fill_probability = cfg.fill_probability
@@ -319,16 +336,23 @@ func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
 	physics_collision_padding_px = cfg.physics_collision_padding_px
 	avoid_layer_path = cfg.avoid_layer_path
 	avoid_layer_radius_tiles = cfg.avoid_layer_radius_tiles
+	avoid_layer_padding_px = cfg.avoid_layer_padding_px
 	avoid_layer_paths = cfg.avoid_layer_paths.duplicate()
 	overlap_clear_layer_paths = cfg.overlap_clear_layer_paths.duplicate()
 	overlap_clear_radius_tiles = cfg.overlap_clear_radius_tiles
+	occupancy_inset_tiles = cfg.occupancy_inset_tiles
 	prefer_layer_path = cfg.prefer_layer_path
 	prefer_layer_radius_tiles = cfg.prefer_layer_radius_tiles
 	prefer_layer_fill_bonus = cfg.prefer_layer_fill_bonus
 	debug_log = cfg.debug_log
+	debug_watch_atlas_tiles = cfg.debug_watch_atlas_tiles.duplicate()
+	_ensure_watched_tile_stats_initialized()
 
 
 func _process(delta: float) -> void:
+	if _has_pending_generation_dependencies():
+		return
+	_start_initial_generation()
 	_update_timer += delta
 	if _update_timer < update_interval_sec:
 		return
@@ -355,6 +379,7 @@ func _update_visible_chunks(force: bool) -> void:
 		_player = get_node_or_null(player_path) as Node2D
 		if _player == null:
 			return
+	_collect_blocked_positions()
 	var player_cell := _tile_map.local_to_map(_tile_map.to_local(_player.global_position))
 	var center_chunk := _world_to_chunk(player_cell)
 	var has_pending_work := not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty()
@@ -441,7 +466,11 @@ func _enqueue_generation_task(chunk: Vector2i, action: String) -> bool:
 		"uses_node_spawn_budget": false,
 		"start_usec": Time.get_ticks_usec()
 	}
-	return bool(scheduler.call("enqueue_task", self, key, priority, payload))
+	var enqueued := bool(scheduler.call("enqueue_task", self, key, priority, payload))
+	if not enqueued:
+		_scheduled_load_chunks.erase(chunk)
+		_scheduled_unload_chunks.erase(chunk)
+	return enqueued
 
 
 func _run_scheduled_generation_task(payload: Dictionary, budget: Dictionary) -> Dictionary:
@@ -491,7 +520,11 @@ func _process_incremental_generate_chunk_task(chunk: Vector2i, payload: Dictiona
 		_profile_chunk_operation("generate", chunk, skipped_start_usec, _last_chunk_profile_stats)
 		return {"done": true}
 
-	var phase := str(payload.get("phase", "scan"))
+	var phase := str(payload.get("phase", "prepass_scan"))
+	if phase == "prepass_scan":
+		return _process_incremental_prepass_scan_phase(chunk, payload, budget)
+	if phase == "prepass_place":
+		return _process_incremental_prepass_place_phase(chunk, payload, budget)
 	if phase == "overlap_cleanup":
 		return _process_incremental_overlap_cleanup_phase(chunk, payload, budget)
 	if phase == "meta_sync":
@@ -516,11 +549,13 @@ func _process_incremental_generate_chunk_task(chunk: Vector2i, payload: Dictiona
 		var frame_elapsed_usec := Time.get_ticks_usec() - int(budget.get("frame_start_usec", Time.get_ticks_usec()))
 		time_budget_usec = mini(time_budget_usec, maxi(0, int(budget.get("time_budget_usec", time_budget_usec)) - frame_elapsed_usec))
 	if time_budget_usec <= 0:
+		work_usec += Time.get_ticks_usec() - step_start_usec
 		payload["stats"] = stats
 		payload["occupied"] = occupied
 		payload["placed_cells"] = placed_cells
 		payload["placed_count"] = placed_count
 		payload["cursor"] = cursor
+		payload["work_usec"] = work_usec
 		return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
 
 	while cursor < total_cells:
@@ -539,6 +574,9 @@ func _process_incremental_generate_chunk_task(chunk: Vector2i, payload: Dictiona
 		var local_y := int(floor(float(cursor) / float(chunk_size_tiles)))
 		cursor += 1
 		var cell := origin + Vector2i(local_x, local_y)
+		var local_cell := Vector2i(local_x, local_y)
+		if occupied.has(local_cell):
+			continue
 		var fill_prob := fill_probability
 		if _is_near_prefer_layer(cell):
 			fill_prob = clampf(fill_prob + prefer_layer_fill_bonus, 0.0, 1.0)
@@ -547,27 +585,36 @@ func _process_incremental_generate_chunk_task(chunk: Vector2i, payload: Dictiona
 				stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
 			continue
 
-		var atlas := _pick_tile(cell)
-		var local_cell := Vector2i(local_x, local_y)
+		var atlas := _pick_tile(cell, local_cell)
+		_record_watched_tile_stat(atlas, "picked")
 		if _is_blocked_by_avoid_layer(cell):
+			_record_watched_tile_stat(atlas, "blocked_by_avoid")
 			if not _is_protected_cell(cell):
 				stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
 			continue
-		if _try_place_tile(chunk, origin, local_cell, cell, atlas, occupied):
+		var placement_result := _try_place_tile_with_reason(chunk, origin, local_cell, cell, atlas, occupied)
+		if bool(placement_result.get("placed", false)):
+			_record_watched_tile_stat(atlas, "placed")
 			placed_count += 1
 			placed_cells.append(cell)
 			stats["cells_set"] = int(stats["cells_set"]) + 1
 		else:
+			_record_watched_tile_stat(atlas, str(placement_result.get("reason", "placement_failed")))
 			if not _is_protected_cell(cell):
 				stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
 
 	if ensure_non_empty_chunk and fill_probability > 0.0 and placed_count == 0 and not bool(payload.get("fallback_done", false)):
 		var fallback_cell := _pick_fallback_cell(origin)
 		var fallback_local := fallback_cell - origin
-		var fallback_atlas := _pick_tile(fallback_cell)
-		if _try_place_tile(chunk, origin, fallback_local, fallback_cell, fallback_atlas, occupied):
+		var fallback_atlas := _pick_tile(fallback_cell, fallback_local)
+		_record_watched_tile_stat(fallback_atlas, "picked")
+		var fallback_result := _try_place_tile_with_reason(chunk, origin, fallback_local, fallback_cell, fallback_atlas, occupied)
+		if bool(fallback_result.get("placed", false)):
+			_record_watched_tile_stat(fallback_atlas, "placed")
 			placed_cells.append(fallback_cell)
 			stats["cells_set"] = int(stats["cells_set"]) + 1
+		else:
+			_record_watched_tile_stat(fallback_atlas, str(fallback_result.get("reason", "placement_failed")))
 		payload["fallback_done"] = true
 
 	var placed_cells_typed: Array[Vector2i] = []
@@ -584,6 +631,195 @@ func _process_incremental_generate_chunk_task(chunk: Vector2i, payload: Dictiona
 	payload["cleanup_erased_origins_by_layer"] = {}
 	payload["work_usec"] = work_usec + (Time.get_ticks_usec() - step_start_usec)
 	stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+	return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+
+func _process_incremental_prepass_scan_phase(chunk: Vector2i, payload: Dictionary, budget: Dictionary) -> Dictionary:
+	var stats: Dictionary = payload.get("stats", {
+		"cells_set": 0,
+		"cells_erased": 0,
+		"overlap_erased": 0,
+		"generation_kind": "tile_incremental"
+	})
+	var occupied: Dictionary = payload.get("occupied", {})
+	var placed_cells: Array = payload.get("placed_cells", [])
+	var placed_count := int(payload.get("placed_count", 0))
+	var origin := chunk * chunk_size_tiles
+	var total_cells := chunk_size_tiles * chunk_size_tiles
+	var scan_cursor := int(payload.get("prepass_scan_cursor", 0))
+	var candidates_by_area: Dictionary = payload.get("prepass_candidates_by_area", {})
+	var candidate_areas: Array = payload.get("prepass_candidate_areas", [])
+	var work_usec := int(payload.get("work_usec", 0))
+	var time_budget_usec := _resolve_generation_step_time_budget_usec(budget)
+	if time_budget_usec <= 0:
+		payload["stats"] = stats
+		payload["occupied"] = occupied
+		payload["placed_cells"] = placed_cells
+		payload["placed_count"] = placed_count
+		payload["prepass_scan_cursor"] = scan_cursor
+		payload["prepass_candidates_by_area"] = candidates_by_area
+		payload["prepass_candidate_areas"] = candidate_areas
+		payload["work_usec"] = work_usec
+		return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+	var phase_start_usec := Time.get_ticks_usec()
+	while scan_cursor < total_cells:
+		if Time.get_ticks_usec() - phase_start_usec >= time_budget_usec:
+			var step_elapsed_usec := Time.get_ticks_usec() - phase_start_usec
+			work_usec += step_elapsed_usec
+			stats["prepass_scan_usec"] = int(stats.get("prepass_scan_usec", 0)) + step_elapsed_usec
+			stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+			payload["stats"] = stats
+			payload["occupied"] = occupied
+			payload["placed_cells"] = placed_cells
+			payload["placed_count"] = placed_count
+			payload["prepass_scan_cursor"] = scan_cursor
+			payload["prepass_candidates_by_area"] = candidates_by_area
+			payload["prepass_candidate_areas"] = candidate_areas
+			payload["work_usec"] = work_usec
+			return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+		var local_x := scan_cursor % chunk_size_tiles
+		var local_y := int(floor(float(scan_cursor) / float(chunk_size_tiles)))
+		scan_cursor += 1
+		var local_cell := Vector2i(local_x, local_y)
+		if occupied.has(local_cell):
+			continue
+
+		var cell := origin + local_cell
+		var fill_prob := fill_probability
+		if _is_near_prefer_layer(cell):
+			fill_prob = clampf(fill_prob + prefer_layer_fill_bonus, 0.0, 1.0)
+		if _cell_fill_roll(cell) > fill_prob:
+			continue
+
+		var atlas := _pick_tile(cell, local_cell)
+		var span := _get_tile_span(atlas)
+		var area := maxi(1, span.x) * maxi(1, span.y)
+		if area <= 1:
+			continue
+
+		if not candidates_by_area.has(area):
+			candidates_by_area[area] = []
+			candidate_areas.append(area)
+		var bucket: Array = candidates_by_area.get(area, [])
+		bucket.append({
+			"local_cell": local_cell,
+			"cell": cell,
+			"atlas": atlas
+		})
+		candidates_by_area[area] = bucket
+		stats["prepass_candidate_count"] = int(stats.get("prepass_candidate_count", 0)) + 1
+
+	var phase_elapsed_usec := Time.get_ticks_usec() - phase_start_usec
+	work_usec += phase_elapsed_usec
+	stats["prepass_scan_usec"] = int(stats.get("prepass_scan_usec", 0)) + phase_elapsed_usec
+	stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+	candidate_areas.sort()
+	candidate_areas.reverse()
+	payload["phase"] = "prepass_place"
+	payload["stats"] = stats
+	payload["occupied"] = occupied
+	payload["placed_cells"] = placed_cells
+	payload["placed_count"] = placed_count
+	payload["prepass_candidates_by_area"] = candidates_by_area
+	payload["prepass_candidate_areas"] = candidate_areas
+	payload["prepass_area_cursor"] = 0
+	payload["prepass_bucket_cursor"] = 0
+	payload["work_usec"] = work_usec
+	payload.erase("prepass_scan_cursor")
+	return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+
+func _process_incremental_prepass_place_phase(chunk: Vector2i, payload: Dictionary, budget: Dictionary) -> Dictionary:
+	var stats: Dictionary = payload.get("stats", {
+		"cells_set": 0,
+		"cells_erased": 0,
+		"overlap_erased": 0,
+		"generation_kind": "tile_incremental"
+	})
+	var occupied: Dictionary = payload.get("occupied", {})
+	var placed_cells: Array = payload.get("placed_cells", [])
+	var placed_count := int(payload.get("placed_count", 0))
+	var origin := chunk * chunk_size_tiles
+	var candidate_areas: Array = payload.get("prepass_candidate_areas", [])
+	var candidates_by_area: Dictionary = payload.get("prepass_candidates_by_area", {})
+	var area_cursor := int(payload.get("prepass_area_cursor", 0))
+	var bucket_cursor := int(payload.get("prepass_bucket_cursor", 0))
+	var work_usec := int(payload.get("work_usec", 0))
+	var time_budget_usec := _resolve_generation_step_time_budget_usec(budget)
+	if time_budget_usec <= 0:
+		payload["stats"] = stats
+		payload["occupied"] = occupied
+		payload["placed_cells"] = placed_cells
+		payload["placed_count"] = placed_count
+		payload["prepass_candidate_areas"] = candidate_areas
+		payload["prepass_candidates_by_area"] = candidates_by_area
+		payload["prepass_area_cursor"] = area_cursor
+		payload["prepass_bucket_cursor"] = bucket_cursor
+		payload["work_usec"] = work_usec
+		return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+	var phase_start_usec := Time.get_ticks_usec()
+	while area_cursor < candidate_areas.size():
+		var area := int(candidate_areas[area_cursor])
+		var bucket: Array = candidates_by_area.get(area, [])
+		while bucket_cursor < bucket.size():
+			if Time.get_ticks_usec() - phase_start_usec >= time_budget_usec:
+				var step_elapsed_usec := Time.get_ticks_usec() - phase_start_usec
+				work_usec += step_elapsed_usec
+				stats["prepass_place_usec"] = int(stats.get("prepass_place_usec", 0)) + step_elapsed_usec
+				stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+				payload["stats"] = stats
+				payload["occupied"] = occupied
+				payload["placed_cells"] = placed_cells
+				payload["placed_count"] = placed_count
+				payload["prepass_candidate_areas"] = candidate_areas
+				payload["prepass_candidates_by_area"] = candidates_by_area
+				payload["prepass_area_cursor"] = area_cursor
+				payload["prepass_bucket_cursor"] = bucket_cursor
+				payload["work_usec"] = work_usec
+				return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
+
+			var candidate := bucket[bucket_cursor] as Dictionary
+			bucket_cursor += 1
+			var local_cell := candidate.get("local_cell", Vector2i.ZERO) as Vector2i
+			if occupied.has(local_cell):
+				continue
+			var cell := candidate.get("cell", Vector2i.ZERO) as Vector2i
+			var atlas := candidate.get("atlas", Vector2i.ZERO) as Vector2i
+			_record_watched_tile_stat(atlas, "picked")
+			if _is_blocked_by_avoid_layer(cell):
+				_record_watched_tile_stat(atlas, "blocked_by_avoid")
+				continue
+			var placement_result := _try_place_tile_with_reason(chunk, origin, local_cell, cell, atlas, occupied)
+			if bool(placement_result.get("placed", false)):
+				_record_watched_tile_stat(atlas, "placed")
+				placed_cells.append(cell)
+				stats["cells_set"] = int(stats.get("cells_set", 0)) + 1
+				placed_count += 1
+				stats["prepass_placed"] = int(stats.get("prepass_placed", 0)) + 1
+			else:
+				_record_watched_tile_stat(atlas, str(placement_result.get("reason", "placement_failed")))
+		area_cursor += 1
+		bucket_cursor = 0
+
+	var phase_elapsed_usec := Time.get_ticks_usec() - phase_start_usec
+	work_usec += phase_elapsed_usec
+	stats["prepass_place_usec"] = int(stats.get("prepass_place_usec", 0)) + phase_elapsed_usec
+	stats["prepass_total_usec"] = int(stats.get("prepass_scan_usec", 0)) + int(stats.get("prepass_place_usec", 0))
+	stats["scheduler_steps"] = int(stats.get("scheduler_steps", 0)) + 1
+	payload["phase"] = "scan"
+	payload["stats"] = stats
+	payload["occupied"] = occupied
+	payload["placed_cells"] = placed_cells
+	payload["placed_count"] = placed_count
+	payload["cursor"] = int(payload.get("cursor", 0))
+	payload["work_usec"] = work_usec
+	payload.erase("prepass_candidate_areas")
+	payload.erase("prepass_candidates_by_area")
+	payload.erase("prepass_area_cursor")
+	payload.erase("prepass_bucket_cursor")
 	return {"done": false, "payload": payload, "priority": _chunk_distance_squared(chunk, _last_center_chunk)}
 
 
@@ -789,9 +1025,13 @@ func _generate_chunk(chunk: Vector2i) -> void:
 		return
 
 	var placed_cells: Array[Vector2i] = []
+	placed_count += _preplace_multi_cell_tiles(chunk, origin, occupied, stats, placed_cells)
 	for local_y in range(chunk_size_tiles):
 		for local_x in range(chunk_size_tiles):
 			var cell := origin + Vector2i(local_x, local_y)
+			var local_cell := Vector2i(local_x, local_y)
+			if occupied.has(local_cell):
+				continue
 			var fill_prob := fill_probability
 			if _is_near_prefer_layer(cell):
 				fill_prob = clampf(fill_prob + prefer_layer_fill_bonus, 0.0, 1.0)
@@ -800,27 +1040,36 @@ func _generate_chunk(chunk: Vector2i) -> void:
 					stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
 				continue
 
-			var atlas := _pick_tile(cell)
-			var local_cell := Vector2i(local_x, local_y)
+			var atlas := _pick_tile(cell, local_cell)
+			_record_watched_tile_stat(atlas, "picked")
 			if _is_blocked_by_avoid_layer(cell):
+				_record_watched_tile_stat(atlas, "blocked_by_avoid")
 				if not _is_protected_cell(cell):
 					stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
 				continue
-			if _try_place_tile(chunk, origin, local_cell, cell, atlas, occupied):
+			var placement_result := _try_place_tile_with_reason(chunk, origin, local_cell, cell, atlas, occupied)
+			if bool(placement_result.get("placed", false)):
+				_record_watched_tile_stat(atlas, "placed")
 				placed_count += 1
 				placed_cells.append(cell)
 				stats["cells_set"] = int(stats["cells_set"]) + 1
 			else:
+				_record_watched_tile_stat(atlas, str(placement_result.get("reason", "placement_failed")))
 				if not _is_protected_cell(cell):
 					stats["cells_erased"] = int(stats["cells_erased"]) + _erase_cell_if_present(cell, false)
 
 	if ensure_non_empty_chunk and fill_probability > 0.0 and placed_count == 0:
 		var fallback_cell := _pick_fallback_cell(origin)
 		var fallback_local := fallback_cell - origin
-		var fallback_atlas := _pick_tile(fallback_cell)
-		if _try_place_tile(chunk, origin, fallback_local, fallback_cell, fallback_atlas, occupied):
+		var fallback_atlas := _pick_tile(fallback_cell, fallback_local)
+		_record_watched_tile_stat(fallback_atlas, "picked")
+		var fallback_result := _try_place_tile_with_reason(chunk, origin, fallback_local, fallback_cell, fallback_atlas, occupied)
+		if bool(fallback_result.get("placed", false)):
+			_record_watched_tile_stat(fallback_atlas, "placed")
 			placed_cells.append(fallback_cell)
 			stats["cells_set"] = int(stats["cells_set"]) + 1
+		else:
+			_record_watched_tile_stat(fallback_atlas, str(fallback_result.get("reason", "placement_failed")))
 	stats["overlap_erased"] = _clear_overlapping_layers(placed_cells)
 	_sync_generation_layer_meta_if_dirty()
 	_last_chunk_profile_stats = stats
@@ -857,26 +1106,179 @@ func _erase_cell_if_present(cell: Vector2i, unmark_generated: bool) -> int:
 	return 0
 
 
-func _pick_tile(cell: Vector2i) -> Vector2i:
+func _pick_tile(cell: Vector2i, local_cell: Vector2i = Vector2i(-1, -1)) -> Vector2i:
+	var eligible_indices := _get_fittable_tile_indices(local_cell)
+	return _pick_tile_from_indices(cell, eligible_indices)
+
+
+func _get_fittable_tile_indices(local_cell: Vector2i) -> Array[int]:
+	var eligible_indices: Array[int] = []
+	if local_cell.x < 0 or local_cell.y < 0:
+		return eligible_indices
+	for i in range(_valid_tile_options.size()):
+		var atlas := _valid_tile_options[i]
+		var span := _get_tile_span(atlas)
+		if _can_fit_span_in_chunk(local_cell, span):
+			eligible_indices.append(i)
+	return eligible_indices
+
+
+func _can_fit_span_in_chunk(local_cell: Vector2i, span: Vector2i) -> bool:
+	if local_cell.x < 0 or local_cell.y < 0:
+		return false
+	if local_cell.x + maxi(1, span.x) > chunk_size_tiles:
+		return false
+	if local_cell.y + maxi(1, span.y) > chunk_size_tiles:
+		return false
+	return true
+
+
+func _pick_tile_from_indices(cell: Vector2i, eligible_indices: Array[int]) -> Vector2i:
 	var option_count := _valid_tile_options.size()
 	if option_count <= 0:
 		return _get_first_available_atlas_tile()
-	if option_count <= 1:
-		return _valid_tile_options[0]
+
+	var candidate_indices := eligible_indices
+	if candidate_indices.is_empty():
+		for i in range(option_count):
+			candidate_indices.append(i)
+
+	var candidate_count := candidate_indices.size()
+	if candidate_count <= 0:
+		return _get_first_available_atlas_tile()
+	if candidate_count == 1:
+		return _valid_tile_options[candidate_indices[0]]
 	if not _has_matching_tile_weights:
-		var idx := int(_hash_cell(cell.x, cell.y, world_seed) % option_count)
-		return _valid_tile_options[idx]
-	if _valid_tile_weight_total <= 0.0:
-		return _valid_tile_options[0]
+		var idx := int(_hash_cell(cell.x, cell.y, world_seed) % candidate_count)
+		return _valid_tile_options[candidate_indices[idx]]
+
+	var eligible_weight_total := 0.0
+	for index in candidate_indices:
+		eligible_weight_total += _valid_tile_weights[index]
+	if eligible_weight_total <= 0.0:
+		return _valid_tile_options[candidate_indices[0]]
 
 	var h := _hash_cell(cell.x, cell.y, world_seed + 3333)
-	var roll := (float(h % 100000) / 100000.0) * _valid_tile_weight_total
+	var roll := (float(h % 100000) / 100000.0) * eligible_weight_total
 	var acc := 0.0
-	for i in range(option_count):
-		acc += _valid_tile_weights[i]
+	for index in candidate_indices:
+		acc += _valid_tile_weights[index]
 		if roll <= acc:
-			return _valid_tile_options[i]
-	return _valid_tile_options[option_count - 1]
+			return _valid_tile_options[index]
+	return _valid_tile_options[candidate_indices[candidate_count - 1]]
+
+
+func _preplace_multi_cell_tiles(
+	chunk: Vector2i,
+	origin: Vector2i,
+	occupied: Dictionary,
+	stats: Dictionary,
+	placed_cells: Array
+) -> int:
+	var prepass_start_usec := Time.get_ticks_usec()
+	var scan_start_usec := prepass_start_usec
+	var candidates: Array[Dictionary] = []
+	for local_y in range(chunk_size_tiles):
+		for local_x in range(chunk_size_tiles):
+			var local_cell := Vector2i(local_x, local_y)
+			if occupied.has(local_cell):
+				continue
+			var cell := origin + local_cell
+			var fill_prob := fill_probability
+			if _is_near_prefer_layer(cell):
+				fill_prob = clampf(fill_prob + prefer_layer_fill_bonus, 0.0, 1.0)
+			if _cell_fill_roll(cell) > fill_prob:
+				continue
+			var atlas := _pick_tile(cell, local_cell)
+			var span := _get_tile_span(atlas)
+			var area := maxi(1, span.x) * maxi(1, span.y)
+			if area <= 1:
+				continue
+			candidates.append({
+				"local_cell": local_cell,
+				"cell": cell,
+				"atlas": atlas,
+				"area": area
+			})
+	var scan_usec := Time.get_ticks_usec() - scan_start_usec
+
+	var sort_start_usec := Time.get_ticks_usec()
+	for i in range(candidates.size()):
+		var best := i
+		for j in range(i + 1, candidates.size()):
+			var best_area := int((candidates[best] as Dictionary).get("area", 1))
+			var candidate_area := int((candidates[j] as Dictionary).get("area", 1))
+			if candidate_area > best_area:
+				best = j
+		if best != i:
+			var temp = candidates[i]
+			candidates[i] = candidates[best]
+			candidates[best] = temp
+	var sort_usec := Time.get_ticks_usec() - sort_start_usec
+
+	var placed_count := 0
+	var place_start_usec := Time.get_ticks_usec()
+	for candidate_variant in candidates:
+		var candidate := candidate_variant as Dictionary
+		var local_cell := candidate.get("local_cell", Vector2i.ZERO) as Vector2i
+		if occupied.has(local_cell):
+			continue
+		var cell := candidate.get("cell", Vector2i.ZERO) as Vector2i
+		var atlas := candidate.get("atlas", Vector2i.ZERO) as Vector2i
+		_record_watched_tile_stat(atlas, "picked")
+		if _is_blocked_by_avoid_layer(cell):
+			_record_watched_tile_stat(atlas, "blocked_by_avoid")
+			continue
+		var placement_result := _try_place_tile_with_reason(chunk, origin, local_cell, cell, atlas, occupied)
+		if bool(placement_result.get("placed", false)):
+			_record_watched_tile_stat(atlas, "placed")
+			placed_cells.append(cell)
+			stats["cells_set"] = int(stats.get("cells_set", 0)) + 1
+			placed_count += 1
+		else:
+			_record_watched_tile_stat(atlas, str(placement_result.get("reason", "placement_failed")))
+	var place_usec := Time.get_ticks_usec() - place_start_usec
+	stats["prepass_candidate_count"] = int(stats.get("prepass_candidate_count", 0)) + candidates.size()
+	stats["prepass_placed"] = int(stats.get("prepass_placed", 0)) + placed_count
+	stats["prepass_scan_usec"] = int(stats.get("prepass_scan_usec", 0)) + scan_usec
+	stats["prepass_sort_usec"] = int(stats.get("prepass_sort_usec", 0)) + sort_usec
+	stats["prepass_place_usec"] = int(stats.get("prepass_place_usec", 0)) + place_usec
+	stats["prepass_total_usec"] = int(stats.get("prepass_total_usec", 0)) + (Time.get_ticks_usec() - prepass_start_usec)
+	return placed_count
+
+
+func _record_watched_tile_stat(atlas: Vector2i, stat_key: String) -> void:
+	if not _is_watched_atlas(atlas) or stat_key.is_empty():
+		return
+	var atlas_key := _format_atlas_key(atlas)
+	var atlas_stats: Dictionary = _debug_watched_tile_stats.get(atlas_key, {})
+	atlas_stats[stat_key] = int(atlas_stats.get(stat_key, 0)) + 1
+	_debug_watched_tile_stats[atlas_key] = atlas_stats
+
+
+func _is_watched_atlas(atlas: Vector2i) -> bool:
+	return debug_watch_atlas_tiles.has(atlas)
+
+
+func _format_atlas_key(atlas: Vector2i) -> String:
+	return "%d,%d" % [atlas.x, atlas.y]
+
+
+func _ensure_watched_tile_stats_initialized() -> void:
+	for atlas in debug_watch_atlas_tiles:
+		var atlas_key := _format_atlas_key(atlas)
+		if _debug_watched_tile_stats.has(atlas_key):
+			continue
+		_debug_watched_tile_stats[atlas_key] = {
+			"picked": 0,
+			"placed": 0,
+			"blocked_by_avoid": 0,
+			"chunk_fit_or_occupied": 0,
+			"blocked_node": 0,
+			"physics_collision": 0,
+			"protected": 0,
+			"invalid_atlas": 0
+		}
 
 
 func _cell_fill_roll(cell: Vector2i) -> float:
@@ -1781,12 +2183,22 @@ func _is_corner_cell(world_cell: Vector2i, world_set: Dictionary) -> bool:
 
 
 func _is_blocked_by_avoid_layer(world_cell: Vector2i, span: Vector2i = Vector2i.ONE) -> bool:
-	if _avoid_layers.is_empty() or avoid_layer_radius_tiles < 0:
+	if _avoid_layers.is_empty():
 		return false
 	var world_rect := _get_world_cell_rect(world_cell, span)
+	var use_padding_px := avoid_layer_padding_px >= 0.0
+	var padded_rect := world_rect
+	if use_padding_px:
+		padded_rect = world_rect.grow(maxf(0.0, avoid_layer_padding_px))
 	for layer_item in _avoid_layers:
 		var avoid := layer_item as TileMapLayer
-		if avoid != null and _layer_has_tile_in_world_rect(avoid, world_rect, avoid_layer_radius_tiles):
+		if avoid == null:
+			continue
+		if use_padding_px:
+			if _layer_has_tile_in_world_rect(avoid, padded_rect, 0):
+				return true
+			continue
+		if avoid_layer_radius_tiles >= 0 and _layer_has_tile_in_world_rect(avoid, world_rect, avoid_layer_radius_tiles):
 			return true
 	return false
 
@@ -2075,48 +2487,78 @@ func _keep_largest_components(cells: Array[Vector2i], max_components: int, min_c
 	return out
 
 
-func _try_place_tile(chunk: Vector2i, _chunk_origin: Vector2i, local_cell: Vector2i, world_cell: Vector2i, atlas: Vector2i, occupied: Dictionary) -> bool:
+func _try_place_tile_with_reason(
+	chunk: Vector2i,
+	_chunk_origin: Vector2i,
+	local_cell: Vector2i,
+	world_cell: Vector2i,
+	atlas: Vector2i,
+	occupied: Dictionary
+) -> Dictionary:
 	if not _is_valid_atlas_tile(atlas):
-		return false
+		return {"placed": false, "reason": "invalid_atlas"}
 	var span := _get_tile_span(atlas)
 	if _is_world_span_protected(world_cell, span):
-		return false
+		return {"placed": false, "reason": "protected"}
 	if _is_blocked_by_avoid_layer(world_cell, span):
-		return false
+		return {"placed": false, "reason": "blocked_by_avoid"}
 	if not _can_place(chunk, local_cell, span, occupied):
-		return false
+		return {"placed": false, "reason": "chunk_fit_or_occupied"}
 	if _overlaps_blocked_nodes(world_cell, span):
-		return false
+		return {"placed": false, "reason": "blocked_node"}
 	if avoid_physics_collision and _overlaps_world_collision(world_cell, span):
-		return false
+		return {"placed": false, "reason": "physics_collision"}
 
 	_tile_map.set_cell(world_cell, source_id, atlas)
 	_mark_generated_span(world_cell, span)
 	_mark_occupied(local_cell, span, occupied)
-	return true
+	return {"placed": true, "reason": "placed"}
 
 
 func _can_place(_chunk: Vector2i, local_cell: Vector2i, span: Vector2i, occupied: Dictionary) -> bool:
-	if local_cell.x < 0 or local_cell.y < 0:
+	var occupancy_rect := _get_occupancy_rect(local_cell, span)
+	if occupancy_rect.size.x <= 0 or occupancy_rect.size.y <= 0:
 		return false
-	if local_cell.x + span.x > chunk_size_tiles:
+	if occupancy_rect.position.x < 0 or occupancy_rect.position.y < 0:
 		return false
-	if local_cell.y + span.y > chunk_size_tiles:
+	if occupancy_rect.end.x > chunk_size_tiles:
+		return false
+	if occupancy_rect.end.y > chunk_size_tiles:
 		return false
 
-	for oy in range(span.y):
-		for ox in range(span.x):
-			var k := local_cell + Vector2i(ox, oy)
+	for oy in range(occupancy_rect.size.y):
+		for ox in range(occupancy_rect.size.x):
+			var k := occupancy_rect.position + Vector2i(ox, oy)
 			if occupied.has(k):
 				return false
 	return true
 
 
 func _mark_occupied(local_cell: Vector2i, span: Vector2i, occupied: Dictionary) -> void:
-	for oy in range(span.y):
-		for ox in range(span.x):
-			var k := local_cell + Vector2i(ox, oy)
+	var occupancy_rect := _get_occupancy_rect(local_cell, span)
+	for oy in range(occupancy_rect.size.y):
+		for ox in range(occupancy_rect.size.x):
+			var k := occupancy_rect.position + Vector2i(ox, oy)
 			occupied[k] = true
+
+
+func _get_occupancy_rect(local_cell: Vector2i, span: Vector2i) -> Rect2i:
+	var span_w := maxi(1, span.x)
+	var span_h := maxi(1, span.y)
+	var inset := maxi(0, occupancy_inset_tiles)
+	if span_w <= 1 and span_h <= 1:
+		return Rect2i(local_cell, Vector2i.ONE)
+
+	var max_inset_x := maxi(0, int(floor(float(span_w - 1) * 0.5)))
+	var max_inset_y := maxi(0, int(floor(float(span_h - 1) * 0.5)))
+	var inset_x := mini(inset, max_inset_x)
+	var inset_y := mini(inset, max_inset_y)
+	var rect_pos := local_cell + Vector2i(inset_x, inset_y)
+	var rect_size := Vector2i(
+		maxi(1, span_w - inset_x * 2),
+		maxi(1, span_h - inset_y * 2)
+	)
+	return Rect2i(rect_pos, rect_size)
 
 
 func _get_tile_span(atlas: Vector2i) -> Vector2i:
@@ -2160,6 +2602,8 @@ func _rebuild_tile_cache() -> void:
 		_atlas_source = source as TileSetAtlasSource
 	if _atlas_source == null:
 		return
+	if not tile_option_weights.is_empty() and tile_option_weights.size() != tile_options_atlas.size():
+		push_warning("ChunkWorldGenerator: tile_option_weights size does not match tile_options_atlas; missing weights use 1.0")
 
 	var source_tile_count := int(_atlas_source.get_tiles_count())
 	if source_tile_count > 0:
@@ -2324,12 +2768,13 @@ func _get_layer_cells_in_world_rect(layer: TileMapLayer, world_rect: Rect2, radi
 
 func _collect_blocked_positions() -> void:
 	_blocked_world_positions.clear()
+	_blocked_world_rects.clear()
 	for p in blocked_node_paths:
 		if p == NodePath(""):
 			continue
 		var n := get_node_or_null(p)
 		if n is Node2D:
-			_append_blocked_world_position((n as Node2D).global_position)
+			_append_blocked_node(n as Node2D)
 
 	if blocker_group_name == &"":
 		return
@@ -2340,7 +2785,16 @@ func _collect_blocked_positions() -> void:
 		var node := candidate as Node2D
 		if scene_root != null and node != scene_root and not scene_root.is_ancestor_of(node):
 			continue
-		_append_blocked_world_position(node.global_position)
+		_append_blocked_node(node)
+
+
+func _append_blocked_node(node: Node2D) -> void:
+	if node == null:
+		return
+	_append_blocked_world_position(node.global_position)
+	var rect := _resolve_blocked_world_rect(node)
+	if rect.has_area():
+		_append_blocked_world_rect(rect)
 
 
 func _append_blocked_world_position(world_pos: Vector2) -> void:
@@ -2349,8 +2803,32 @@ func _append_blocked_world_position(world_pos: Vector2) -> void:
 	_blocked_world_positions.append(world_pos)
 
 
+func _append_blocked_world_rect(world_rect: Rect2) -> void:
+	var rect := world_rect.abs()
+	if not rect.has_area():
+		return
+	if _blocked_world_rects.has(rect):
+		return
+	_blocked_world_rects.append(rect)
+
+
+func _resolve_blocked_world_rect(node: Node2D) -> Rect2:
+	if node == null:
+		return Rect2()
+	if node.has_method("get_world_generation_blocker_rect"):
+		var method_rect: Variant = node.call("get_world_generation_blocker_rect")
+		if method_rect is Rect2:
+			return (method_rect as Rect2).abs()
+	var rect_variant: Variant = node.get_meta(META_BLOCKER_FOOTPRINT_RECT, Rect2())
+	if rect_variant is Rect2:
+		return (rect_variant as Rect2).abs()
+	return Rect2()
+
+
 func _overlaps_blocked_nodes(world_cell: Vector2i, span: Vector2i) -> bool:
-	if _blocked_world_positions.is_empty() or _tile_map == null or _tile_map.tile_set == null:
+	if _blocked_world_positions.is_empty() and _blocked_world_rects.is_empty():
+		return false
+	if _tile_map == null or _tile_map.tile_set == null:
 		return false
 
 	var tile_size: Vector2i = _tile_map.tile_set.tile_size
@@ -2359,7 +2837,11 @@ func _overlaps_blocked_nodes(world_cell: Vector2i, span: Vector2i) -> bool:
 	var span_w: int = maxi(1, span.x)
 	var span_h: int = maxi(1, span.y)
 	var rect_size: Vector2 = Vector2(float(span_w * tile_size.x), float(span_h * tile_size.y))
-	var rect: Rect2 = Rect2(rect_pos, rect_size)
+	var candidate_rect: Rect2 = Rect2(rect_pos, rect_size).abs()
+	for blocked_rect in _blocked_world_rects:
+		if candidate_rect.intersects(blocked_rect):
+			return true
+	var rect: Rect2 = candidate_rect
 
 	var pad: float = maxf(blocked_node_radius_px, 0.0)
 	rect.position -= Vector2(pad, pad)
@@ -2424,17 +2906,39 @@ func get_world_bounds_rect() -> Rect2:
 
 
 func has_generation_pending() -> bool:
-	return not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty() or not _scheduled_load_chunks.is_empty() or not _scheduled_unload_chunks.is_empty()
+	if not enabled:
+		return false
+	return (
+		not _initial_generation_started
+		or _has_pending_generation_dependencies()
+		or not _pending_load_chunks.is_empty()
+		or not _pending_unload_chunks.is_empty()
+		or not _scheduled_load_chunks.is_empty()
+		or not _scheduled_unload_chunks.is_empty()
+	)
+
+
+func is_world_generation_tile_source() -> bool:
+	return true
+
+
+func is_world_generation_ready_for_dependents() -> bool:
+	return _generation_initialized and (not enabled or not has_generation_pending())
 
 
 func get_pending_generation_chunk_count() -> int:
-	return _pending_load_chunks.size() + _pending_unload_chunks.size() + _scheduled_load_chunks.size() + _scheduled_unload_chunks.size()
+	var pending_count := _pending_load_chunks.size() + _pending_unload_chunks.size() + _scheduled_load_chunks.size() + _scheduled_unload_chunks.size()
+	return maxi(1, pending_count) if has_generation_pending() else 0
 
 
 func force_generate_step(chunk_budget: int = -1) -> void:
 	if not enabled or _tile_map == null or _player == null:
 		return
+	if _has_pending_generation_dependencies():
+		return
+	_start_initial_generation()
 
+	_collect_blocked_positions()
 	var budget := chunk_budget
 	if budget <= 0:
 		budget = max_chunk_operations_per_update
@@ -2448,7 +2952,30 @@ func force_generate_step(chunk_budget: int = -1) -> void:
 	_process_chunk_work_queues(maxi(1, budget))
 	var scheduler := _get_generation_scheduler()
 	if scheduler != null and scheduler.has_method("process_generation_frame"):
-		scheduler.call("process_generation_frame", generation_step_time_budget_ms, 0, maxi(1, budget))
+		scheduler.call("process_generation_frame", generation_step_time_budget_ms, 0, maxi(1, budget), [self])
+
+
+func _has_pending_generation_dependencies() -> bool:
+	for dependency_path in generation_dependency_paths:
+		if dependency_path == NodePath(""):
+			continue
+		var dependency := get_node_or_null(dependency_path)
+		if dependency == null or dependency == self:
+			continue
+		if dependency.has_method("is_world_generation_ready_for_dependents"):
+			if not bool(dependency.call("is_world_generation_ready_for_dependents")):
+				return true
+			continue
+		if dependency.has_method("has_generation_pending") and bool(dependency.call("has_generation_pending")):
+			return true
+	return false
+
+
+func _start_initial_generation() -> void:
+	if _initial_generation_started:
+		return
+	_initial_generation_started = true
+	_update_visible_chunks(true)
 
 
 func _prewarm_full_generation() -> void:
@@ -2458,7 +2985,7 @@ func _prewarm_full_generation() -> void:
 		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 32))
 		var scheduler := _get_generation_scheduler()
 		if scheduler != null and scheduler.has_method("process_generation_frame"):
-			scheduler.call("process_generation_frame", generation_step_time_budget_ms, 0, 32)
+			scheduler.call("process_generation_frame", generation_step_time_budget_ms, 0, 32, [self])
 		guard += 1
 	if _generation_meta_dirty:
 		_sync_generation_layer_meta()
@@ -2471,7 +2998,7 @@ func _prewarm_initial_visible_generation() -> void:
 		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 24))
 		var scheduler := _get_generation_scheduler()
 		if scheduler != null and scheduler.has_method("process_generation_frame"):
-			scheduler.call("process_generation_frame", generation_step_time_budget_ms, 0, 24)
+			scheduler.call("process_generation_frame", generation_step_time_budget_ms, 0, 24, [self])
 		guard += 1
 	if _generation_meta_dirty:
 		_sync_generation_layer_meta()
@@ -2501,6 +3028,13 @@ func _compute_phase_offset(interval_sec: float, salt: int) -> float:
 
 
 func _profile_chunk_operation(action: String, chunk: Vector2i, start_usec: int, stats: Dictionary) -> void:
+	if debug_log and not _debug_watched_tile_stats.is_empty():
+		print("[ChunkWorldGenerator:%s] action=%s chunk=%s watched=%s" % [
+			name,
+			action,
+			str(chunk),
+			str(_debug_watched_tile_stats)
+		])
 	var profiler := get_node_or_null("/root/ChunkProfiler")
 	if profiler == null or not profiler.has_method("record_chunk_operation"):
 		return
@@ -2534,6 +3068,9 @@ func get_debug_world_generation_info() -> Dictionary:
 		"protected_cells": _protected_cells.keys(),
 		"generated_cells": _generated_cells.keys(),
 		"blocked_world_positions": _blocked_world_positions.duplicate(),
+		"watched_tile_stats": _debug_watched_tile_stats.duplicate(true),
+		"watched_atlas_tiles": debug_watch_atlas_tiles.duplicate(),
+		"avoid_layer_padding_px": avoid_layer_padding_px,
 		"scheduled_load_chunks": _scheduled_load_chunks.keys(),
 		"scheduled_unload_chunks": _scheduled_unload_chunks.keys()
 	}

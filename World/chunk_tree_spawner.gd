@@ -36,6 +36,7 @@ static var _global_reserved_footprint_grid: Dictionary = {}
 @export_range(0, 512, 1) var max_total_spawn_attempts_per_chunk: int = 0
 @export_range(1, 64, 1) var max_expensive_spawn_checks_per_update: int = 4
 @export_range(0.25, 16.0, 0.25) var spawn_step_time_budget_ms: float = 1.5
+@export var wait_for_tile_generators: bool = true
 @export var large_structure_mode: bool = false
 @export_range(1, 9, 1) var large_structure_candidates_per_chunk: int = 9
 @export_range(0.0, 480.0, 1.0) var large_structure_candidate_jitter_px: float = 120.0
@@ -91,6 +92,7 @@ var _revalidate_timer: float = 0.0
 var _world_min_chunk: Vector2i
 var _world_max_chunk: Vector2i
 var _blocked_world_positions: Array[Vector2] = []
+var _blocked_world_rects: Array[Rect2] = []
 var _spawn_positions_by_chunk := {}
 var _spawn_position_grid := {}
 var _layer_max_tile_span_by_id := {}
@@ -205,6 +207,7 @@ func _apply_config(cfg: ChunkTreeSpawnerConfig) -> void:
 	max_total_spawn_attempts_per_chunk = cfg.max_total_spawn_attempts_per_chunk
 	max_expensive_spawn_checks_per_update = cfg.max_expensive_spawn_checks_per_update
 	spawn_step_time_budget_ms = cfg.spawn_step_time_budget_ms
+	wait_for_tile_generators = cfg.wait_for_tile_generators
 	large_structure_mode = cfg.large_structure_mode
 	large_structure_candidates_per_chunk = cfg.large_structure_candidates_per_chunk
 	large_structure_candidate_jitter_px = cfg.large_structure_candidate_jitter_px
@@ -241,6 +244,8 @@ func _process(delta: float) -> void:
 	_update_timer += delta
 	if revalidate_enabled:
 		_revalidate_timer += delta
+	if _has_pending_tile_generation_dependencies():
+		return
 	if _update_timer < update_interval_sec:
 		_try_revalidate_loaded_spawns()
 		return
@@ -275,6 +280,7 @@ func _update_visible_chunks(force: bool) -> void:
 		_player = get_node_or_null(player_path) as Node2D
 		if _player == null:
 			return
+	_collect_blocked_positions()
 	var center_chunk := _world_to_chunk(_player.global_position)
 	var has_pending_work := not _pending_load_chunks.is_empty() or not _pending_unload_chunks.is_empty()
 	if not force and center_chunk == _last_center_chunk and not has_pending_work:
@@ -388,7 +394,11 @@ func _enqueue_generation_task(chunk: Vector2i, action: String) -> bool:
 		"chunk": chunk,
 		"uses_node_spawn_budget": action == "spawn"
 	}
-	return bool(scheduler.call("enqueue_task", self, key, priority, payload))
+	var enqueued := bool(scheduler.call("enqueue_task", self, key, priority, payload))
+	if not enqueued:
+		_scheduled_spawn_chunks.erase(chunk)
+		_scheduled_unload_chunks.erase(chunk)
+	return enqueued
 
 
 func _run_scheduled_generation_task(payload: Dictionary, budget: Dictionary) -> Dictionary:
@@ -859,18 +869,21 @@ func _spawn_tree_at_candidate(
 		return null
 
 	var static_validation_key := "%d:%d" % [cell.x, cell.y]
+	var candidate_rect: Rect2 = _get_candidate_spawn_rect(world_pos)
+	if large_structure_mode and not _is_candidate_rect_inside_world(candidate_rect):
+		_record_spawn_check_time(stats, checks_start_usec)
+		return null
 	if candidate_static_validation.has(static_validation_key):
 		if not bool(candidate_static_validation[static_validation_key]):
 			_record_spawn_check_time(stats, checks_start_usec)
 			return null
 	else:
-		var is_static_candidate_valid := _is_allowed_by_biome_layers(world_pos) and not _overlaps_blocked(world_pos)
+		var is_static_candidate_valid := _is_allowed_by_biome_layers(world_pos) and not _overlaps_blocked(world_pos, candidate_rect)
 		candidate_static_validation[static_validation_key] = is_static_candidate_valid
 		if not is_static_candidate_valid:
 			_record_spawn_check_time(stats, checks_start_usec)
 			return null
 
-	var candidate_rect: Rect2 = _get_candidate_spawn_rect(world_pos)
 	if _too_close_to_other_spawns(world_pos, chunk_spawn_positions):
 		_record_spawn_check_time(stats, checks_start_usec)
 		return null
@@ -897,7 +910,7 @@ func _spawn_tree_at_candidate(
 			tree.queue_free()
 		return null
 	var node := tree as Node2D
-	node.global_position = world_pos
+	node.position = _spawn_parent.to_local(world_pos)
 	node.set_meta(GENERATED_FOOTPRINT_META, candidate_rect)
 	_prepare_generated_node(node, chunk, cell, scene)
 	var add_child_start_usec := Time.get_ticks_usec()
@@ -995,6 +1008,7 @@ func _unload_chunk_trees(chunk: Vector2i) -> void:
 		stats["nodes_freed"] = int(stats["nodes_freed"]) + 1
 	_spawned_trees_by_chunk.erase(chunk)
 	_spawn_positions_by_chunk.erase(chunk)
+	_loaded_chunks.erase(chunk)
 	_last_chunk_profile_stats = stats
 
 
@@ -1057,12 +1071,13 @@ func _hash_cell(x: int, y: int, seed_value: int) -> int:
 
 func _collect_blocked_positions() -> void:
 	_blocked_world_positions.clear()
+	_blocked_world_rects.clear()
 	for p in blocked_node_paths:
 		if p == NodePath(""):
 			continue
 		var n := get_node_or_null(p)
 		if n is Node2D:
-			_append_blocked_world_position((n as Node2D).global_position)
+			_append_blocked_node(n as Node2D)
 
 	if blocker_group_name == &"":
 		return
@@ -1073,7 +1088,16 @@ func _collect_blocked_positions() -> void:
 		var node := candidate as Node2D
 		if scene_root != null and node != scene_root and not scene_root.is_ancestor_of(node):
 			continue
-		_append_blocked_world_position(node.global_position)
+		_append_blocked_node(node)
+
+
+func _append_blocked_node(node: Node2D) -> void:
+	if node == null:
+		return
+	_append_blocked_world_position(node.global_position)
+	var rect := _resolve_blocked_world_rect(node)
+	if rect.has_area():
+		_append_blocked_world_rect(rect)
 
 
 func _append_blocked_world_position(world_pos: Vector2) -> void:
@@ -1082,7 +1106,37 @@ func _append_blocked_world_position(world_pos: Vector2) -> void:
 	_blocked_world_positions.append(world_pos)
 
 
-func _overlaps_blocked(world_pos: Vector2) -> bool:
+func _append_blocked_world_rect(world_rect: Rect2) -> void:
+	var rect := world_rect.abs()
+	if not rect.has_area():
+		return
+	if _blocked_world_rects.has(rect):
+		return
+	_blocked_world_rects.append(rect)
+
+
+func _resolve_blocked_world_rect(node: Node2D) -> Rect2:
+	if node == null:
+		return Rect2()
+	if node.has_method("get_world_generation_blocker_rect"):
+		var method_rect: Variant = node.call("get_world_generation_blocker_rect")
+		if method_rect is Rect2:
+			return (method_rect as Rect2).abs()
+	var rect_variant: Variant = node.get_meta(GENERATED_FOOTPRINT_META, Rect2())
+	if rect_variant is Rect2:
+		return (rect_variant as Rect2).abs()
+	return Rect2()
+
+
+func _overlaps_blocked(world_pos: Vector2, candidate_rect: Rect2 = Rect2()) -> bool:
+	var rect := candidate_rect.abs()
+	if not _blocked_world_rects.is_empty():
+		for blocked_rect in _blocked_world_rects:
+			if rect.has_area():
+				if rect.intersects(blocked_rect):
+					return true
+			elif blocked_rect.has_point(world_pos):
+				return true
 	if _blocked_world_positions.is_empty():
 		return false
 	var radius := maxf(0.0, blocked_node_radius_px)
@@ -1243,9 +1297,6 @@ func _spawn_footprint_has_layer_tile(layer: TileMapLayer, world_pos: Vector2, ra
 	if footprint_size_px.x <= 0.0 or footprint_size_px.y <= 0.0:
 		return _layer_has_tile_near_world(layer, world_pos, radius_tiles)
 
-	if _uses_sampled_footprint_layer_check():
-		return _sample_spawn_footprint_has_layer_tile(layer, world_pos, radius_tiles)
-
 	var footprint_rect := _get_spawn_footprint_rect(world_pos)
 	var start_cell := layer.local_to_map(layer.to_local(footprint_rect.position))
 	var end_cell := layer.local_to_map(layer.to_local(footprint_rect.end))
@@ -1259,10 +1310,6 @@ func _spawn_footprint_has_layer_tile(layer: TileMapLayer, world_pos: Vector2, ra
 			if _layer_has_effective_tile_at_cell(layer, Vector2i(x, y)):
 				return true
 	return false
-
-
-func _uses_sampled_footprint_layer_check() -> bool:
-	return large_structure_mode or footprint_size_px.x * footprint_size_px.y >= 120000.0
 
 
 func _sample_spawn_footprint_has_layer_tile(layer: TileMapLayer, world_pos: Vector2, radius_tiles: int) -> bool:
@@ -1391,6 +1438,19 @@ func _get_spawn_footprint_rect(world_pos: Vector2) -> Rect2:
 	return Rect2(center - size * 0.5, size)
 
 
+func _is_candidate_rect_inside_world(candidate_rect: Rect2) -> bool:
+	var rect := candidate_rect.abs()
+	if not rect.has_area():
+		return true
+	var chunk_size_px := Vector2(
+		float(chunk_size_tiles) * tile_size_px.x,
+		float(chunk_size_tiles) * tile_size_px.y
+	)
+	var world_position := Vector2(_world_min_chunk) * chunk_size_px
+	var world_end := Vector2(_world_max_chunk + Vector2i.ONE) * chunk_size_px
+	return Rect2(world_position, world_end - world_position).encloses(rect)
+
+
 func _is_chunk_allowed_for_biome(chunk: Vector2i) -> bool:
 	if biome_half_split_enabled:
 		if biome_half_split_vertical:
@@ -1428,7 +1488,10 @@ func get_pending_generation_chunk_count() -> int:
 func force_generate_step(chunk_budget: int = -1) -> void:
 	if not enabled or _player == null:
 		return
+	if _has_pending_tile_generation_dependencies():
+		return
 
+	_collect_blocked_positions()
 	var budget := chunk_budget
 	if budget <= 0:
 		budget = max_chunk_operations_per_update
@@ -1441,7 +1504,29 @@ func force_generate_step(chunk_budget: int = -1) -> void:
 	_process_chunk_work_queues(maxi(1, budget))
 	var scheduler := _get_generation_scheduler()
 	if scheduler != null and scheduler.has_method("process_generation_frame"):
-		scheduler.call("process_generation_frame", spawn_step_time_budget_ms, max_spawn_nodes_per_update, maxi(1, budget))
+		scheduler.call("process_generation_frame", spawn_step_time_budget_ms, max_spawn_nodes_per_update, maxi(1, budget), [self])
+
+
+func _has_pending_tile_generation_dependencies() -> bool:
+	if not wait_for_tile_generators:
+		return false
+	var generation_root := get_parent()
+	if generation_root == null:
+		return false
+	for sibling in generation_root.get_children():
+		if sibling == self or not _is_tile_generation_source(sibling):
+			continue
+		if bool(sibling.call("has_generation_pending")):
+			return true
+	return false
+
+
+func _is_tile_generation_source(source: Node) -> bool:
+	if source == null or not source.has_method("has_generation_pending"):
+		return false
+	if source.has_method("is_world_generation_tile_source"):
+		return bool(source.call("is_world_generation_tile_source"))
+	return not source is Node2D
 
 
 func _prewarm_full_generation() -> void:
@@ -1451,7 +1536,7 @@ func _prewarm_full_generation() -> void:
 		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 32))
 		var scheduler := _get_generation_scheduler()
 		if scheduler != null and scheduler.has_method("process_generation_frame"):
-			scheduler.call("process_generation_frame", spawn_step_time_budget_ms, max_spawn_nodes_per_update, 32)
+			scheduler.call("process_generation_frame", spawn_step_time_budget_ms, max_spawn_nodes_per_update, 32, [self])
 		guard += 1
 
 
@@ -1462,7 +1547,7 @@ func _prewarm_initial_visible_generation() -> void:
 		_process_chunk_work_queues(maxi(max_chunk_operations_per_update, 24))
 		var scheduler := _get_generation_scheduler()
 		if scheduler != null and scheduler.has_method("process_generation_frame"):
-			scheduler.call("process_generation_frame", spawn_step_time_budget_ms, max_spawn_nodes_per_update, 24)
+			scheduler.call("process_generation_frame", spawn_step_time_budget_ms, max_spawn_nodes_per_update, 24, [self])
 		guard += 1
 
 
@@ -1704,6 +1789,8 @@ func _rebuild_spawn_scene_cache() -> void:
 			_valid_spawn_scene_weights.append(1.0)
 			_valid_spawn_scene_weight_total = 1.0
 		return
+	if not tree_scene_weights.is_empty() and tree_scene_weights.size() != tree_scenes.size():
+		push_warning("ChunkTreeSpawner: tree_scene_weights size does not match tree_scenes; missing weights use 1.0")
 
 	for i in range(tree_scenes.size()):
 		var scene := tree_scenes[i]

@@ -95,6 +95,24 @@ func _update_label() -> void:
 			str(info.get("seed", 0)),
 			active_chunks
 		])
+		var watched_stats: Variant = info.get("watched_tile_stats", {})
+		if watched_stats is Dictionary:
+			for atlas_key in (watched_stats as Dictionary).keys():
+				var stat_value: Variant = (watched_stats as Dictionary).get(atlas_key, {})
+				if not (stat_value is Dictionary):
+					continue
+				var stats := stat_value as Dictionary
+				lines.append(
+					"  atlas %s pick=%d place=%d avoid=%d fit=%d block=%d phys=%d" % [
+						String(atlas_key),
+						int(stats.get("picked", 0)),
+						int(stats.get("placed", 0)),
+						int(stats.get("blocked_by_avoid", 0)),
+						int(stats.get("chunk_fit_or_occupied", 0)),
+						int(stats.get("blocked_node", 0)),
+						int(stats.get("physics_collision", 0))
+					]
+				)
 	_label.text = "\n".join(lines)
 
 

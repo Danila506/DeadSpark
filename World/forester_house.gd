@@ -5,6 +5,7 @@ const INSIDE_HOUSE_ANCHOR_META: StringName = &"inside_house_anchor"
 const PLAYER_PRE_HOUSE_Z_INDEX_META: StringName = &"pre_house_z_index"
 const PLAYER_PRE_HOUSE_Z_AS_RELATIVE_META: StringName = &"pre_house_z_as_relative"
 const PLAYER_HOUSE_Z_INDEX: int = 2000
+const WorldGenerationBlockerUtils = preload("res://World/world_generation_blocker_utils.gd")
 
 @onready var outside_sprite: Sprite2D = $ForesterHouseOutside
 @onready var outside_right_sprite: Sprite2D = $ForesterHouseOutsideRight
@@ -74,9 +75,18 @@ func _ready() -> void:
 	_update_house_visual()
 	_update_wardrobe_visual()
 	set_physics_process(false)
+	_refresh_world_generation_blocker()
 	call_deferred("_eject_current_overlapping_enemies")
 	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
 		GameSaveManager.register_persistent_node(self)
+
+
+func _refresh_world_generation_blocker() -> void:
+	WorldGenerationBlockerUtils.configure_blocker(self, house_area)
+
+
+func get_world_generation_blocker_rect() -> Rect2:
+	return WorldGenerationBlockerUtils.build_area_rect(house_area)
 
 
 func _eject_current_overlapping_enemies() -> void:
@@ -228,12 +238,13 @@ func _update_house_visual() -> void:
 	outside_sprite.visible = true
 	outside_right_sprite.visible = not player_in_shadow_zone
 	outside_shadow_overlay.visible = player_in_shadow_zone
+	inside_sprite.visible = player_in_house
 	outside_sprite.modulate.a = outside_alpha_when_inside if player_in_house else 1.0
 	outside_right_sprite.modulate.a = outside_right_alpha_when_inside if player_in_house else 1.0
 	outside_shadow_overlay.modulate.a = outside_shadow_alpha_when_inside if player_in_house else 1.0
-	inside_sprite.visible = player_in_house
-	collision_outside.process_mode = Node.PROCESS_MODE_INHERIT
-	collision_inside.process_mode = Node.PROCESS_MODE_INHERIT
+
+	collision_outside.process_mode = Node.PROCESS_MODE_INHERIT if not player_in_house else Node.PROCESS_MODE_DISABLED
+	collision_inside.process_mode = Node.PROCESS_MODE_INHERIT if player_in_house else Node.PROCESS_MODE_DISABLED
 
 
 func _configure_visual_layers() -> void:
@@ -245,6 +256,11 @@ func _configure_visual_layers() -> void:
 
 
 func _update_wardrobe_visual() -> void:
+	if not player_in_house:
+		wardrobe_sprite.frame = 0
+		interact_label.visible = false
+		return
+
 	if not wardrobe_opened:
 		wardrobe_sprite.frame = 1 if player_near_wardrobe else 0
 		interact_label.text = "[E] - открыть"

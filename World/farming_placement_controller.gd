@@ -761,32 +761,39 @@ func _get_current_game_minutes() -> float:
 
 
 func _get_cell_world_position(cell: Vector2i) -> Vector2:
+	if _farm_layer != null:
+		return _farm_layer.to_global(_farm_layer.map_to_local(cell))
 	return _ground_layer.to_global(_ground_layer.map_to_local(cell))
 
 
 func _get_mouse_ground_cell() -> Vector2i:
 	var world_pos := get_global_mouse_position()
+	if _preview_layer != null:
+		return _preview_layer.local_to_map(_preview_layer.to_local(world_pos))
+	if _farm_layer != null:
+		return _farm_layer.local_to_map(_farm_layer.to_local(world_pos))
 	return _ground_layer.local_to_map(_ground_layer.to_local(world_pos))
 
 
 func _can_place_at_cell(cell: Vector2i) -> bool:
 	if _ground_layer == null or _farm_layer == null:
 		return false
-	if _ground_layer.get_cell_source_id(cell) == -1:
+	var world_pos := _get_cell_world_position(cell)
+	var ground_cell := _ground_layer.local_to_map(_ground_layer.to_local(world_pos))
+	if _ground_layer.get_cell_source_id(ground_cell) == -1:
 		return false
 	if _farm_layer.get_cell_source_id(cell) != -1:
 		return false
-	if _is_cell_blocked_by_other_layer(cell):
+	if _is_cell_blocked_by_other_layer(world_pos):
 		return false
-	if _is_cell_blocked_by_collision(cell):
+	if _is_cell_blocked_by_collision(world_pos):
 		return false
-	if not _is_cell_in_player_range(cell):
+	if not _is_cell_in_player_range(world_pos):
 		return false
 	return true
 
 
-func _is_cell_blocked_by_other_layer(cell: Vector2i) -> bool:
-	var world_pos := _ground_layer.to_global(_ground_layer.map_to_local(cell))
+func _is_cell_blocked_by_other_layer(world_pos: Vector2) -> bool:
 	for layer in _blocked_layers:
 		if layer == null or not is_instance_valid(layer):
 			continue
@@ -796,7 +803,7 @@ func _is_cell_blocked_by_other_layer(cell: Vector2i) -> bool:
 	return false
 
 
-func _is_cell_blocked_by_collision(cell: Vector2i) -> bool:
+func _is_cell_blocked_by_collision(world_pos: Vector2) -> bool:
 	if placement_collision_mask == 0:
 		return false
 
@@ -813,7 +820,7 @@ func _is_cell_blocked_by_collision(cell: Vector2i) -> bool:
 
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = _placement_collision_shape
-	query.transform = Transform2D(0.0, _ground_layer.to_global(_ground_layer.map_to_local(cell)))
+	query.transform = Transform2D(0.0, world_pos)
 	query.collision_mask = placement_collision_mask
 	query.collide_with_bodies = true
 	query.collide_with_areas = false
@@ -834,7 +841,7 @@ func _is_ignored_placement_collider(collider: Object) -> bool:
 	return collider == _ground_layer or collider == _farm_layer or collider == _preview_layer
 
 
-func _is_cell_in_player_range(cell: Vector2i) -> bool:
+func _is_cell_in_player_range(world_pos: Vector2) -> bool:
 	if max_placement_distance_px <= 0.0:
 		return true
 
@@ -842,7 +849,6 @@ func _is_cell_in_player_range(cell: Vector2i) -> bool:
 	if player == null:
 		return true
 
-	var world_pos := _ground_layer.to_global(_ground_layer.map_to_local(cell))
 	return player.global_position.distance_to(world_pos) <= max_placement_distance_px
 
 

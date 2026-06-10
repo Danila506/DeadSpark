@@ -8,6 +8,7 @@ enabled = true
 tile_map_path = NodePath("../../Y-Sort_Objects/RoadLayer")
 player_path = NodePath("../../Y-Sort_Objects/Player2")
 load_radius_chunks = 2
+generation_dependency_paths = Array[NodePath]([NodePath("../ChunkLayerGenerator_Lake")])
 preserve_editor_tiles = true
 fill_probability = 0.03
 source_id = 0

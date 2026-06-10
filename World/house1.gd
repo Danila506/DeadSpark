@@ -10,7 +10,10 @@ const PLAYER_HOUSE_Z_INDEX: int = 2000
 const INSIDE_HOUSE_Z: int = -1
 const OUTSIDE_HOUSE_Z: int = 0
 const DOOR_Z_INSIDE: int = 1
-const DOOR_Z_OUTSIDE: int = 3
+const DOOR_Z_OUTSIDE: int = 0
+const HOUSE_SPAWN_MARKER_PREFIX: String = "SpawnMarker"
+const ITEM_SPAWNER_GROUP: StringName = &"item_spawner_network"
+const WorldGenerationBlockerUtils = preload("res://World/world_generation_blocker_utils.gd")
 
 @onready var outside_sprite: Sprite2D = $HouseOutside
 @onready var inside_sprite: Sprite2D = $HouseInside
@@ -86,9 +89,19 @@ func _ready() -> void:
 	_update_door_visual()
 	_update_wardrobe_visual()
 	set_physics_process(false)
+	_refresh_world_generation_blocker()
 	call_deferred("_eject_current_overlapping_enemies")
+	call_deferred("_spawn_world_pickups_at_markers_if_needed")
 	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
 		GameSaveManager.register_persistent_node(self)
+
+
+func _refresh_world_generation_blocker() -> void:
+	WorldGenerationBlockerUtils.configure_blocker(self, house_area)
+
+
+func get_world_generation_blocker_rect() -> Rect2:
+	return WorldGenerationBlockerUtils.build_area_rect(house_area)
 
 
 func _eject_current_overlapping_enemies() -> void:
@@ -271,11 +284,12 @@ func _on_wardrobe_area_body_exited(body: Node) -> void:
 
 func _update_house_visual() -> void:
 	outside_sprite.visible = not player_in_house
+	inside_sprite.visible = player_in_house
 	if outside_sprite.visible:
 		outside_sprite.modulate.a = outside_alpha_when_shadowed if player_in_shadow_zone else 1.0
-	inside_sprite.visible = player_in_house
-	collision_outside.process_mode = Node.PROCESS_MODE_INHERIT
-	collision_inside.process_mode = Node.PROCESS_MODE_INHERIT
+
+	collision_outside.process_mode = Node.PROCESS_MODE_INHERIT if not player_in_house else Node.PROCESS_MODE_DISABLED
+	collision_inside.process_mode = Node.PROCESS_MODE_INHERIT if player_in_house else Node.PROCESS_MODE_DISABLED
 	_update_door_draw_order()
 
 
@@ -382,6 +396,57 @@ func _ensure_wardrobe_loot() -> void:
 		var template_item: ItemData = pool[randi_range(0, pool.size() - 1)]
 		if template_item != null:
 			wardrobe_loot_slots[slot_index] = template_item.create_instance(1)
+
+
+func _spawn_world_pickups_at_markers_if_needed() -> void:
+	if Engine.is_editor_hint():
+		return
+
+	var item_spawner := _find_item_spawner()
+	if item_spawner == null or not item_spawner.has_method("spawn_random_world_pickup_at_position"):
+		return
+
+	for marker in _collect_spawn_markers(self):
+		item_spawner.call(
+			"spawn_random_world_pickup_at_position",
+			marker.global_position,
+			_build_spawn_marker_runtime_id(marker)
+		)
+
+
+func _collect_spawn_markers(root: Node) -> Array[Marker2D]:
+	var markers: Array[Marker2D] = []
+	if root == null:
+		return markers
+
+	for child in root.get_children():
+		if child is Marker2D and String(child.name).begins_with(HOUSE_SPAWN_MARKER_PREFIX):
+			markers.append(child as Marker2D)
+		markers.append_array(_collect_spawn_markers(child))
+
+	return markers
+
+
+func _find_item_spawner() -> Node:
+	var scene_tree := get_tree()
+	if scene_tree == null:
+		return null
+
+	for candidate in scene_tree.get_nodes_in_group(ITEM_SPAWNER_GROUP):
+		var node := candidate as Node
+		if node != null and is_instance_valid(node):
+			return node
+	return null
+
+
+func _build_spawn_marker_runtime_id(marker: Marker2D) -> String:
+	return "%s:%s" % [_build_spawn_marker_seed_key(), String(get_path_to(marker))]
+
+
+func _build_spawn_marker_seed_key() -> String:
+	if has_meta("world_generation_id"):
+		return str(get_meta("world_generation_id"))
+	return get_save_key()
 
 
 func get_save_key() -> String:

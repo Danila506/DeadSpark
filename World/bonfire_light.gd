@@ -57,10 +57,25 @@ static var _radial_texture_cache: Dictionary = {}
 @export var flicker_speed: float = 3.6
 @export var flicker_secondary_speed: float = 6.1
 
+@export_group("Time Of Day")
+@export var time_of_day_manager_path: NodePath
+@export_range(0.05, 3.0, 0.01) var dawn_energy_multiplier: float = 0.82
+@export_range(0.05, 3.0, 0.01) var day_energy_multiplier: float = 0.42
+@export_range(0.05, 3.0, 0.01) var dusk_energy_multiplier: float = 0.88
+@export_range(0.05, 3.0, 0.01) var night_energy_multiplier: float = 1.2
+@export_range(0.05, 3.0, 0.01) var dawn_scale_multiplier: float = 0.96
+@export_range(0.05, 3.0, 0.01) var day_scale_multiplier: float = 0.88
+@export_range(0.05, 3.0, 0.01) var dusk_scale_multiplier: float = 1.02
+@export_range(0.05, 3.0, 0.01) var night_scale_multiplier: float = 1.08
+@export_range(0.1, 20.0, 0.1) var time_of_day_response_speed: float = 4.2
+
 var _core_light: PointLight2D
 var _medium_light: PointLight2D
 var _halo_light: PointLight2D
 var _phase: float = 0.0
+var _time_of_day_manager: Node = null
+var _time_of_day_energy_multiplier: float = 1.0
+var _time_of_day_scale_multiplier: float = 1.0
 
 
 func _ready() -> void:
@@ -68,6 +83,7 @@ func _ready() -> void:
 	_core_light = _resolve_light(core_light_path, 0)
 	_medium_light = _resolve_light(medium_light_path, 1)
 	_halo_light = _resolve_light(halo_light_path, 2)
+	_time_of_day_manager = _resolve_time_of_day_manager()
 
 	_setup_light(_core_light, LightLayer.CORE)
 	_setup_light(_medium_light, LightLayer.MEDIUM)
@@ -81,6 +97,7 @@ func _process(delta: float) -> void:
 	if _core_light == null and _medium_light == null and _halo_light == null:
 		return
 
+	_update_time_of_day_response(delta)
 	_phase += delta * maxf(flicker_speed, 0.1)
 	var speed_ratio := flicker_secondary_speed / maxf(flicker_speed, 0.1)
 	var primary := sin(_phase) * 0.62
@@ -225,8 +242,10 @@ func _make_radial_texture_cache_key(center_color: Color, mid_color: Color, outer
 func _apply_flicker(light: PointLight2D, base_energy: float, energy_variation: float, base_scale: float, scale_variation: float, pulse: float) -> void:
 	if light == null:
 		return
-	light.energy = base_energy + (pulse - 0.5) * 2.0 * energy_variation
-	light.texture_scale = base_scale + (pulse - 0.5) * 2.0 * scale_variation
+	var target_energy := base_energy + (pulse - 0.5) * 2.0 * energy_variation
+	var target_scale := base_scale + (pulse - 0.5) * 2.0 * scale_variation
+	light.energy = target_energy * _time_of_day_energy_multiplier
+	light.texture_scale = target_scale * _time_of_day_scale_multiplier
 
 
 func _apply_parent_scale_compensation(light: PointLight2D) -> void:
@@ -269,3 +288,46 @@ func _value_noise(point: Vector2) -> float:
 func _hash(point: Vector2) -> float:
 	var value := sin(point.dot(Vector2(127.1, 311.7))) * 43758.5453
 	return value - floor(value)
+
+
+func _resolve_time_of_day_manager() -> Node:
+	if not time_of_day_manager_path.is_empty():
+		return get_node_or_null(time_of_day_manager_path)
+	return get_tree().get_first_node_in_group("time_of_day_manager")
+
+
+func _update_time_of_day_response(delta: float) -> void:
+	if _time_of_day_manager == null or not is_instance_valid(_time_of_day_manager):
+		_time_of_day_manager = _resolve_time_of_day_manager()
+	if _time_of_day_manager == null:
+		_time_of_day_energy_multiplier = _approach_multiplier(_time_of_day_energy_multiplier, 1.0, delta)
+		_time_of_day_scale_multiplier = _approach_multiplier(_time_of_day_scale_multiplier, 1.0, delta)
+		return
+
+	var target_energy_multiplier := 1.0
+	if _time_of_day_manager.has_method("get_phase_weighted_scalar"):
+		target_energy_multiplier = float(_time_of_day_manager.call(
+			"get_phase_weighted_scalar",
+			dawn_energy_multiplier,
+			day_energy_multiplier,
+			dusk_energy_multiplier,
+			night_energy_multiplier
+		))
+
+	var target_scale_multiplier := 1.0
+	if _time_of_day_manager.has_method("get_phase_weighted_scalar"):
+		target_scale_multiplier = float(_time_of_day_manager.call(
+			"get_phase_weighted_scalar",
+			dawn_scale_multiplier,
+			day_scale_multiplier,
+			dusk_scale_multiplier,
+			night_scale_multiplier
+		))
+
+	_time_of_day_energy_multiplier = _approach_multiplier(_time_of_day_energy_multiplier, target_energy_multiplier, delta)
+	_time_of_day_scale_multiplier = _approach_multiplier(_time_of_day_scale_multiplier, target_scale_multiplier, delta)
+
+
+func _approach_multiplier(current_value: float, target_value: float, delta: float) -> float:
+	var weight := 1.0 - exp(-maxf(delta, 0.0) * maxf(time_of_day_response_speed, 0.001))
+	return lerpf(current_value, target_value, weight)

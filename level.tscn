@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://dhpo65l3xpxl4" path="res://level.gd" id="1_u52ul"]
 [ext_resource type="Texture2D" uid="uid://u5im8h55kj4c" path="res://World/Assets/landTiles.png" id="2_f2txt"]
-[ext_resource type="Texture2D" uid="uid://bbvcm7vorg6i1" path="res://World/Assets/wood.png" id="3_0b4ue"]
 [ext_resource type="PackedScene" uid="uid://dkbut241tp20y" path="res://Player/player.tscn" id="3_oi3di"]
 [ext_resource type="Texture2D" uid="uid://bv332hyrtp7n3" path="res://World/Assets/Biom1/Объекты.png" id="4_f2txt"]
 [ext_resource type="PackedScene" uid="uid://f0gkxkps7v63" path="res://gui/GUI.tscn" id="6_1ainy"]
@@ -12,7 +11,6 @@
 [ext_resource type="PackedScene" uid="uid://bj0l7bwgc5amm" path="res://Enemies/Wolf/wolf.tscn" id="13_8b0r0"]
 [ext_resource type="Texture2D" uid="uid://beb0l7v4kjlo2" path="res://World/Assets/xz.png" id="14_fedht"]
 [ext_resource type="PackedScene" uid="uid://e3uqauak7fap" path="res://Projectile/projectile.tscn" id="17_fedht"]
-[ext_resource type="PackedScene" uid="uid://5agijmgrakp3" path="res://World/Assets/Houses/House1/house_1.tscn" id="18_4c15r"]
 [ext_resource type="Texture2D" uid="uid://b8c27l6m6swpl" path="res://World/Assets/тайлмап воды.png" id="22_fj6e6"]
 [ext_resource type="Texture2D" uid="uid://bnrt520qd0h0t" path="res://Assets/World/biom2.png" id="25_uuqa8"]
 [ext_resource type="Script" uid="uid://bpmu2s8ry3rap" path="res://World/snowfall_layer.gd" id="39_snowfall"]
@@ -20,6 +18,7 @@
 [ext_resource type="Script" uid="uid://b7drf4vbjkp6q" path="res://World/farming_placement_controller.gd" id="41_farming"]
 [ext_resource type="Script" uid="uid://klr6aopv1hmu" path="res://World/house_placement_controller.gd" id="42_house_placement"]
 [ext_resource type="TileSet" uid="uid://dg8dxjg2go1qx" path="res://Assets/World/Roads/RoadTileSet.tres" id="43_road_tiles"]
+[ext_resource type="Script" uid="uid://bjptt54gm0lcl" path="res://World/time_of_day_manager.gd" id="44_time_of_day"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_n6hdu"]
 texture = ExtResource("2_f2txt")
@@ -31,57 +30,6 @@ texture_region_size = Vector2i(60, 60)
 [sub_resource type="TileSet" id="TileSet_km5ld"]
 tile_size = Vector2i(60, 60)
 sources/2 = SubResource("TileSetAtlasSource_n6hdu")
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f2txt"]
-texture = ExtResource("3_0b4ue")
-0:0/0 = 0
-1:0/0 = 0
-2:0/0 = 0
-4:0/0 = 0
-6:0/0 = 0
-7:0/0 = 0
-8:0/0 = 0
-0:1/0 = 0
-1:1/0 = 0
-2:1/0 = 0
-3:1/0 = 0
-4:1/0 = 0
-5:1/0 = 0
-6:1/0 = 0
-7:1/0 = 0
-0:2/0 = 0
-1:2/0 = 0
-2:2/0 = 0
-4:2/0 = 0
-7:2/0 = 0
-8:2/0 = 0
-0:3/0 = 0
-1:3/0 = 0
-2:3/0 = 0
-3:3/0 = 0
-4:3/0 = 0
-5:3/0 = 0
-6:3/0 = 0
-7:3/0 = 0
-8:3/0 = 0
-0:4/0 = 0
-1:4/0 = 0
-2:4/0 = 0
-3:4/0 = 0
-4:4/0 = 0
-5:4/0 = 0
-7:4/0 = 0
-8:4/0 = 0
-0:5/0 = 0
-1:5/0 = 0
-2:5/0 = 0
-4:5/0 = 0
-5:5/0 = 0
-6:5/0 = 0
-7:5/0 = 0
-
-[sub_resource type="TileSet" id="TileSet_1ainy"]
-sources/0 = SubResource("TileSetAtlasSource_f2txt")
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_2h3vt"]
 texture = ExtResource("22_fj6e6")
@@ -223,10 +171,33 @@ texture = ExtResource("14_fedht")
 20:52/0/physics_layer_0/polygon_0/points = PackedVector2Array(-64.5, -6, -65, 18.5, -57.5, 27, 38, 27.5, 58, 15.5, 59, 2.5, 37, -6.5)
 54:4/size_in_atlas = Vector2i(2, 4)
 54:4/0 = 0
+54:4/0/y_sort_origin = 23
 54:4/0/physics_layer_0/polygon_0/points = PackedVector2Array(-12.5, -19, -8.5, -20.5, -7.5, -24.5, -5.5, -26, -3, -24.5, -0.5, -22, 0.5, -16, 4, -15.5, 4, 30.5, -0.5, 29.5, -4.5, 26.5, -9, 26, -12.5, 24)
 56:5/size_in_atlas = Vector2i(6, 2)
 56:5/0 = 0
 56:5/0/physics_layer_0/polygon_0/points = PackedVector2Array(-21.5, -11, 20.5, -13.5, 25.5, -6, 27, 3.5, -39.5, 11, -40, 5, -44, 2, -44, -9.5)
+86:26/size_in_atlas = Vector2i(7, 10)
+86:26/0 = 0
+86:26/0/y_sort_origin = 63
+86:26/0/physics_layer_0/polygon_0/points = PackedVector2Array(-6.157898, 62.13877, 5.784683, 60.645943, 11.382782, 69.22968, -15.488037, 68.85648)
+86:26/0/physics_layer_0/polygon_1/points = PackedVector2Array(16.234451, 37.13398, 35.64116, 36.014366, 30.043076, 26.311012, 22.952164, 25.937813)
+86:26/0/physics_layer_0/polygon_2/points = PackedVector2Array(-27.430634, 39.000008, -19.966507, 39.000008, -15.114838, 47.583748, -31.909103, 47.210533)
+86:26/0/physics_layer_0/polygon_3/points = PackedVector2Array(5.411484, 13.995216, 8.023926, 24.071777, -4.29187, 23.69857, -0.55981445, 13.995216)
+86:36/size_in_atlas = Vector2i(7, 10)
+86:36/0 = 0
+86:36/0/y_sort_origin = 63
+86:36/0/physics_layer_0/polygon_0/points = PackedVector2Array(-18.193787, 61.545498, -6.0065613, 61.197292, -3.220909, 66.7686, -20.283028, 67.116806)
+86:36/0/physics_layer_0/polygon_1/points = PackedVector2Array(13.597317, 49.281292, 30.719868, 49.42518, 25.82771, 40.64807, 17.626156, 41.367508)
+86:36/0/physics_layer_0/polygon_2/points = PackedVector2Array(-31.07743, 34.38539, -21.501747, 34.037186, -18.36789, 43.090553, -34.037186, 43.264656)
+86:36/0/physics_layer_0/polygon_3/points = PackedVector2Array(1.6568756, 23.323772, 4.2059174, 34.029766, -8.029495, 34.539577, -5.9902573, 24.343388)
+85:16/size_in_atlas = Vector2i(5, 9)
+85:16/0 = 0
+85:16/0/y_sort_origin = 60
+85:16/0/physics_layer_0/polygon_0/points = PackedVector2Array(-11.055557, 63.634735, -3.2209167, 63.634735, -3.917328, 67.29091, -10.881454, 67.46501)
+90:16/size_in_atlas = Vector2i(4, 9)
+90:16/0 = 0
+90:16/0/y_sort_origin = 60
+90:16/0/physics_layer_0/polygon_0/points = PackedVector2Array(-19.934814, 62.41601, -12.796585, 62.590115, -12.274277, 67.81322, -19.586609, 67.639114)
 
 [sub_resource type="TileSet" id="TileSet_ait7k"]
 physics_layer_0/collision_layer = 1
@@ -364,11 +335,14 @@ sources/0 = SubResource("TileSetAtlasSource_oaehd")
 [node name="Level" type="Node2D" unique_id=372047388]
 script = ExtResource("1_u52ul")
 world_bounds_generator_path = NodePath("WorldGeneration/ChunkWorldGenerator")
-world_mood_targets = Array[NodePath]([NodePath("SnowLayer"), NodePath("WoodLayer"), NodePath("Y-Sort_Objects/RoadLayer"), NodePath("FarmRowsLayer"), NodePath(""), NodePath("Y-Sort_Objects"), NodePath("Snowfall")])
-startup_hidden_nodes = Array[NodePath]([NodePath("SnowLayer"), NodePath("WoodLayer"), NodePath("Y-Sort_Objects/RoadLayer"), NodePath("Y-Sort_Objects"), NodePath("UI"), NodePath("Snowfall"), NodePath("Projectile")])
+world_mood_targets = Array[NodePath]([NodePath("SnowLayer"), NodePath(""), NodePath("Y-Sort_Objects/RoadLayer"), NodePath("FarmRowsLayer"), NodePath(""), NodePath("Y-Sort_Objects"), NodePath("Snowfall")])
+startup_hidden_nodes = Array[NodePath]([NodePath("SnowLayer"), NodePath(""), NodePath("Y-Sort_Objects/RoadLayer"), NodePath("Y-Sort_Objects"), NodePath("UI"), NodePath("Snowfall"), NodePath("Projectile")])
 
 [node name="NightCanvasModulate" type="CanvasModulate" parent="." unique_id=722370870]
 color = Color(0.35, 0.38, 0.5, 1)
+
+[node name="TimeOfDayManager" type="Node" parent="." unique_id=1586729882]
+script = ExtResource("44_time_of_day")
 
 [node name="WorldGeneration" parent="." unique_id=13881982 instance=ExtResource("40_worldgen")]
 
@@ -382,10 +356,6 @@ script = ExtResource("42_house_placement")
 [node name="SnowLayer" type="TileMapLayer" parent="." unique_id=1540319895]
 z_index = -1
 tile_set = SubResource("TileSet_km5ld")
-
-[node name="WoodLayer" type="TileMapLayer" parent="." unique_id=716576606]
-z_index = -1
-tile_set = SubResource("TileSet_1ainy")
 
 [node name="Y-Sort_Objects" type="Node2D" parent="." unique_id=1962220443]
 y_sort_enabled = true
@@ -442,6 +412,7 @@ z_index = -1
 tile_set = ExtResource("43_road_tiles")
 
 [node name="xz" type="TileMapLayer" parent="Y-Sort_Objects" unique_id=1584039653]
+z_index = -2
 y_sort_enabled = true
 tile_set = SubResource("TileSet_ait7k")
 
@@ -491,6 +462,9 @@ y_sort_enabled = true
 [node name="GeneratedForesterHouses" type="Node2D" parent="Y-Sort_Objects" unique_id=270480005]
 y_sort_enabled = true
 
+[node name="GeneratedRuins" type="Node2D" parent="Y-Sort_Objects" unique_id=248503957]
+y_sort_enabled = true
+
 [node name="Animals" type="Node2D" parent="Y-Sort_Objects" unique_id=270480006]
 y_sort_enabled = true
 
@@ -513,6 +487,3 @@ position = Vector2(535, 600)
 script = ExtResource("39_snowfall")
 
 [node name="Projectile" parent="." unique_id=637228377 instance=ExtResource("17_fedht")]
-
-[node name="House1" parent="Y-Sort_Objects" unique_id=259329565 instance=ExtResource("18_4c15r")]
-position = Vector2(543, 512)

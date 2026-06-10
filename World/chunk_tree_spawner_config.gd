@@ -27,6 +27,7 @@ const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 @export_range(0, 512, 1) var max_total_spawn_attempts_per_chunk: int = 0
 @export_range(1, 64, 1) var max_expensive_spawn_checks_per_update: int = 4
 @export_range(0.25, 16.0, 0.25) var spawn_step_time_budget_ms: float = 1.5
+@export var wait_for_tile_generators: bool = true
 @export var large_structure_mode: bool = false
 @export_range(1, 9, 1) var large_structure_candidates_per_chunk: int = 9
 @export_range(0.0, 480.0, 1.0) var large_structure_candidate_jitter_px: float = 120.0

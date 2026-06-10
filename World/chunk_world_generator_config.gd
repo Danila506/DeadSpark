@@ -19,6 +19,7 @@ const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 @export var update_interval_sec: float = 0.08
 @export_range(1, 32, 1) var max_chunk_operations_per_update: int = 1
 @export_range(0.25, 16.0, 0.25) var generation_step_time_budget_ms: float = 1.5
+@export var generation_dependency_paths: Array[NodePath] = []
 
 @export_category("Generation")
 @export var world_seed: int = 1337
@@ -97,12 +98,15 @@ const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 @export var physics_collision_padding_px: float = 0.0
 @export var avoid_layer_path: NodePath
 @export_range(0, 8, 1) var avoid_layer_radius_tiles: int = 0
+@export_range(-1.0, 512.0, 1.0) var avoid_layer_padding_px: float = -1.0
 @export var avoid_layer_paths: Array[NodePath] = []
 @export var overlap_clear_layer_paths: Array[NodePath] = []
 @export_range(0, 8, 1) var overlap_clear_radius_tiles: int = 0
+@export_range(0, 8, 1) var occupancy_inset_tiles: int = 0
 @export var prefer_layer_path: NodePath
 @export_range(0, 8, 1) var prefer_layer_radius_tiles: int = 0
 @export_range(0.0, 1.0, 0.01) var prefer_layer_fill_bonus: float = 0.0
 
 @export_category("Debug")
 @export var debug_log: bool = false
+@export var debug_watch_atlas_tiles: Array[Vector2i] = []

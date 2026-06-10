@@ -59,7 +59,7 @@ texture_region_size = Vector2i(256, 256)
 5:1/0/terrain_set = 0
 
 [resource]
-tile_size = Vector2i(60, 60)
+tile_size = Vector2i(256, 256)
 terrain_set_0/mode = 2
 terrain_set_0/terrain_0/name = "Road"
 terrain_set_0/terrain_0/color = Color(0.66150934, 0.43616498, 0.11775654, 1)

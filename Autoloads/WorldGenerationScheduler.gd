@@ -12,6 +12,7 @@ var _queue: Array[Dictionary] = []
 var _task_keys := {}
 var _last_frame_stats: Dictionary = {}
 var _recent_tasks: Array[Dictionary] = []
+var _next_sequence: int = 0
 
 
 func _process(_delta: float) -> void:
@@ -31,8 +32,9 @@ func enqueue_task(task_owner: Object, task_key: String, priority: int, payload: 
 		"key": task_key,
 		"priority": priority,
 		"payload": payload,
-		"sequence": Time.get_ticks_usec()
+		"sequence": _next_sequence
 	}
+	_next_sequence += 1
 	_task_keys[task_key] = true
 	_queue.append(task)
 	_sort_queue()
@@ -71,7 +73,8 @@ func get_owner_task_count(task_owner: Object) -> int:
 func process_generation_frame(
 	time_budget_ms: float = -1.0,
 	node_spawn_budget: int = -1,
-	task_budget: int = -1
+	task_budget: int = -1,
+	allowed_owners: Array = []
 ) -> Dictionary:
 	var resolved_time_budget_ms := frame_time_budget_ms
 	if time_budget_ms >= 0.0:
@@ -91,7 +94,7 @@ func process_generation_frame(
 		if Time.get_ticks_usec() - frame_start_usec >= time_budget_usec:
 			break
 
-		var task := _pop_next_task(node_ops_left)
+		var task := _pop_next_task(node_ops_left, allowed_owners)
 		if task.is_empty():
 			break
 		var key := str(task.get("key", ""))
@@ -171,19 +174,36 @@ func _sort_queue() -> void:
 	_queue.sort_custom(_compare_tasks)
 
 
-func _pop_next_task(node_ops_left: int) -> Dictionary:
+func _pop_next_task(node_ops_left: int, allowed_owners: Array = []) -> Dictionary:
 	if node_ops_left > 0:
-		var first_task: Dictionary = _queue.pop_front()
-		return first_task
+		for i in range(_queue.size()):
+			var task: Dictionary = _queue[i]
+			if not _is_task_owner_allowed(task, allowed_owners):
+				continue
+			_queue.remove_at(i)
+			return task
+		return {}
 
 	for i in range(_queue.size()):
 		var task: Dictionary = _queue[i]
+		if not _is_task_owner_allowed(task, allowed_owners):
+			continue
 		var payload: Dictionary = task.get("payload", {})
 		if bool(payload.get("uses_node_spawn_budget", false)):
 			continue
 		_queue.remove_at(i)
 		return task
 	return {}
+
+
+func _is_task_owner_allowed(task: Dictionary, allowed_owners: Array) -> bool:
+	if allowed_owners.is_empty():
+		return true
+	var owner: Object = task.get("owner", null)
+	for allowed_owner in allowed_owners:
+		if owner == allowed_owner:
+			return true
+	return false
 
 
 func _compare_tasks(a: Dictionary, b: Dictionary) -> bool:
