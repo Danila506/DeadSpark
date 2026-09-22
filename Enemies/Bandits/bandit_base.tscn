@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://Enemies/Bandits/bandit_base.gd" id="2_bandit_base_script"]
 [ext_resource type="SpriteFrames" uid="uid://d4dswf3gekngb" path="res://Resources/Misc/bonfire.tres" id="3_bonfire_frames"]
 [ext_resource type="Script" path="res://World/bonfire_light.gd" id="4_bonfire_light_script"]
+[ext_resource type="Script" path="res://World/Generation/enemy_spawn_marker.gd" id="5_marker"]
 
 [sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_near_left"]
 polygon = PackedVector2Array(-18, -7, -8, -14, 1, -9, 2, 12, -17, 13)
@@ -79,6 +80,24 @@ rotation = -0.0007949845
 z_index = 6
 tile_map_data = PackedByteArray("AAAAAPn/AAAIAAEAAAD4////AAAYAAMAAAD5//v/AAABAAEAAAD+//3/AAAWAAkAAAADAP//AAABAAcAAAD3/wMAAAAbAAkAAAD6/wIAAAA0AA0AAAD7/wEAAAA0AA0AAAAKAP7/AAAwAAoAAAAIAP//AAA0AA0AAAAHAAIAAAANAAYAAAACAAMAAAAIAAgAAAAEAPf/AAAwAAMAAAAHAPn/AAAiAAEAAAADAAgAAAAqAAEAAAD9/wYAAAANAAEAAAD//woAAAAwAAMAAAAHAAcAAAAwAAoAAAAIAAcAAAAwAAoAAAAJAAgAAAAwAAoAAAD5//j/AAAwAAoAAAA=")
 tile_set = SubResource("TileSet_xs5b2")
+
+[node name="PopulationMarkers" type="Node2D" parent="."]
+[node name="GuardMarkerA" type="Node2D" parent="PopulationMarkers" groups=["enemy_population_marker"]]
+position=Vector2(-96,-48)
+script=ExtResource("5_marker")
+stable_marker_id="guard_spawn_00"
+[node name="GuardMarkerB" type="Node2D" parent="PopulationMarkers" groups=["enemy_population_marker"]]
+position=Vector2(96,-48)
+script=ExtResource("5_marker")
+stable_marker_id="guard_spawn_01"
+[node name="GuardMarkerC" type="Node2D" parent="PopulationMarkers" groups=["enemy_population_marker"]]
+position=Vector2(-96,64)
+script=ExtResource("5_marker")
+stable_marker_id="guard_spawn_02"
+[node name="GuardMarkerD" type="Node2D" parent="PopulationMarkers" groups=["enemy_population_marker"]]
+position=Vector2(96,64)
+script=ExtResource("5_marker")
+stable_marker_id="guard_spawn_03"
 
 [node name="Bonfire" type="AnimatedSprite2D" parent="." unique_id=298448201]
 position = Vector2(0, 0)

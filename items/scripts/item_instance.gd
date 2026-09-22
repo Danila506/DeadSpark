@@ -44,6 +44,28 @@ func is_runtime_instance() -> bool:
 	return true
 
 
+func refresh_definition_values(source_definition: ItemData) -> void:
+	if source_definition == null:
+		return
+
+	var preserved_stack_count: int = stack_count
+	var preserved_endurance: int = endurance
+	var preserved_battery_charge: float = battery_charge_seconds
+	var preserved_runtime_storage_items: Array[ItemData] = runtime_storage_items.duplicate(true)
+	var preserved_weapon_runtime_state: Dictionary = weapon_runtime_state.duplicate(true)
+	var preserved_runtime_id: String = runtime_id
+
+	definition = source_definition.get_definition() if source_definition.has_method("get_definition") else source_definition
+	_copy_definition_values(definition)
+
+	stack_count = preserved_stack_count
+	endurance = preserved_endurance
+	battery_charge_seconds = preserved_battery_charge
+	runtime_storage_items = preserved_runtime_storage_items
+	weapon_runtime_state = preserved_weapon_runtime_state
+	runtime_id = preserved_runtime_id
+
+
 func get_weapon_runtime_state() -> Dictionary:
 	if weapon_runtime_state.is_empty():
 		weapon_runtime_state = {
@@ -64,6 +86,7 @@ func set_weapon_runtime_state(state: Dictionary) -> void:
 func create_runtime_copy() -> ItemData:
 	var copy: ItemInstance = ItemInstance.new()
 	copy.setup_from_definition(get_definition(), stack_count, endurance)
+	copy.battery_charge_seconds = battery_charge_seconds
 	copy.runtime_storage_items.clear()
 	for stored_item in runtime_storage_items:
 		if stored_item == null:
@@ -85,6 +108,9 @@ func to_save_dict() -> Dictionary:
 		"runtime_storage_items": [],
 		"weapon_runtime_state": _serialize_weapon_runtime_state(get_weapon_runtime_state())
 	}
+
+	if is_battery_item:
+		save_data["battery_charge_seconds"] = battery_charge_seconds
 
 	var serialized_storage: Array = []
 	for stored_item in runtime_storage_items:
@@ -118,6 +144,10 @@ static func from_save_dict(save_data: Dictionary) -> ItemData:
 	if instance is ItemInstance:
 		var typed_instance: ItemInstance = instance as ItemInstance
 		typed_instance.runtime_id = String(save_data.get("runtime_id", typed_instance.get_runtime_id()))
+		# Older saves have no charge field; retain the definition default for those.
+		if typed_instance.is_battery_item and save_data.has("battery_charge_seconds"):
+			var saved_charge := float(save_data["battery_charge_seconds"])
+			typed_instance.battery_charge_seconds = clampf(saved_charge, 0.0, typed_instance.battery_max_charge_seconds) if is_finite(saved_charge) else 0.0
 		typed_instance.runtime_storage_items.clear()
 
 		var raw_storage: Array = save_data.get("runtime_storage_items", [])
@@ -150,6 +180,7 @@ func _serialize_item_for_save(item: ItemData) -> Dictionary:
 	if item.has_method("create_instance"):
 		var instance_item: ItemData = item.create_instance(item.stack_count, item.endurance)
 		if instance_item != null and instance_item.has_method("to_save_dict"):
+			instance_item.battery_charge_seconds = item.battery_charge_seconds
 			instance_item.runtime_storage_items = item.runtime_storage_items.duplicate(true)
 			return instance_item.to_save_dict()
 	return {

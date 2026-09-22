@@ -1,5 +1,8 @@
 extends Node2D
 
+const POPULATION_PROFILE = preload("res://Resources/WorldGen/EnemyPopulation/bandit_camp_population_profile.tres")
+const PopulationPersistence = preload("res://World/Generation/enemy_population_persistence.gd")
+
 @export var min_bandits_per_base: int = 2
 @export var max_bandits_per_base: int = 4
 @export var min_spawn_radius_px: float = 110.0
@@ -15,13 +18,25 @@ extends Node2D
 	preload("res://Enemies/Bandits/Bandit_3/Bandit_3.tscn"),
 	preload("res://Enemies/Bandits/Bandit_4/Bandit_4.tscn")
 ]
+@export var world_generated_mode := false
+@export var generated_object_id := ""
+@export var population_profile: EnemyPopulationProfile = POPULATION_PROFILE
 
 var _rng := RandomNumberGenerator.new()
 var _pending_guard_jobs: Array[Dictionary] = []
 var _guard_spawn_active: bool = false
+var applied_population_manifest: EnemyPopulationManifest
+var _population_states: Dictionary = {}
 
 
 func _ready() -> void:
+	if multiplayer.multiplayer_peer != null and not NetworkManager.is_server():
+		set_process(false)
+		return
+	if world_generated_mode:
+		if generated_object_id.strip_edges().is_empty():
+			push_error("BanditBase: world-generated camp requires GeneratedObjectId")
+		return
 	_rng.seed = int(Time.get_ticks_usec()) ^ int(get_instance_id())
 	if spawn_guards_deferred:
 		_prepare_guard_spawn_jobs()
@@ -32,6 +47,95 @@ func _ready() -> void:
 		return
 
 	_spawn_guards_immediate()
+
+
+func get_enemy_population_owner_id() -> String:
+	return generated_object_id.strip_edges() if world_generated_mode else ""
+
+
+func get_enemy_population_profile() -> EnemyPopulationProfile:
+	return population_profile
+
+
+func get_enemy_spawn_markers() -> Array:
+	var records: Array[EnemySpawnMarkerRecord] = []
+	for node in get_tree().get_nodes_in_group("enemy_population_marker"):
+		if node is EnemySpawnMarker and is_ancestor_of(node):
+			records.append((node as EnemySpawnMarker).to_population_record())
+	records.sort_custom(func(a: EnemySpawnMarkerRecord, b: EnemySpawnMarkerRecord): return a.marker_id < b.marker_id)
+	return records
+
+
+func apply_enemy_population_manifest(manifest: EnemyPopulationManifest) -> Dictionary:
+	if not world_generated_mode: return {"valid":false,"errors":["NOT_WORLD_GENERATED_CAMP"]}
+	if manifest == null or manifest.owner_generated_object_id != get_enemy_population_owner_id() or population_profile == null or manifest.profile_id != population_profile.profile_id: return {"valid":false,"errors":["MANIFEST_OWNER_OR_PROFILE_MISMATCH"]}
+	if applied_population_manifest != null:
+		return {"valid":applied_population_manifest.manifest_hash()==manifest.manifest_hash(),"errors":[] if applied_population_manifest.manifest_hash()==manifest.manifest_hash() else ["CONFLICTING_POPULATION_MANIFEST"]}
+	var markers := {}; for marker in get_enemy_spawn_markers(): markers[marker.marker_id]=true
+	var ids := {}
+	for record in manifest.records:
+		if ids.has(record.population_id) or not markers.has(record.marker_id): return {"valid":false,"errors":["DUPLICATE_POPULATION_ID_OR_UNKNOWN_MARKER"]}
+		ids[record.population_id]=true
+		var scene := load(record.enemy_resource_key) as PackedScene
+		if scene == null: return {"valid":false,"errors":["MISSING_ENEMY_SCENE"]}
+		var actor := scene.instantiate() as Node2D
+		if actor == null: return {"valid":false,"errors":["INVALID_ENEMY_SCENE"]}
+		actor.position=to_local(record.position)
+		actor.set_meta("population_id",record.population_id); actor.set_meta("population_owner_id",record.owner_generated_object_id); actor.set_meta("population_marker_id",record.marker_id); actor.set_meta("population_entry_id",record.enemy_entry_id); actor.set_meta("population_manifest_hash",manifest.manifest_hash()); actor.set_meta("population_state",record.initial_state); actor.add_to_group("camp_generated_population"); actor.add_to_group("generated_world_object"); actor.set_meta("world_generation_id",record.population_id); actor.set_meta("world_generation_scene_path",record.enemy_resource_key); actor.set_multiplayer_authority(1)
+		_population_states[record.population_id]="alive"
+		if actor.has_signal("died"): actor.died.connect(func(_enemy): mark_population_killed(record.population_id))
+		add_child(actor)
+	applied_population_manifest=manifest
+	return {"valid":true,"errors":[]}
+
+
+func clear_enemy_population() -> void:
+	for child in get_children():
+		if child.is_in_group("camp_generated_population"): child.queue_free()
+	applied_population_manifest=null
+	_population_states.clear()
+
+func get_population_persistence_key()->String:return PopulationPersistence.get_persistence_key(get_enemy_population_owner_id())
+func get_population_states()->Dictionary:return _population_states.duplicate(true)
+func serialize_population_state()->Dictionary:return PopulationPersistence.serialize_camp(self)
+func get_save_key() -> String:
+	return PopulationPersistence.get_persistence_key(generated_object_id) if world_generated_mode else ""
+func get_save_data() -> Dictionary:
+	return serialize_population_state() if world_generated_mode and applied_population_manifest != null else {}
+func apply_save_data(data: Dictionary) -> void:
+	if not world_generated_mode or data.is_empty(): return
+	var result := restore_population_state(data)
+	if not result.valid: push_error("BanditBase restore failed: %s" % result.errors)
+func restore_population_state(data:Dictionary)->Dictionary:return PopulationPersistence.restore_camp(self,data)
+func mark_population_killed(population_id:String)->Dictionary:return _mark_population_state(population_id,"killed")
+func mark_population_despawned(population_id:String)->Dictionary:return _mark_population_state(population_id,"despawned")
+func _mark_population_state(population_id:String,state:String)->Dictionary:
+	if applied_population_manifest==null or not _population_states.has(population_id):return {"valid":false,"errors":["UNKNOWN_POPULATION_ID"]}
+	_population_states[population_id]=state
+	if world_generated_mode: GameSaveManager.record_world_generation_object_state(self)
+	if state=="despawned":
+		for child in get_children():if child.get_meta("population_id","")==population_id:child.queue_free()
+	return {"valid":true,"errors":[]}
+func restore_persisted_population_state(manifest:EnemyPopulationManifest,states:Dictionary)->Dictionary:
+	if applied_population_manifest!=null and applied_population_manifest.manifest_hash()!=manifest.manifest_hash():return {"valid":false,"errors":["INCOMPATIBLE_MATERIALIZED_POPULATION"]}
+	if applied_population_manifest==null:
+		var marker_ids := {}; for marker in get_enemy_spawn_markers(): marker_ids[marker.marker_id]=true
+		for record in manifest.records:
+			if not marker_ids.has(record.marker_id): return {"valid":false,"errors":["UNKNOWN_SAVED_MARKER"]}
+		if population_profile!=null and population_profile.profile_id!=manifest.profile_id: push_warning("BanditBase: saved population manifest profile differs; saved state takes priority")
+		for record in manifest.records:
+			if String(states.get(record.population_id,"alive"))!="alive":continue
+			var scene:=load(record.enemy_resource_key) as PackedScene;if scene==null:return {"valid":false,"errors":["MISSING_ENEMY_SCENE"]}
+			var actor:=scene.instantiate() as Node2D;actor.position=to_local(record.position);actor.set_meta("population_id",record.population_id);actor.set_meta("population_owner_id",record.owner_generated_object_id);actor.set_meta("population_marker_id",record.marker_id);actor.set_meta("population_entry_id",record.enemy_entry_id);actor.set_meta("population_manifest_hash",manifest.manifest_hash());actor.set_meta("population_state","alive");actor.add_to_group("camp_generated_population");add_child(actor)
+			if actor.has_signal("died"):actor.died.connect(func(_enemy):mark_population_killed(record.population_id))
+		applied_population_manifest=manifest
+	_population_states=states.duplicate(true)
+	for child in get_children():
+		var id := String(child.get_meta("population_id", ""))
+		if not id.is_empty() and String(states.get(id, "alive")) != "alive":
+			remove_child(child)
+			child.queue_free()
+	return {"valid":true,"errors":[]}
 
 
 func _process(_delta: float) -> void:

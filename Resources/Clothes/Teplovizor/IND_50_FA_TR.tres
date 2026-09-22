@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bxakllsamqjba"]
+
+[ext_resource type="Texture2D" uid="uid://ctm7tdm44k3hd" path="res://Assets/itemAssets/inventory_icon/Clothes/Teplovizor/IND_50_FA_TR_Wrd.png" id="1_world"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="2_item_data"]
+[ext_resource type="SpriteFrames" uid="uid://buaumanm5aqrf" path="res://Resources/Clothes/Teplovizor/IND_50_FA_TR_Sprites.tres" id="3_frames"]
+[ext_resource type="Texture2D" uid="uid://bx8kslkl47kmy" path="res://Assets/itemAssets/inventory_icon/Clothes/Teplovizor/IND_50_FA_TR_Inv.png" id="4_inventory"]
+
+[resource]
+script = ExtResource("2_item_data")
+storage_category = 2
+can_be_stored_in_clothing = false
+item_name = "IND-50 FA TR"
+world_icon = ExtResource("1_world")
+inventory_icon = ExtResource("4_inventory")
+item_weight = 2.4
+clothing_warmth = 2.0
+clothing_armor = 5.0
+description = "Шлем IND-50 FA с установленным тепловизором. Для работы нужна батарейка."
+item_type = 8
+equipped_frames = ExtResource("3_frames")
+enables_thermal_vision = true
+accepts_thermal_battery = true
+thermal_battery_required = true
+thermal_vision_equipped_frames = ExtResource("3_frames")

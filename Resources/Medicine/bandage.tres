@@ -11,5 +11,6 @@ item_name = "Бинт"
 world_icon = ExtResource("3_3f4mj")
 inventory_icon = ExtResource("1_dtrjp")
 inventory_icon_scale = 0.8
+item_weight = 0.08
 medical_use_time_sec = 5.0
 medical_stop_bleeding = true

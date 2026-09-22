@@ -1,0 +1,11 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+[STUTTER_MONITOR] enabled=true threshold_ms=25.0 freeze_ms=120.0 summary_sec=5.0 log=C:/Users/belak/AppData/Roaming/Godot/app_userdata/Dead Spark/logs/stutter_monitor.log scene=res://tests/forest_distribution_test.tscn
+Current platform / OS name: Windows
+FOREST_DENSITY seed=1337 old=889 new=4256
+FOREST_DENSITY seed=42 old=878 new=4248
+FOREST_DENSITY seed=2026 old=864 new=4141
+FOREST_DISTRIBUTION_TEST=PASS
+[STUTTER_FREEZE] t=125158ms frame=145.19ms fps=1 process=0.00ms physics=0.00ms draws=0 render_objs=0 nodes=9964 orphans=0 objects=15788 static_mb=440.03 vram_mb=0.00 msg_mb=6.81 chunks=0 pending=0 scheduler_queue=0 scheduler_tasks=0 scheduler_ms=0.00 recent=recent_tasks=[]
+[STUTTER_SUMMARY] t=125205ms spikes=1 freezes=1 max_frame=145.19ms avg_fps=1 frame=0.00ms process=1.82ms physics=0.00ms draws=0 render_objs=0 nodes=8 orphans=9956 static_mb=435.09 vram_mb=0.00 msg_mb=6.81 chunks=0 pending=0 scheduler_queue=0 scheduler_ms=0.01 recent=recent_tasks=[]
+[STUTTER_MONITOR] session_end uptime_ms=125205

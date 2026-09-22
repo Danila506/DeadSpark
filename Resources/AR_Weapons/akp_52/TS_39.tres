@@ -1,4 +1,4 @@
-[gd_resource type="Resource" format=3 uid="uid://2j5imsd7x5g5"]
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://2j5imsd7x5g5"]
 
 [ext_resource type="Texture2D" uid="uid://edlfhovnuc5l" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_52/scope_TS_39Inv.png" id="1_inv"]
 [ext_resource type="Texture2D" uid="uid://b2jki5omgwyvh" path="res://Assets/itemAssets/inventory_icon/AR_Weapon/akp_52/scope_TS_39OnWeapon.png" id="2_weapon"]
@@ -12,8 +12,10 @@ item_name = "Прицел TS-39"
 world_icon = ExtResource("4_world")
 inventory_icon = ExtResource("1_inv")
 inventory_icon_scale = 0.8
+item_weight = 0.45
 is_scope_attachment = true
 mounted_scope_texture = ExtResource("2_weapon")
+mounted_scope_scale = Vector2(2, 2)
 mounted_scope_rotation_degrees = 180.0
 mounted_scope_flip_h = true
 mounted_scope_flip_v = true

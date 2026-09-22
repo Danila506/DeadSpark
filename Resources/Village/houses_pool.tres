@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="VillageObjectPool" format=3 uid="uid://deo3oi1dcbeeu"]
+
+[ext_resource type="Script" uid="uid://dtpfrjypb8e7i" path="res://Villages/Scripts/village_object_pool.gd" id="1"]
+[ext_resource type="Script" uid="uid://bymmpay55q4lq" path="res://Villages/Scripts/village_object_entry.gd" id="2"]
+[ext_resource type="PackedScene" uid="uid://5agijmgrakp3" path="res://World/Assets/Houses/House1/house_1.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://bcms7gcpkacsg" path="res://World/Assets/Houses/TwoStoriedHouse/twoStoriedHouse.tscn" id="4"]
+
+[sub_resource type="Resource" id="a"]
+script = ExtResource("2")
+scene = ExtResource("3")
+entry_id = "house_1"
+
+[sub_resource type="Resource" id="b"]
+script = ExtResource("2")
+scene = ExtResource("4")
+entry_id = "two_storied_house"
+
+[resource]
+script = ExtResource("1")
+entries = Array[ExtResource("2")]([SubResource("a"), SubResource("b")])
+pool_id = "houses_pool"

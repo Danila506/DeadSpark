@@ -5,6 +5,22 @@
 [ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="3_item_data"]
 [ext_resource type="Texture2D" uid="uid://c87sui7n5a3xw" path="res://Assets/itemAssets/on_world_icon/Clothes/ushankaWrd.png" id="4_cap_world"]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_down"]
+atlas = ExtResource("1_cap_anim")
+region = Rect2(96, 288, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_left"]
+atlas = ExtResource("1_cap_anim")
+region = Rect2(128, 288, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_right"]
+atlas = ExtResource("1_cap_anim")
+region = Rect2(160, 288, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_up"]
+atlas = ExtResource("1_cap_anim")
+region = Rect2(64, 288, 32, 32)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_fm5nm"]
 atlas = ExtResource("1_cap_anim")
 region = Rect2(64, 96, 32, 32)
@@ -101,6 +117,38 @@ region = Rect2(128, 352, 32, 32)
 animations = [{
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_down")
+}],
+"loop": true,
+"name": &"Aim_down",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_left")
+}],
+"loop": true,
+"name": &"Aim_left",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_right")
+}],
+"loop": true,
+"name": &"Aim_right",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_up")
+}],
+"loop": true,
+"name": &"Aim_up",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_fm5nm")
 }, {
 "duration": 1.0,
@@ -114,7 +162,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Down",
-"speed": 5.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -163,7 +211,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Left",
-"speed": 5.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -180,7 +228,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Right",
-"speed": 5.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -197,7 +245,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Up",
-"speed": 5.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -226,5 +274,7 @@ can_be_stored_in_clothing = false
 item_name = "Ушанка"
 world_icon = ExtResource("4_cap_world")
 inventory_icon = ExtResource("2_cap_inv")
+item_weight = 0.25
+clothing_warmth = 7.0
 item_type = 8
 equipped_frames = SubResource("SpriteFrames_cap")

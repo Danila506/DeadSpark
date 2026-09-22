@@ -11,5 +11,6 @@ item_name = "Медицинская Шина"
 world_icon = ExtResource("3_u437a")
 inventory_icon = ExtResource("1_qrclg")
 inventory_icon_scale = 0.8
+item_weight = 0.35
 medical_use_time_sec = 10.0
 medical_heal_fracture = true

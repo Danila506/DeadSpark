@@ -22,6 +22,7 @@ item_name = "VSS"
 world_icon = ExtResource("13_bugrj")
 inventory_icon = ExtResource("10_icnla")
 inventory_icon_rotation_degrees = -45.0
+item_weight = 2.6
 ammo_type = "akp103"
 item_type = 0
 equipped_frames = ExtResource("9_53glh")

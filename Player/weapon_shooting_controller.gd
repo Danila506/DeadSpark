@@ -3,6 +3,7 @@ class_name WeaponShootingController
 
 const AKP_103_RESOURCE_PATH: String = "res://Resources/AR_Weapons/akp_103/akp_103.tres"
 const AKP_103_SILENCED_SHOT_SOUND: AudioStream = preload("res://Assets/AudioWaw/WeaponSounds/akp_103/akp_103Silencer.wav")
+const SHELL_EJECTION_EFFECT = preload("res://Effects/shell_ejection_effect.gd")
 const MIN_BULLET_DISTANCE: float = 8.0
 
 var controller
@@ -18,6 +19,8 @@ func update_shoot_cooldown(delta: float) -> void:
 
 
 func try_shoot() -> void:
+	if controller.player != null and controller.player.action_in_progress:
+		return
 	if controller.current_melee_weapon != null:
 		return
 	if not controller.is_aiming:
@@ -43,6 +46,8 @@ func shoot(
 	apply_ammo_and_durability: bool = true,
 	projectile_damage_override: float = -1.0
 ) -> bool:
+	if controller.is_reloading or (controller.player != null and controller.player.action_in_progress):
+		return false
 	if controller.current_weapon == null:
 		return false
 
@@ -60,15 +65,14 @@ func shoot(
 		spawn_pos = controller.player.global_position
 
 	spawn_projectiles(spawn_pos, base_direction, projectile_damage_override)
+	spawn_shell_ejection(spawn_pos, base_direction)
 	play_shot_sfx()
 
 	if apply_ammo_and_durability:
 		var updated_ammo_in_mag: int = ammo_in_mag - 1
 		var reserve_ammo: int = controller._get_reserve_ammo()
 		controller._set_ammo_state(updated_ammo_in_mag, reserve_ammo)
-		var active_weapon_slot: int = InventoryManager.get_active_weapon_slot()
-		var weapon_broken: bool = InventoryManager.apply_endurance_percent_loss_to_equipped(
-			active_weapon_slot,
+		var weapon_broken: bool = controller._apply_current_weapon_endurance_loss(
 			controller.current_weapon.weapon_endurance_loss_percent_per_shot
 		)
 		if weapon_broken:
@@ -77,6 +81,16 @@ func shoot(
 			return true
 	emit_player_shot_noise()
 	return true
+
+
+func spawn_shell_ejection(spawn_pos: Vector2, base_direction_override: Vector2 = Vector2.ZERO) -> void:
+	if controller.current_weapon == null:
+		return
+	var shot_direction: Vector2 = base_direction_override
+	if shot_direction == Vector2.ZERO:
+		shot_direction = controller._get_direction_to_aim_target(spawn_pos)
+	var is_shotgun_shell: bool = controller.current_weapon.pellets_per_shot > 1
+	SHELL_EJECTION_EFFECT.spawn(controller.get_tree(), spawn_pos, shot_direction, is_shotgun_shell)
 
 
 func setup_shoot_sfx() -> void:

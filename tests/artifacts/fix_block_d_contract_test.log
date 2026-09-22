@@ -1,0 +1,119 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+[STUTTER_MONITOR] enabled=true threshold_ms=25.0 freeze_ms=120.0 summary_sec=5.0 log=C:/Users/belak/AppData/Roaming/Godot/app_userdata/Dead Spark/logs/stutter_monitor.log scene=res://tests/block_d_contract_test.tscn
+Current platform / OS name: Windows
+[STUTTER_FREEZE] t=76ms frame=145.10ms fps=1 process=0.00ms physics=0.00ms draws=0 render_objs=0 nodes=27 orphans=0 objects=1587 static_mb=27.38 vram_mb=0.00 msg_mb=0.01 chunks=0 pending=0 scheduler_queue=0 scheduler_tasks=0 scheduler_ms=0.00 recent=recent_tasks=[]
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile=<missing> entry=<profile> stable_id=<none> seed=1 reason=VALIDATION detail=MISSING_PROFILE
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:39)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:138)
+       [5] _run (res://tests/block_d_contract_test.gd:20)
+       [6] _test_exclusions_bounds_spacing_and_rejections (res://tests/block_d_contract_test.gd:123)
+       [7] _dispose (res://tests/block_d_contract_test.gd:67)
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile= entry=<profile> stable_id=<none> seed=1 reason=VALIDATION detail=INVALID_PROFILE
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:39)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:138)
+       [5] _dispose (res://tests/block_d_contract_test.gd:67)
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile=p entry=<profile> stable_id=<none> seed=1 reason=VALIDATION detail=MISSING_ENTRY_ID_OR_CATEGORY:
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:39)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:138)
+       [5] _dispose (res://tests/block_d_contract_test.gd:67)
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile=p entry=<profile> stable_id=<none> seed=1 reason=VALIDATION detail=DUPLICATE_ENTRY_ID:same
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:39)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:138)
+       [5] _dispose (res://tests/block_d_contract_test.gd:67)
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile=p entry=<profile> stable_id=<none> seed=1 reason=VALIDATION detail=INVALID_PROFILE:negative
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:39)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:138)
+       [5] _dispose (res://tests/block_d_contract_test.gd:67)
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile=p entry=<profile> stable_id=<none> seed=1 reason=VALIDATION detail=INVALID_PROFILE:budget
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:39)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:138)
+       [5] _dispose (res://tests/block_d_contract_test.gd:67)
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile=p entry=<profile> stable_id=<none> seed=1 reason=VALIDATION detail=UNKNOWN_CATEGORY:unknown
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:39)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:138)
+       [5] _dispose (res://tests/block_d_contract_test.gd:67)
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile=p entry=<profile> stable_id=<none> seed=1 reason=VALIDATION detail=INVALID_PROFILE:spacing
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:39)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:138)
+       [5] _dispose (res://tests/block_d_contract_test.gd:67)
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile=p entry=<profile> stable_id=<none> seed=1 reason=VALIDATION detail=INVALID_PROFILE:footprint
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:39)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:138)
+       [5] _dispose (res://tests/block_d_contract_test.gd:67)
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile=p entry=<profile> stable_id=<none> seed=1 reason=VALIDATION detail=INVALID_OCCUPANCY_MASK:mask
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:39)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:138)
+       [5] _dispose (res://tests/block_d_contract_test.gd:67)
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile=contract_environment entry=<profile> stable_id=<none> seed=1 reason=VALIDATION detail=MISSING_SCENE:missing_resource
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:39)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:142)
+       [5] _dispose (res://tests/block_d_contract_test.gd:67)
+ERROR: EnvironmentGenerationPass blocking error stage=environment profile=contract_environment entry=<occupancy> stable_id=<none> seed=1 reason=MISSING_OCCUPANCY detail=occupancy unavailable
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _blocking (res://World/Generation/environment_generation_pass.gd:443)
+       [1] _prepare_generation (res://World/Generation/environment_generation_pass.gd:43)
+       [2] run_generation_pass (res://World/Generation/environment_generation_pass.gd:95)
+       [3] _run_pass (res://tests/block_d_contract_test.gd:64)
+       [4] _test_validation_and_resource_before_claim (res://tests/block_d_contract_test.gd:150)
+       [5] _dispose (res://tests/block_d_contract_test.gd:67)
+[STUTTER_SPIKE] t=522ms frame=43.99ms fps=43 process=55.47ms physics=66.25ms draws=0 render_objs=0 nodes=17 orphans=0 objects=1577 static_mb=27.20 vram_mb=0.00 msg_mb=0.01 chunks=0 pending=0 scheduler_queue=0 scheduler_tasks=0 scheduler_ms=0.00 recent=recent_tasks=[]
+BLOCK_D_CONTRACT_TEST=PASS
+[STUTTER_SUMMARY] t=529ms spikes=4 freezes=1 max_frame=145.10ms avg_fps=43 frame=0.00ms process=55.47ms physics=66.25ms draws=0 render_objs=0 nodes=8 orphans=9 static_mb=27.17 vram_mb=0.00 msg_mb=0.01 chunks=0 pending=0 scheduler_queue=0 scheduler_ms=0.00 recent=recent_tasks=[]
+[STUTTER_MONITOR] session_end uptime_ms=530

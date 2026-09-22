@@ -2,18 +2,6 @@
 
 [ext_resource type="Texture2D" uid="uid://8ce661mopgn" path="res://Assets/itemAssets/animation_sprites/weapon/AR_Weapon/SVT_50.png" id="1_uoswe"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_liwoh"]
-atlas = ExtResource("1_uoswe")
-region = Rect2(64, 352, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_4xngq"]
-atlas = ExtResource("1_uoswe")
-region = Rect2(96, 352, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_0nv2g"]
-atlas = ExtResource("1_uoswe")
-region = Rect2(128, 352, 32, 32)
-
 [sub_resource type="AtlasTexture" id="AtlasTexture_4t34w"]
 atlas = ExtResource("1_uoswe")
 region = Rect2(96, 288, 32, 32)
@@ -110,22 +98,20 @@ region = Rect2(128, 128, 32, 32)
 atlas = ExtResource("1_uoswe")
 region = Rect2(160, 128, 32, 32)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_liwoh"]
+atlas = ExtResource("1_uoswe")
+region = Rect2(64, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4xngq"]
+atlas = ExtResource("1_uoswe")
+region = Rect2(96, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0nv2g"]
+atlas = ExtResource("1_uoswe")
+region = Rect2(128, 352, 32, 32)
+
 [resource]
 animations = [{
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_liwoh")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_4xngq")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_0nv2g")
-}],
-"loop": true,
-"name": &"Using",
-"speed": 5.0
-}, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_4t34w")
@@ -257,6 +243,20 @@ animations = [{
 "loop": true,
 "name": &"Up",
 "speed": 11.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_liwoh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4xngq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0nv2g")
+}],
+"loop": true,
+"name": &"Using",
+"speed": 5.0
 }, {
 "frames": [],
 "loop": true,

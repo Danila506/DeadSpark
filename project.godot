@@ -29,6 +29,9 @@ WorldGenerationScheduler="*res://Autoloads/WorldGenerationScheduler.gd"
 NetworkManager="*res://Autoloads/NetworkManager.gd"
 NodeCleanupQueue="*res://Autoloads/NodeCleanupQueue.gd"
 FpsOverlay="*res://Autoloads/FpsOverlay.gd"
+MCPRuntimeBridge="*res://addons/godot_mcp/services/mcp_runtime_bridge.gd"
+MCPInputBridge="*res://addons/godot_mcp/services/mcp_input_bridge.gd"
+MCPScreenshotBridge="*res://addons/godot_mcp/services/mcp_screenshot_bridge.gd"
 
 [display]
 
@@ -39,11 +42,12 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/inspector_descriptions/plugin.cfg")
+enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg", "res://addons/inspector_descriptions/plugin.cfg", "res://addons/worldgen_poi_tools/plugin.cfg")
 
 [file_customization]
 
 folder_colors={
+"res://Enemies/Zombies/": "green",
 "res://Smartphone/": "red"
 }
 

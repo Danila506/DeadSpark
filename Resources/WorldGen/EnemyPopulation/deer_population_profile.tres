@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EnemyPopulationProfile" format=3 uid="uid://n418d2h6r3hl"]
+
+[ext_resource type="Script" uid="uid://dejwg2x2pqtt3" path="res://World/Generation/enemy_population_profile.gd" id="1"]
+[ext_resource type="Script" uid="uid://csh3rflrlxeku" path="res://World/Generation/enemy_population_entry.gd" id="2"]
+[ext_resource type="PackedScene" uid="uid://dwsjbxuseq06n" path="res://Animals/Deer/Deer.tscn" id="3"]
+
+[sub_resource type="Resource" id="DeerEntry"]
+script = ExtResource("2")
+entry_id = "deer"
+enemy_scene = ExtResource("3")
+allowed_marker_tags = Array[String](["wildlife", "forest", "land"])
+
+[resource]
+script = ExtResource("1")
+profile_id = "deer_population_v1"
+entries = Array[ExtResource("2")]([SubResource("DeerEntry")])
+max_total_count = 4
+allow_empty = true
+spawn_budget = 4

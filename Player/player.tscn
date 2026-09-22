@@ -11,7 +11,7 @@
 [ext_resource type="Texture2D" uid="uid://cwjuqw3d42qq6" path="res://Assets/itemAssets/animation_sprites/clothes/jacket.png" id="5_k53q1"]
 [ext_resource type="Texture2D" uid="uid://b1kplc7tsp8o2" path="res://Assets/itemAssets/animation_sprites/clothes/maBoyJacket.png" id="7_dkpta"]
 [ext_resource type="Texture2D" uid="uid://ch4csymaq7k02" path="res://Assets/itemAssets/animation_sprites/clothes/dzhinsy.png" id="7_od3ui"]
-[ext_resource type="Texture2D" uid="uid://h1ua6g5c0fyw" path="res://Assets/itemAssets/animation_sprites/clothes/bulletproof.png" id="8_00tjw"]
+[ext_resource type="Texture2D" uid="uid://h1ua6g5c0fyw" path="res://Assets/itemAssets/animation_sprites/clothes/bulletproofs/bulletproof.png" id="8_00tjw"]
 [ext_resource type="Texture2D" uid="uid://mljtt5xruus6" path="res://Assets/itemAssets/animation_sprites/weapon/Meele/runAxe.png" id="9_5htga"]
 [ext_resource type="Texture2D" uid="uid://ccsghy5qcpqig" path="res://Assets/itemAssets/animation_sprites/clothes/bagSprites.png" id="9_x3vf3"]
 [ext_resource type="Texture2D" uid="uid://bc5sbr8qt25cg" path="res://Assets/itemAssets/animation_sprites/clothes/ushanka_cap.png" id="10_apopc"]
@@ -2627,6 +2627,7 @@ offset_right = 16.0
 offset_bottom = -29.0
 
 [node name="ActionBarFill" type="TextureProgressBar" parent="ActionBarRoot" unique_id=1762220649]
+step = 0.0
 layout_mode = 0
 offset_left = 4.0
 offset_top = 6.5

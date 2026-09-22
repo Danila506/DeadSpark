@@ -1,0 +1,4 @@
+[gd_scene format=3]
+[ext_resource type="Script" path="res://tests/loot_container_scene_integration_test.gd" id="1"]
+[node name="LootContainerSceneIntegrationTest" type="Node"]
+script = ExtResource("1")

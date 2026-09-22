@@ -1,4 +1,6 @@
 extends Node2D
+const ProviderContract = preload("res://World/Generation/loot_container_provider_contract.gd")
+const LootPersistence = preload("res://World/Generation/loot_container_persistence.gd")
 
 @onready var box_closed_sprite: Sprite2D = $Box
 @onready var box_closed_outline_sprite: Sprite2D = $BoxOutline
@@ -18,15 +20,22 @@ extends Node2D
 ]
 @export var loot_pool: Array[ItemData] = []
 @export var persistent_id: String = ""
+@export var world_generated_loot := false
+@export var generated_container_id := ""
+@export var loot_profile: LootProfile = preload("res://Resources/WorldGen/Loot/box_loot_profile.tres")
+@export var loot_slot_ids: Array[String] = ["slot_00", "slot_01", "slot_02", "slot_03", "slot_04", "slot_05", "slot_06", "slot_07", "slot_08", "slot_09"]
 
 var player_near_box: bool = false
 var box_opened: bool = false
 var loot_initialized: bool = false
 var loot_slots: Array[ItemData] = []
+var _loot_manifest: LootContainerManifest
+var _loot_persistence_state := LootPersistence.STATE_UNOPENED
+var _removed_loot_slot_ids: Array[String] = []
 
 
 func _ready() -> void:
-	randomize()
+	if not world_generated_loot: randomize()
 	add_to_group("primary_interactable")
 	interact_area.body_entered.connect(_on_interact_area_body_entered)
 	interact_area.body_exited.connect(_on_interact_area_body_exited)
@@ -51,13 +60,14 @@ func handle_primary_interaction(interactor: Node) -> bool:
 
 	box_opened = true
 	_ensure_loot()
+	mark_loot_opened()
 	_set_loot_panel_state(true)
 	_update_box_visual()
 	return true
 
 
 func _on_interact_area_body_entered(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not ProviderContract.is_local_interactor(body):
 		return
 
 	player_near_box = true
@@ -65,7 +75,7 @@ func _on_interact_area_body_entered(body: Node) -> void:
 
 
 func _on_interact_area_body_exited(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not ProviderContract.is_local_interactor(body):
 		return
 
 	player_near_box = false
@@ -98,13 +108,23 @@ func _set_loot_panel_state(active: bool) -> void:
 		return
 
 	if active and inventory_root.has_method("open_loot_slots"):
-		inventory_root.call("open_loot_slots", loot_slots)
-	elif inventory_root.has_method("set_loot_context_active"):
-		inventory_root.call("set_loot_context_active", false)
+		inventory_root.call("open_loot_slots", loot_slots, self)
+	elif inventory_root.has_method("close_loot_for"):
+		inventory_root.call("close_loot_for", self)
 
 
 func _ensure_loot() -> void:
+	if multiplayer.multiplayer_peer != null and not NetworkManager.is_server():
+		return
 	if loot_initialized:
+		return
+	if world_generated_loot:
+		push_error("Box: world-generated loot requires an applied LootContainerManifest")
+		return
+
+	if loot_profile != null:
+		loot_slots = LootPopulationPass.roll_standalone_items(loot_profile, loot_slot_count)
+		loot_initialized = true
 		return
 
 	loot_initialized = true
@@ -153,6 +173,111 @@ func _ensure_loot() -> void:
 
 		var item_instance: ItemData = template_item.create_instance(1)
 		loot_slots[slot_index] = item_instance
+
+func get_loot_container_id() -> String: return generated_container_id.strip_edges()
+func get_loot_profile() -> LootProfile: return loot_profile
+func get_existing_loot_manifest() -> LootContainerManifest: return _loot_manifest
+func has_materialized_loot() -> bool: return loot_initialized
+func get_loot_slot_bindings() -> Dictionary:
+	var result := {}; var ids := loot_slot_ids.duplicate(); ids.sort()
+	for i in range(ids.size()): result[ids[i]] = i
+	return result
+func apply_loot_manifest(manifest: LootContainerManifest) -> Dictionary:
+	var validation: Dictionary = ProviderContract.validate(self)
+	if not validation.valid: return {"valid":false,"errors":validation.errors}
+	if manifest == null or manifest.container_generated_id != get_loot_container_id() or manifest.profile_id != loot_profile.profile_id: return {"valid":false,"errors":["MANIFEST_ID_OR_PROFILE_MISMATCH"]}
+	if _loot_manifest != null:
+		return {"valid":_loot_manifest.manifest_hash() == manifest.manifest_hash(),"errors":[] if _loot_manifest.manifest_hash() == manifest.manifest_hash() else ["CONFLICTING_MANIFEST"]}
+	var bindings := get_loot_slot_bindings(); var ids := {}; loot_slots.clear(); loot_slots.resize(loot_slot_count)
+	for record in manifest.slots:
+		if ids.has(record.slot_id) or not bindings.has(record.slot_id): return {"valid":false,"errors":["DUPLICATE_OR_UNKNOWN_MANIFEST_SLOT"]}
+		ids[record.slot_id] = true; var item := load(record.item_resource_key) as ItemData
+		if item == null: return {"valid":false,"errors":["MISSING_ITEM_RESOURCE"]}
+		var instance := item.create_instance(record.quantity); instance.set_meta("loot_container_id", manifest.container_generated_id); instance.set_meta("loot_slot_id", record.slot_id); instance.set_meta("loot_manifest_hash", manifest.manifest_hash()); loot_slots[int(bindings[record.slot_id])] = instance
+	_loot_manifest = manifest; loot_initialized = true; return {"valid":true,"errors":[]}
+
+
+func get_loot_persistence_key() -> String:
+	return LootPersistence.get_persistence_key(get_loot_container_id())
+
+
+func get_loot_persistence_state() -> String:
+	return _loot_persistence_state
+
+
+func set_loot_persistence_state(state: String) -> void:
+	_loot_persistence_state = state
+
+
+func get_removed_loot_slot_ids() -> Array[String]:
+	return _removed_loot_slot_ids.duplicate()
+
+
+func serialize_loot_state() -> Dictionary:
+	return LootPersistence.serialize_provider_state(self)
+
+
+func restore_loot_state(data: Dictionary) -> Dictionary:
+	return LootPersistence.restore_provider_state(self, data)
+
+
+func mark_loot_opened() -> Dictionary:
+	return LootPersistence.mark_opened(self)
+
+
+func record_loot_slot_removed(slot_id: String) -> Dictionary:
+	return LootPersistence.mark_slot_removed(self, slot_id)
+
+
+func record_persisted_loot_slot_removal(slot_id: String) -> Dictionary:
+	var bindings := get_loot_slot_bindings()
+	if not bindings.has(slot_id) or _loot_manifest == null or not _manifest_has_slot(slot_id):
+		return {"valid": false, "errors": ["UNKNOWN_SLOT"]}
+	if not _removed_loot_slot_ids.has(slot_id):
+		_removed_loot_slot_ids.append(slot_id)
+		_removed_loot_slot_ids.sort()
+	loot_slots[int(bindings[slot_id])] = null
+	_loot_persistence_state = LootPersistence.STATE_PARTIALLY_EMPTIED
+	return {"valid": true, "errors": []}
+
+
+func restore_persisted_loot_state(manifest: LootContainerManifest, state: String, removed_slot_ids: Array[String]) -> Dictionary:
+	if _loot_manifest != null and _loot_manifest.manifest_hash() != manifest.manifest_hash():
+		return {"valid": false, "errors": ["INCOMPATIBLE_MATERIALIZED_STATE"]}
+	if _loot_manifest == null:
+		loot_slots.clear()
+		loot_slots.resize(loot_slot_count)
+		var bindings := get_loot_slot_bindings()
+		for record in manifest.slots:
+			if record.item_resource_key.is_empty() or not ResourceLoader.exists(record.item_resource_key):
+				return {"valid": false, "errors": ["UNKNOWN_ITEM_RESOURCE"]}
+			var item := load(record.item_resource_key) as ItemData
+			if item == null:
+				return {"valid": false, "errors": ["UNKNOWN_ITEM_RESOURCE"]}
+			var instance := item.create_instance(record.quantity)
+			instance.set_meta("loot_container_id", manifest.container_generated_id)
+			instance.set_meta("loot_slot_id", record.slot_id)
+			instance.set_meta("loot_manifest_hash", manifest.manifest_hash())
+			loot_slots[int(bindings[record.slot_id])] = instance
+		_loot_manifest = manifest
+		loot_initialized = true
+	_removed_loot_slot_ids = removed_slot_ids.duplicate()
+	for slot_id in _removed_loot_slot_ids:
+		loot_slots[int(get_loot_slot_bindings()[slot_id])] = null
+	_loot_persistence_state = state
+	box_opened = false
+	_set_loot_panel_state(false)
+	_update_box_visual()
+	return {"valid": true, "errors": []}
+
+
+func _manifest_has_slot(slot_id: String) -> bool:
+	if _loot_manifest == null:
+		return false
+	for record in _loot_manifest.slots:
+		if record.slot_id == slot_id:
+			return true
+	return false
 
 
 func get_save_key() -> String:
@@ -213,3 +338,8 @@ func _deserialize_item_array(raw_items: Variant) -> Array[ItemData]:
 		else:
 			out.append(null)
 	return out
+
+
+func get_network_loot_items() -> Array[ItemData]:
+	_ensure_loot()
+	return loot_slots

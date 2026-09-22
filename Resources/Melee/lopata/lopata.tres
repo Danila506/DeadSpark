@@ -20,5 +20,6 @@ item_name = "Лопата"
 world_icon = SubResource("AtlasTexture_dji2s")
 world_icon_scale = 0.8
 inventory_icon = SubResource("AtlasTexture_w76sn")
+item_weight = 1.8
 item_type = 7
 equipped_frames = ExtResource("3_rk0md")

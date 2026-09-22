@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dddet1l5jrnfl"]
+
+[ext_resource type="Texture2D" uid="uid://dt3uhfu0xpbut" path="res://Assets/itemAssets/inventory_icon/MeeleWeapon/batInv.png" id="1_6lpf3"]
+[ext_resource type="Texture2D" uid="uid://bpxu3rwuicwan" path="res://Assets/itemAssets/on_world_icon/MeleeWeapon/batWrd.png" id="2_p4hqk"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="3_m4ojg"]
+[ext_resource type="SpriteFrames" uid="uid://dtgy8xk8t1ha8" path="res://Resources/Melee/Bat/batFrames.tres" id="4_vk1a8"]
+
+[resource]
+script = ExtResource("3_m4ojg")
+storage_category = 1
+can_be_stored_in_clothing = false
+item_name = "Бита"
+world_icon = ExtResource("2_p4hqk")
+world_icon_scale = 0.9
+inventory_icon = ExtResource("1_6lpf3")
+item_weight = 1.4
+weapon_endurance_loss_percent_per_melee_hit = 0.8
+description = "Простая деревянная бита. Не рубит деревья, но хорошо подходит для ближнего боя."
+item_type = 7
+equipped_frames = ExtResource("4_vk1a8")
+damage = 24.0
+magazine_size = 0
+reserve_ammo = 0

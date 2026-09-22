@@ -11,5 +11,6 @@ item_name = "Нож-секач"
 world_icon = ExtResource("3_world")
 inventory_icon = ExtResource("1_inventory")
 inventory_icon_scale = 0.85
+item_weight = 0.55
 can_be_held_in_left_hand = true
 can_skin_animals = true

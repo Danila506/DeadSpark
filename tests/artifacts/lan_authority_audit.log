@@ -1,0 +1,10 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+[STUTTER_MONITOR] enabled=true threshold_ms=25.0 freeze_ms=120.0 summary_sec=5.0 log=C:/Users/belak/AppData/Roaming/Godot/app_userdata/Dead Spark/logs/stutter_monitor.log scene=res://tests/lan_authority_audit.tscn
+Current platform / OS name: Windows
+LAN_AUDIT host_armor_affects_other_controller=true damage_before=50.0 damage_after=30.0
+LAN_AUDIT dead_tick_sends_no_final_snapshot=true alive_sent=1 dead_sent=0
+LAN_AUDIT local_transfer_before_rejected_commit=true host_lock_exists=false
+[STUTTER_FREEZE] t=47ms frame=133.33ms fps=1 process=0.00ms physics=0.00ms draws=0 render_objs=0 nodes=17 orphans=0 objects=1571 static_mb=28.29 vram_mb=0.00 msg_mb=0.00 chunks=0 pending=0 scheduler_queue=0 scheduler_tasks=0 scheduler_ms=0.00 recent=recent_tasks=[]
+[STUTTER_SUMMARY] t=48ms spikes=1 freezes=1 max_frame=133.33ms avg_fps=1 frame=0.00ms process=0.00ms physics=0.00ms draws=0 render_objs=0 nodes=8 orphans=9 static_mb=28.28 vram_mb=0.00 msg_mb=0.00 chunks=0 pending=0 scheduler_queue=0 scheduler_ms=0.00 recent=recent_tasks=[]
+[STUTTER_MONITOR] session_end uptime_ms=48

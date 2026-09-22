@@ -10,6 +10,7 @@ item_name = "Патроны Kar92l"
 world_icon = ExtResource("3_world")
 inventory_icon = ExtResource("1_inventory")
 inventory_icon_scale = 0.52
+item_weight = 0.03
 stack_count = 20
 max_stack_size = 20
 show_stack_count_in_inventory = true

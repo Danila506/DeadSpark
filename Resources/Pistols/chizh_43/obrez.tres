@@ -8,10 +8,10 @@
 [ext_resource type="Texture2D" uid="uid://by0iwuio78qtd" path="res://Assets/Sights/cursorMediumSpread.png" id="4_rusmc"]
 [ext_resource type="PackedScene" uid="uid://e3uqauak7fap" path="res://Projectile/projectile.tscn" id="5_y1m2j"]
 [ext_resource type="Texture2D" uid="uid://bdvvjqv5ne3vq" path="res://Assets/itemAssets/animation_sprites/weapon/Pistols/Обрез_ЧИЖ48.png" id="6_55adr"]
-[ext_resource type="Texture2D" uid="uid://ck45dwd5xk6i6" path="res://Assets/itemAssets/inventory_icon/Pistols/chizh48Inv.png" id="7_55adr"]
 [ext_resource type="Texture2D" uid="uid://cp160li2pvwfj" path="res://Assets/itemAssets/inventory_icon/bullets/ammoObrezInv.png" id="8_ammo"]
 [ext_resource type="Texture2D" uid="uid://benl4o1fe8ioj" path="res://Assets/itemAssets/animation_sprites/weapon/Pistols/Idl_s_obrezom.png" id="9_8g7bu"]
 [ext_resource type="Texture2D" uid="uid://b1kespsbmx42j" path="res://Assets/itemAssets/on_world_icon/bullets/ammoObrezWrd.png" id="9_ammo_world"]
+[ext_resource type="Texture2D" uid="uid://dubpwdy1g4fqf" path="res://Assets/itemAssets/inventory_icon/Pistols/chizhInv.png" id="10_l5avg"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_55adr"]
 atlas = ExtResource("6_55adr")
@@ -251,7 +251,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Left",
-"speed": 5.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -268,7 +268,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Right",
-"speed": 5.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -282,7 +282,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Up",
-"speed": 5.0
+"speed": 11.0
 }, {
 "frames": [],
 "loop": true,
@@ -301,8 +301,9 @@ storage_category = 1
 can_be_stored_in_clothing = false
 item_name = "Обрез ЧИЖ"
 world_icon = ExtResource("3_hka2d")
-inventory_icon = ExtResource("7_55adr")
+inventory_icon = ExtResource("10_l5avg")
 inventory_icon_rotation_degrees = -45.0
+item_weight = 2.4
 ammo_type = "obrez"
 item_type = 1
 equipped_frames = SubResource("SpriteFrames_fxhx3")

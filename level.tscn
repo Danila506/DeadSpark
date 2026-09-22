@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" uid="uid://bj0l7bwgc5amm" path="res://Enemies/Wolf/wolf.tscn" id="13_8b0r0"]
 [ext_resource type="Texture2D" uid="uid://beb0l7v4kjlo2" path="res://World/Assets/xz.png" id="14_fedht"]
 [ext_resource type="PackedScene" uid="uid://e3uqauak7fap" path="res://Projectile/projectile.tscn" id="17_fedht"]
+[ext_resource type="PackedScene" uid="uid://5agijmgrakp3" path="res://World/Assets/Houses/House1/house_1.tscn" id="18_4c15r"]
 [ext_resource type="Texture2D" uid="uid://b8c27l6m6swpl" path="res://World/Assets/тайлмап воды.png" id="22_fj6e6"]
 [ext_resource type="Texture2D" uid="uid://bnrt520qd0h0t" path="res://Assets/World/biom2.png" id="25_uuqa8"]
 [ext_resource type="Script" uid="uid://bpmu2s8ry3rap" path="res://World/snowfall_layer.gd" id="39_snowfall"]
@@ -339,7 +340,6 @@ world_mood_targets = Array[NodePath]([NodePath("SnowLayer"), NodePath(""), NodeP
 startup_hidden_nodes = Array[NodePath]([NodePath("SnowLayer"), NodePath(""), NodePath("Y-Sort_Objects/RoadLayer"), NodePath("Y-Sort_Objects"), NodePath("UI"), NodePath("Snowfall"), NodePath("Projectile")])
 
 [node name="NightCanvasModulate" type="CanvasModulate" parent="." unique_id=722370870]
-color = Color(0.35, 0.38, 0.5, 1)
 
 [node name="TimeOfDayManager" type="Node" parent="." unique_id=1586729882]
 script = ExtResource("44_time_of_day")
@@ -364,9 +364,7 @@ y_sort_enabled = true
 y_sort_enabled = true
 script = ExtResource("8_i2t4f")
 pickup_scene = ExtResource("6_km5ld")
-spawn_count = 10
-spawn_all_possible_items_near_player = true
-spawn_all_item_resources_from_resources = true
+spawn_count = 0
 spawn_all_near_player_spacing = 74.0
 spawn_all_near_player_offset = Vector2(420, 0)
 
@@ -476,10 +474,15 @@ y_sort_enabled = true
 
 [node name="Wolf" parent="Y-Sort_Objects/Enemies" unique_id=952911613 instance=ExtResource("13_8b0r0")]
 y_sort_enabled = true
-position = Vector2(-16, 271)
+position = Vector2(242, 537)
 
 [node name="Player2" parent="Y-Sort_Objects" unique_id=1619190814 groups=["player"] instance=ExtResource("3_oi3di")]
 position = Vector2(535, 600)
+
+[node name="House1" parent="Y-Sort_Objects" unique_id=259329565 instance=ExtResource("18_4c15r")]
+process_mode = 4
+visible = false
+position = Vector2(543, 512)
 
 [node name="UI" parent="." unique_id=127416507 instance=ExtResource("6_1ainy")]
 

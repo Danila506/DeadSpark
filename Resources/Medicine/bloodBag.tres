@@ -11,5 +11,6 @@ item_name = "Пакет с кровью"
 world_icon = ExtResource("3_qli2q")
 inventory_icon = ExtResource("1_tdm8p")
 inventory_icon_scale = 0.8
+item_weight = 0.45
 medical_use_time_sec = 10.0
 medical_health_restore = 50.0

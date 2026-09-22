@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://bfxlnlx4wssme"]
+
+[ext_resource type="Script" uid="uid://2dk10s3qmkd4" path="res://tests/manual_block_d_validation.gd" id="1"]
+
+[node name="ManualBlockDValidation" type="Node2D" unique_id=743967091]
+script = ExtResource("1")
+world_seed = 1342
+status = "BLOCKING ERROR: POI generation did not produce a valid occupancy map for seed 1337."
+road_raster_diagnostics = null
+
+[node name="PreviewCamera" type="Camera2D" parent="." unique_id=1580370679]
+position = Vector2(947, 538)
+zoom = Vector2(0.54, 0.54)

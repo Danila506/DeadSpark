@@ -23,6 +23,7 @@ const AKP_52_RESOURCE: ItemData = preload("res://Resources/AR_Weapons/akp_52/akp
 const AKP_52_AMMO_RESOURCE: ItemData = preload("res://Resources/AR_Weapons/akp_52/ammo_boxAkp52.tres")
 const FN_S_RESOURCE: ItemData = preload("res://Resources/Pistols/fn-s/fn-s.tres")
 const AXE_RESOURCE: ItemData = preload("res://Resources/Melee/axe.tres")
+const BAT_RESOURCE: ItemData = preload("res://Resources/Melee/Bat/bat.tres")
 const CLEAVER_RESOURCE: ItemData = preload("res://Resources/Misc/cleaver.tres")
 const BANDAGE_RESOURCE: ItemData = preload("res://Resources/Medicine/bandage.tres")
 const WOOD_RESOURCE: ItemData = preload("res://Resources/Misc/wood.tres")
@@ -41,14 +42,33 @@ const SEWING_KIT_RESOURCE: ItemData = preload("res://Resources/Misc/sewing_kit.t
 const GLUE_RESOURCE: ItemData = preload("res://Resources/Misc/glue.tres")
 const WEAPON_CLEANING_KIT_RESOURCE: ItemData = preload("res://Resources/Misc/weapon_cleaning_kit.tres")
 const GEIGER_COUNTER_RESOURCE: ItemData = preload("res://Resources/Misc/geiger_counter.tres")
+const METAL_SCRAP_RESOURCE: ItemData = preload("res://Resources/Misc/metal_scrap.tres")
+const METAL_RODS_RESOURCE: ItemData = preload("res://Resources/Misc/metal_rods.tres")
+const CANTEEN_RESOURCE: ItemData = preload("res://Resources/Misc/canteen.tres")
+const MECHANICAL_PARTS_RESOURCE: ItemData = preload("res://Resources/Misc/mechanical_parts.tres")
+const GUNPOWDER_RESOURCE: ItemData = preload("res://Resources/Misc/gunpowder.tres")
+const BOOK_RESOURCE: ItemData = preload("res://Resources/Misc/book.tres")
+const WEAPON_CLEANING_KIT_1_RESOURCE: ItemData = preload("res://Resources/Misc/weapon_cleaning_kit_1.tres")
+const WEAPON_CLEANING_KIT_2_RESOURCE: ItemData = preload("res://Resources/Misc/weapon_cleaning_kit_2.tres")
+const WEAPON_CLEANING_KIT_3_RESOURCE: ItemData = preload("res://Resources/Misc/weapon_cleaning_kit_3.tres")
+const TOOLKIT_1_RESOURCE: ItemData = preload("res://Resources/Misc/toolkit_1.tres")
+const TOOLKIT_2_RESOURCE: ItemData = preload("res://Resources/Misc/toolkit_2.tres")
+const TOOLKIT_3_RESOURCE: ItemData = preload("res://Resources/Misc/toolkit_3.tres")
 const TUSHENKA_RESOURCE: ItemData = preload("res://Resources/Food/tushenka.tres")
 const CANNED_TOMATOES_RESOURCE: ItemData = preload("res://Resources/Food/konservirovannye_tomaty.tres")
 const RASPBERRY_SODA_RESOURCE: ItemData = preload("res://Resources/Food/malinovaya_gazirovka.tres")
 const NONSTER_RESOURCE: ItemData = preload("res://Resources/Food/nonster.tres")
+const IND_50_FA_RESOURCE: ItemData = preload("res://Resources/Clothes/Teplovizor/IND_50_FA.tres")
+const IND_50_FA_TR_RESOURCE: ItemData = preload("res://Resources/Clothes/Teplovizor/IND_50_FA_TR.tres")
+const BALACLAVA_BLACK_RESOURCE: ItemData = preload("res://Resources/Clothes/Balaclavas/balaclava_cher.tres")
+const BALACLAVA_RED_RESOURCE: ItemData = preload("res://Resources/Clothes/Balaclavas/balaclava_kr.tres")
+const BALACLAVA_BLUE_RESOURCE: ItemData = preload("res://Resources/Clothes/Balaclavas/balaclava_sin.tres")
+const BALACLAVA_GREEN_RESOURCE: ItemData = preload("res://Resources/Clothes/Balaclavas/balaclava_zel.tres")
 
 const FORCED_CRAFT_TEST_ITEMS: Array[ItemData] = [
 	BAG_RESOURCE,
 	AXE_RESOURCE,
+	BAT_RESOURCE,
 	BANDAGE_RESOURCE,
 	BANDAGE_RESOURCE,
 	WOOD_RESOURCE,
@@ -69,7 +89,28 @@ const NEW_CRAFT_MATERIAL_ITEMS: Array[ItemData] = [
 	SEWING_KIT_RESOURCE,
 	GLUE_RESOURCE,
 	WEAPON_CLEANING_KIT_RESOURCE,
-	GEIGER_COUNTER_RESOURCE
+	GEIGER_COUNTER_RESOURCE,
+	METAL_SCRAP_RESOURCE,
+	METAL_RODS_RESOURCE,
+	CANTEEN_RESOURCE,
+	MECHANICAL_PARTS_RESOURCE,
+	GUNPOWDER_RESOURCE,
+	BOOK_RESOURCE,
+	WEAPON_CLEANING_KIT_1_RESOURCE,
+	WEAPON_CLEANING_KIT_2_RESOURCE,
+	WEAPON_CLEANING_KIT_3_RESOURCE,
+	TOOLKIT_1_RESOURCE,
+	TOOLKIT_2_RESOURCE,
+	TOOLKIT_3_RESOURCE
+]
+
+const NEW_EQUIPMENT_ITEMS: Array[ItemData] = [
+	IND_50_FA_RESOURCE,
+	IND_50_FA_TR_RESOURCE,
+	BALACLAVA_BLACK_RESOURCE,
+	BALACLAVA_RED_RESOURCE,
+	BALACLAVA_BLUE_RESOURCE,
+	BALACLAVA_GREEN_RESOURCE
 ]
 
 const NEW_FOOD_ITEMS: Array[ItemData] = [
@@ -86,7 +127,8 @@ const EXCLUDED_WORLD_SPAWN_RESOURCE_PATHS: Dictionary = {
 
 const GUARANTEED_WORLD_WEAPON_ITEMS: Array[ItemData] = [
 	AKP_103_RESOURCE,
-	AKP_207_RESOURCE
+	AKP_207_RESOURCE,
+	BAT_RESOURCE
 ]
 
 const STARTER_NEAR_PLAYER_ITEMS: Array[ItemData] = [
@@ -96,6 +138,7 @@ const STARTER_NEAR_PLAYER_ITEMS: Array[ItemData] = [
 	AKP_52_AMMO_RESOURCE,
 	FN_S_RESOURCE,
 	AXE_RESOURCE,
+	BAT_RESOURCE,
 	CLEAVER_RESOURCE,
 	BANDAGE_RESOURCE
 ]
@@ -112,12 +155,10 @@ func _ready() -> void:
 	_ensure_craft_test_items()
 	_ensure_new_craft_material_items()
 	_ensure_new_food_items()
+	_ensure_new_equipment_items()
 	_ensure_guaranteed_weapon_items()
 	if not _can_spawn_on_this_peer():
 		return
-	if multiplayer != null and multiplayer.multiplayer_peer != null and multiplayer.is_server():
-		if not multiplayer.peer_connected.is_connected(_on_peer_connected):
-			multiplayer.peer_connected.connect(_on_peer_connected)
 	if spawn_all_possible_items_near_player:
 		call_deferred("_spawn_all_possible_items_near_player", 0)
 	else:
@@ -183,6 +224,11 @@ func _ensure_new_craft_material_items() -> void:
 
 func _ensure_new_food_items() -> void:
 	for item in NEW_FOOD_ITEMS:
+		_append_if_missing(item)
+
+
+func _ensure_new_equipment_items() -> void:
+	for item in NEW_EQUIPMENT_ITEMS:
 		_append_if_missing(item)
 
 
@@ -536,7 +582,9 @@ func _collect_pickup_snapshot_payloads() -> Array:
 	return result
 
 
-func _on_peer_connected(peer_id: int) -> void:
+func sync_pickups_snapshot_to_peer(peer_id: int) -> void:
+	if NetworkManager == null or not NetworkManager.is_server():
+		return
 	if peer_id <= 0:
 		return
 	rpc_id(peer_id, "rpc_sync_pickups_snapshot", _collect_pickup_snapshot_payloads())
@@ -620,3 +668,13 @@ func _is_clothing_item(item: ItemData) -> bool:
 		ItemData.ItemType.Cap
 	]
 		
+
+
+func spawn_dropped_item(item: ItemData, position_in_world: Vector2) -> bool:
+	if item == null or not NetworkManager.is_server(): return false
+	var payload := {"item": GameSaveManager.serialize_item(item), "position": {"x": position_in_world.x, "y": position_in_world.y}}
+	if (payload.item as Dictionary).is_empty(): return false
+	_spawn_pickup_from_payload(payload)
+	for peer in NetworkManager.get_ready_client_peers():
+		rpc_id(peer, "rpc_spawn_pickup_payload", payload)
+	return true

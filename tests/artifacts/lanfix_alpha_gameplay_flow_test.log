@@ -1,0 +1,10 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+[STUTTER_MONITOR] enabled=true threshold_ms=25.0 freeze_ms=120.0 summary_sec=5.0 log=C:/Users/belak/AppData/Roaming/Godot/app_userdata/Dead Spark/logs/stutter_monitor.log scene=res://tests/alpha_gameplay_flow_test.tscn
+Current platform / OS name: Windows
+LAN discovery listener unavailable on 24560 (code=2), discovery disabled for this instance
+Local player authority true/false for peer 1: true
+[STUTTER_FREEZE] t=399ms frame=142.01ms fps=1 process=0.00ms physics=0.00ms draws=0 render_objs=0 nodes=854 orphans=0 objects=4001 static_mb=66.84 vram_mb=0.00 msg_mb=0.04 chunks=0 pending=0 scheduler_queue=0 scheduler_tasks=0 scheduler_ms=0.00 recent=recent_tasks=[]
+ALPHA_GAMEPLAY_FLOW_TEST=PASS
+[STUTTER_SUMMARY] t=889ms spikes=3 freezes=2 max_frame=142.01ms avg_fps=38 frame=0.00ms process=22.78ms physics=0.06ms draws=0 render_objs=0 nodes=8 orphans=851 static_mb=66.42 vram_mb=0.00 msg_mb=0.04 chunks=0 pending=0 scheduler_queue=0 scheduler_ms=0.00 recent=recent_tasks=[]
+[STUTTER_MONITOR] session_end uptime_ms=889

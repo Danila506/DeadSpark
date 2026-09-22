@@ -1,0 +1,200 @@
+[gd_resource type="Resource" script_class="EnvironmentGenerationProfile" format=3 uid="uid://cpvewddq47h6o"]
+
+[ext_resource type="Script" uid="uid://cnloo2fwksay8" path="res://World/Generation/environment_generation_profile.gd" id="1"]
+[ext_resource type="Script" uid="uid://ccxhw813rxe58" path="res://World/Generation/environment_entry.gd" id="2"]
+[ext_resource type="PackedScene" uid="uid://bvnyn0y44u1iq" path="res://World/Assets/Biom1/Tree.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://3b5g2ocir7pf" path="res://World/Assets/Biom1/Bush.tscn" id="4"]
+[ext_resource type="PackedScene" uid="uid://usfay8uflnhh" path="res://World/Assets/Biom2/Tree.tscn" id="5"]
+[ext_resource type="PackedScene" uid="uid://bqmxhlbanf42d" path="res://World/Assets/Biom2/Stone.tscn" id="6"]
+[ext_resource type="PackedScene" uid="uid://foav4te421ml" path="res://World/Assets/Biom2/Puddle.tscn" id="7"]
+[ext_resource type="PackedScene" uid="uid://e30sxv5je1ec" path="res://World/Assets/Biom2/DeadWoodTree/DeadWoodTree.tscn" id="8"]
+[ext_resource type="PackedScene" uid="uid://catwc0jijoqkl" path="res://World/Assets/Bush/BerryBush.tscn" id="9"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/Structures/bandit_camp_2.tres" id="bandit_camp_2_entry"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/Structures/bandit_camp.tres" id="bandit_camp_entry"]
+[ext_resource type="PackedScene" uid="uid://cpufb6xugybsc" path="res://World/Assets/Trees/Scenes/BirchTree.tscn" id="birch"]
+[ext_resource type="Resource" uid="uid://djlbnttqg21qd" path="res://Resources/WorldGen/Structures/bunker.tres" id="bunker_entry"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/Structures/forester_house_2.tres" id="forester_house_2_entry"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/Structures/forester_house.tres" id="forester_house_entry"]
+[ext_resource type="PackedScene" uid="uid://idvir86r3wxy" path="res://World/Assets/Trees/Scenes/MapleTree.tscn" id="maple"]
+[ext_resource type="Resource" uid="uid://ydyyitgdf0mt" path="res://Resources/WorldGen/Containers/medicine_kit.tres" id="medicine_kit_entry"]
+[ext_resource type="PackedScene" uid="uid://c6s063wnp8i5b" path="res://World/Assets/Trees/Scenes/OakTree.tscn" id="oak"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/Containers/supply_box.tres" id="supply_box_entry"]
+
+[sub_resource type="Resource" id="biom1_tiles"]
+script = ExtResource("2")
+entry_id = "biom1_static_tiles"
+category = "biom1_static_tiles"
+kind = 1
+target_path = NodePath("../../Y-Sort_Objects/Biom1/Biom1Layer")
+atlas_coords = Vector2i(15, 18)
+atlas_variants = Array[Vector2i]([Vector2i(24, 6), Vector2i(5, 2), Vector2i(2, 5), Vector2i(5, 5), Vector2i(23, 14), Vector2i(20, 19), Vector2i(22, 23), Vector2i(15, 18), Vector2i(15, 21), Vector2i(10, 18), Vector2i(1, 1)])
+atlas_variant_weights = Array[float]([1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 18.0, 2.0, 2.0, 2.0])
+density = 0.02
+max_instances = 32
+max_instances_per_chunk = 32
+candidate_budget_per_chunk = 64
+minimum_spacing_cells = 0
+
+[sub_resource type="Resource" id="biom2_tiles"]
+script = ExtResource("2")
+entry_id = "biom2_static_tiles"
+category = "biom2_static_tiles"
+kind = 1
+target_path = NodePath("../../Y-Sort_Objects/Biom2/Biom2Layer")
+atlas_coords = Vector2i(1, 1)
+atlas_variants = Array[Vector2i]([Vector2i(19, 4), Vector2i(19, 7), Vector2i(25, 6), Vector2i(26, 4), Vector2i(30, 6), Vector2i(30, 9), Vector2i(32, 6), Vector2i(35, 6), Vector2i(35, 9), Vector2i(35, 12), Vector2i(9, 4), Vector2i(17, 16), Vector2i(19, 10), Vector2i(30, 16), Vector2i(43, 6), Vector2i(47, 6), Vector2i(44, 9), Vector2i(47, 9), Vector2i(42, 12), Vector2i(23, 11), Vector2i(2, 16), Vector2i(5, 16), Vector2i(8, 16), Vector2i(2, 18), Vector2i(5, 18), Vector2i(8, 18), Vector2i(2, 20), Vector2i(2, 23), Vector2i(5, 20), Vector2i(11, 10)])
+atlas_variant_weights = Array[float]([7.0, 7.0, 6.0, 7.0, 6.0, 6.0, 6.0, 6.0, 6.0, 5.0, 10.0, 3.0, 7.0, 3.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.0, 2.0, 2.0, 1.5, 1.5, 2.0, 8.0])
+max_instances = 24
+min_instances_per_chunk = 1
+max_instances_per_chunk = 24
+candidate_budget_per_chunk = 64
+minimum_spacing_cells = 0
+
+[sub_resource type="Resource" id="xz_tiles"]
+script = ExtResource("2")
+entry_id = "xz_static_tiles"
+category = "xz_static_tiles"
+kind = 1
+target_path = NodePath("../../Y-Sort_Objects/xz")
+atlas_coords = Vector2i(4, 40)
+atlas_variants = Array[Vector2i]([Vector2i(4, 40), Vector2i(13, 40), Vector2i(22, 40), Vector2i(25, 45), Vector2i(16, 45), Vector2i(25, 48), Vector2i(31, 50), Vector2i(8, 52), Vector2i(31, 41), Vector2i(37, 38), Vector2i(83, 11), Vector2i(87, 11), Vector2i(90, 11), Vector2i(20, 52), Vector2i(54, 4), Vector2i(56, 5)])
+atlas_variant_weights = Array[float]([0.2, 0.2, 0.2, 0.2, 0.4, 0.4, 0.3, 0.15, 0.585, 0.15, 8.0, 8.0, 8.0, 0.15, 0.3, 0.3])
+candidate_budget_per_chunk = 64
+minimum_spacing_cells = 0
+
+[sub_resource type="Resource" id="biom1_tree"]
+script = ExtResource("2")
+entry_id = "biom1_tree"
+category = "trees"
+target_path = NodePath("../../Y-Sort_Objects/Biom1/Trees")
+scene = ExtResource("3")
+position_jitter_cells = 0.25
+density = 0.3
+max_instances = 24
+max_instances_per_chunk = 64
+candidate_budget_per_chunk = 160
+minimum_spacing_cells = 0
+occupancy_flags = 128
+
+[sub_resource type="Resource" id="biom1_bush"]
+script = ExtResource("2")
+entry_id = "biom1_bush"
+category = "bushes"
+target_path = NodePath("../../Y-Sort_Objects/Biom1/Bushes")
+scene = ExtResource("4")
+density = 0.008
+max_instances = 12
+max_instances_per_chunk = 12
+candidate_budget_per_chunk = 64
+minimum_spacing_cells = 0
+occupancy_flags = 128
+
+[sub_resource type="Resource" id="biom2_tree"]
+script = ExtResource("2")
+entry_id = "biom2_tree"
+category = "trees"
+target_path = NodePath("../../Y-Sort_Objects/Biom2/Trees")
+scene = ExtResource("5")
+position_jitter_cells = 0.25
+density = 0.3
+max_instances = 20
+min_instances_per_chunk = 1
+max_instances_per_chunk = 64
+candidate_budget_per_chunk = 160
+minimum_spacing_cells = 0
+occupancy_flags = 128
+
+[sub_resource type="Resource" id="stone"]
+script = ExtResource("2")
+entry_id = "biom2_stone"
+category = "stones"
+target_path = NodePath("../../Y-Sort_Objects/Biom2/Stones")
+scene = ExtResource("6")
+density = 0.006
+max_instances = 10
+max_instances_per_chunk = 10
+candidate_budget_per_chunk = 64
+minimum_spacing_cells = 0
+
+[sub_resource type="Resource" id="puddle"]
+script = ExtResource("2")
+entry_id = "biom2_puddle"
+category = "puddles"
+target_path = NodePath("../../Y-Sort_Objects/Biom2/Puddles")
+scene = ExtResource("7")
+density = 0.006
+max_instances = 10
+max_instances_per_chunk = 10
+candidate_budget_per_chunk = 64
+minimum_spacing_cells = 0
+
+[sub_resource type="Resource" id="deadwood"]
+script = ExtResource("2")
+entry_id = "biom2_deadwood"
+category = "deadwood"
+target_path = NodePath("../../Y-Sort_Objects/Biom2/DeadWoodTrees")
+scene = ExtResource("8")
+max_instances = 14
+max_instances_per_chunk = 14
+candidate_budget_per_chunk = 64
+minimum_spacing_cells = 0
+occupancy_flags = 128
+
+[sub_resource type="Resource" id="berry"]
+script = ExtResource("2")
+entry_id = "berry_bush"
+category = "berry_bushes"
+target_path = NodePath("../../Y-Sort_Objects/Biom2/BerryBushes")
+scene = ExtResource("9")
+density = 0.006
+max_instances = 10
+max_instances_per_chunk = 10
+candidate_budget_per_chunk = 64
+minimum_spacing_cells = 0
+occupancy_flags = 128
+
+[sub_resource type="Resource" id="oak_tree"]
+script = ExtResource("2")
+entry_id = "oak_tree"
+category = "trees"
+target_path = NodePath("../../Y-Sort_Objects/Biom1/Trees")
+scene = ExtResource("oak")
+position_jitter_cells = 0.25
+density = 0.3
+max_instances_per_chunk = 64
+candidate_budget_per_chunk = 160
+minimum_spacing_cells = 0
+occupancy_flags = 128
+
+[sub_resource type="Resource" id="birch_tree"]
+script = ExtResource("2")
+entry_id = "birch_tree"
+category = "trees"
+target_path = NodePath("../../Y-Sort_Objects/Biom1/Trees")
+scene = ExtResource("birch")
+position_jitter_cells = 0.25
+density = 0.3
+max_instances_per_chunk = 64
+candidate_budget_per_chunk = 160
+minimum_spacing_cells = 0
+occupancy_flags = 128
+
+[sub_resource type="Resource" id="maple_tree"]
+script = ExtResource("2")
+entry_id = "maple_tree"
+category = "trees"
+target_path = NodePath("../../Y-Sort_Objects/Biom1/Trees")
+scene = ExtResource("maple")
+position_jitter_cells = 0.25
+density = 0.3
+max_instances_per_chunk = 64
+candidate_budget_per_chunk = 160
+minimum_spacing_cells = 0
+occupancy_flags = 128
+
+[resource]
+script = ExtResource("1")
+profile_id = "finite_environment_dense_forest_v4"
+clearance_cells = 0
+entries = Array[ExtResource("2")]([SubResource("biom1_tiles"), SubResource("biom2_tiles"), SubResource("xz_tiles"), SubResource("biom1_tree"), SubResource("biom1_bush"), SubResource("biom2_tree"), SubResource("stone"), SubResource("puddle"), SubResource("deadwood"), SubResource("berry"), SubResource("oak_tree"), SubResource("birch_tree"), SubResource("maple_tree"), ExtResource("bunker_entry"), ExtResource("forester_house_entry"), ExtResource("forester_house_2_entry"), ExtResource("bandit_camp_entry"), ExtResource("bandit_camp_2_entry"), ExtResource("supply_box_entry"), ExtResource("medicine_kit_entry")])
+forest_enabled = true

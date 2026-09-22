@@ -3,6 +3,14 @@ class_name InventorySlot
 
 signal drop_requested(target_slot: InventorySlot, drag_data: Dictionary)
 
+const EQUIPMENT_PANEL_TEXTURE_Z_INDEX: int = 0
+const ITEM_ICON_Z_INDEX: int = 2
+const STACK_COUNT_BACKGROUND_Z_INDEX: int = 3
+const STACK_COUNT_LABEL_Z_INDEX: int = 4
+const STACK_COUNT_BACKGROUND_HEIGHT: float = 14.0
+const INVENTORY_ICON_SOURCE_SCALE: Vector2 = Vector2(2.0, 2.0)
+const DRAG_PREVIEW_Z_INDEX: int = 4096
+
 enum SlotMode {
 	NEARBY,
 	EQUIPMENT,
@@ -36,6 +44,7 @@ enum IconVAlign {
 @export var stretch_icon_to_slot: bool = false
 @export var icon_padding: float = 0.0
 @export var icon_offset: Vector2 = Vector2.ZERO
+@export var fixed_icon_visual_size: Vector2 = Vector2.ZERO
 
 @export var show_background_in_nearby: bool = false
 @export var show_background_in_equipment: bool = false
@@ -47,16 +56,22 @@ enum IconVAlign {
 @export var allowed_storage_categories: Array[ItemData.StorageCategory] = []
 @export var use_allowed_item_types: bool = false
 @export var allowed_item_types: Array[ItemData.ItemType] = []
+@export var accepts_weapon_attachments: bool = false
+@export var accepts_battery_items: bool = false
+@export var weapon_attachment_slot_filter: int = -1
 
 var item_data: ItemData = null
+var weapon_attachment_target: ItemData = null
 var world_item: Node = null
 var nearby_index: int = -1
 var container_index: int = -1
+var equipment_panel_texture_rect: TextureRect = null
 
 @onready var background: TextureRect = $Background
 @onready var icon: TextureRect = $Icon
 @onready var name_label: Label = $NameLabel
 @onready var endurance_label: Label = $EnduranceLabel
+@onready var stack_count_background: TextureRect = get_node_or_null("Kolichestvo") as TextureRect
 @onready var scope_overlay: TextureRect = _ensure_attachment_overlay("ScopeOverlay")
 @onready var handle_overlay: TextureRect = _ensure_attachment_overlay("HandleOverlay")
 @onready var silencer_overlay: TextureRect = _ensure_attachment_overlay("SilencerOverlay")
@@ -71,6 +86,7 @@ var container_index: int = -1
 @onready var slot_hint_sprite: Node = get_node_or_null(hint_sprite_path)
 
 func _ready() -> void:
+	equipment_panel_texture_rect = _find_equipment_panel_texture_rect()
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_ARROW
 
@@ -78,9 +94,20 @@ func _ready() -> void:
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	endurance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if stack_count_background != null:
+		stack_count_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		stack_count_background.z_index = STACK_COUNT_BACKGROUND_Z_INDEX
+		stack_count_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		stack_count_background.stretch_mode = TextureRect.STRETCH_SCALE
+		stack_count_background.visible = false
+	endurance_label.z_index = STACK_COUNT_LABEL_Z_INDEX
 	scope_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	handle_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	silencer_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if equipment_panel_texture_rect != null:
+		equipment_panel_texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		equipment_panel_texture_rect.z_index = EQUIPMENT_PANEL_TEXTURE_Z_INDEX
+	icon.z_index = ITEM_ICON_Z_INDEX
 	_set_indicator_mouse_filter(endurance_indicators_root)
 	_set_indicator_mouse_filter(endurance_indicator_high)
 	_set_indicator_mouse_filter(endurance_indicator_medium)
@@ -129,7 +156,7 @@ func _apply_visual_mode() -> void:
 		return
 
 	name_label.visible = show_name
-	endurance_label.visible = show_endurance or (item_data != null and (item_data.show_stack_count_in_inventory or _should_show_weapon_ammo(item_data)))
+	endurance_label.visible = show_endurance or (item_data != null and (_should_show_stack_count(item_data) or _should_show_weapon_ammo(item_data)))
 
 	if stretch_icon_to_slot:
 		_layout_icon_to_slot()
@@ -146,7 +173,18 @@ func _layout_labels() -> void:
 	if name_label == null or endurance_label == null:
 		return
 
-	if slot_mode != SlotMode.NEARBY and item_data != null and (item_data.show_stack_count_in_inventory or _should_show_weapon_ammo(item_data)):
+	if item_data != null and _should_show_stack_count(item_data):
+		_layout_stack_count_background()
+		var count_rect: Rect2 = _get_stack_count_background_rect()
+		endurance_label.offset_left = count_rect.position.x
+		endurance_label.offset_top = count_rect.position.y - 5.0
+		endurance_label.offset_right = count_rect.end.x
+		endurance_label.offset_bottom = count_rect.end.y + 1.0
+		endurance_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		endurance_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		return
+
+	if slot_mode != SlotMode.NEARBY and item_data != null and _should_show_weapon_ammo(item_data):
 		endurance_label.offset_left = 4.0
 		endurance_label.offset_top = size.y - 24.0
 		endurance_label.offset_right = size.x - 4.0
@@ -157,7 +195,7 @@ func _layout_labels() -> void:
 
 	if slot_mode == SlotMode.NEARBY:
 		var icon_rect_position: Vector2 = icon.position
-		var icon_rect_size: Vector2 = icon.size
+		var icon_rect_size: Vector2 = _get_icon_visual_size()
 		var text_left: float = icon_rect_position.x + icon_rect_size.x + 12.0
 		var text_width: float = max(size.x - text_left - 12.0, 32.0)
 
@@ -209,25 +247,21 @@ func _layout_icon_normal() -> void:
 	icon.anchor_right = 0.0
 	icon.anchor_bottom = 0.0
 
-	var effective_icon_size: Vector2 = icon_size
-	if use_native_texture_size and item_data != null and item_data.inventory_icon != null:
-		effective_icon_size = item_data.inventory_icon.get_size() * max(native_texture_scale, 0.1)
+	var source_icon_size: Vector2 = _get_layout_source_icon_size()
+	var visible_icon_rect: Rect2 = _get_source_icon_visible_rect(source_icon_size)
+	var layout_rect: Rect2 = _get_icon_layout_rect()
 
-	if item_data != null and apply_item_inventory_icon_scale:
-		effective_icon_size *= max(item_data.inventory_icon_scale, 0.1)
+	icon.scale = INVENTORY_ICON_SOURCE_SCALE
+	icon.size = source_icon_size
+	icon.custom_minimum_size = source_icon_size
+	icon.position = _get_icon_position_for_rect_in_area(visible_icon_rect, layout_rect) + icon_offset + _get_attached_inventory_icon_offset()
 
-	icon.size = effective_icon_size
-	icon.custom_minimum_size = effective_icon_size
-	icon.position = _get_icon_position_for_size(icon.size) + icon_offset
-
-	icon.pivot_offset = icon.size / 2.0
 	icon.rotation_degrees = _get_effective_icon_rotation()
+	icon.pivot_offset = icon.size / 2.0 if not is_zero_approx(icon.rotation_degrees) else Vector2.ZERO
 
 
 func _layout_icon_to_slot() -> void:
 	var effective_padding: float = icon_padding
-	if item_data != null:
-		effective_padding = max(icon_padding / max(item_data.inventory_icon_scale, 0.1), 0.0)
 
 	var available_size := size - Vector2(effective_padding * 2.0, effective_padding * 2.0)
 
@@ -239,12 +273,141 @@ func _layout_icon_to_slot() -> void:
 	icon.anchor_right = 0.0
 	icon.anchor_bottom = 0.0
 
-	icon.size = available_size
-	icon.custom_minimum_size = available_size
-	icon.position = _get_icon_position_for_size(icon.size) + icon_offset
+	icon.scale = INVENTORY_ICON_SOURCE_SCALE
+	icon.size = Vector2(
+		available_size.x / INVENTORY_ICON_SOURCE_SCALE.x,
+		available_size.y / INVENTORY_ICON_SOURCE_SCALE.y
+	)
+	icon.custom_minimum_size = icon.size
+	icon.position = _get_icon_position_for_size(available_size) + icon_offset + _get_attached_inventory_icon_offset()
 
-	icon.pivot_offset = icon.size / 2.0
 	icon.rotation_degrees = _get_effective_icon_rotation()
+	icon.pivot_offset = icon.size / 2.0 if not is_zero_approx(icon.rotation_degrees) else Vector2.ZERO
+
+
+func _get_source_icon_size() -> Vector2:
+	if item_data != null and item_data.inventory_icon != null:
+		var texture_size: Vector2 = item_data.inventory_icon.get_size()
+		if texture_size.x > 0.0 and texture_size.y > 0.0:
+			return texture_size
+
+	return icon_size
+
+
+func _get_layout_source_icon_size() -> Vector2:
+	if fixed_icon_visual_size.x > 0.0 and fixed_icon_visual_size.y > 0.0:
+		return Vector2(
+			fixed_icon_visual_size.x / INVENTORY_ICON_SOURCE_SCALE.x,
+			fixed_icon_visual_size.y / INVENTORY_ICON_SOURCE_SCALE.y
+		)
+
+	return _get_source_icon_size()
+
+
+func _get_source_icon_visible_rect(source_icon_size: Vector2) -> Rect2:
+	if fixed_icon_visual_size.x > 0.0 and fixed_icon_visual_size.y > 0.0:
+		return _get_scaled_texture_used_rect(source_icon_size)
+
+	if item_data == null or item_data.inventory_icon == null:
+		return Rect2(Vector2.ZERO, source_icon_size)
+
+	var image: Image = item_data.inventory_icon.get_image()
+	if image == null:
+		return Rect2(Vector2.ZERO, source_icon_size)
+
+	var used_rect: Rect2i = image.get_used_rect()
+	if used_rect.size.x <= 0 or used_rect.size.y <= 0:
+		return Rect2(Vector2.ZERO, source_icon_size)
+
+	return Rect2(Vector2(used_rect.position), Vector2(used_rect.size))
+
+
+func _get_scaled_texture_used_rect(source_icon_size: Vector2) -> Rect2:
+	if item_data == null or item_data.inventory_icon == null:
+		return Rect2(Vector2.ZERO, source_icon_size)
+
+	var texture_size: Vector2 = item_data.inventory_icon.get_size()
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+		return Rect2(Vector2.ZERO, source_icon_size)
+
+	var image: Image = item_data.inventory_icon.get_image()
+	if image == null:
+		return Rect2(Vector2.ZERO, source_icon_size)
+
+	var used_rect: Rect2i = image.get_used_rect()
+	if used_rect.size.x <= 0 or used_rect.size.y <= 0:
+		return Rect2(Vector2.ZERO, source_icon_size)
+
+	var scale_factor: Vector2 = Vector2(source_icon_size.x / texture_size.x, source_icon_size.y / texture_size.y)
+	return Rect2(
+		Vector2(used_rect.position) * scale_factor,
+		Vector2(used_rect.size) * scale_factor
+	)
+
+
+func _get_icon_visual_size() -> Vector2:
+	if icon == null:
+		return Vector2.ZERO
+
+	return Vector2(icon.size.x * icon.scale.x, icon.size.y * icon.scale.y)
+
+
+func _get_icon_layout_rect() -> Rect2:
+	if slot_mode == SlotMode.EQUIPMENT and slot_type == ItemData.ItemType.AR_Weapon:
+		return Rect2(Vector2.ZERO, size)
+
+	if slot_mode == SlotMode.EQUIPMENT and slot_type == ItemData.ItemType.Lefthand:
+		var left_hand_grid: Control = get_node_or_null("ClothingStorageGrid2") as Control
+		if left_hand_grid != null:
+			return Rect2(left_hand_grid.position, left_hand_grid.size)
+
+	if equipment_panel_texture_rect != null and is_instance_valid(equipment_panel_texture_rect):
+		return Rect2(
+			equipment_panel_texture_rect.position,
+			Vector2(
+				equipment_panel_texture_rect.size.x * equipment_panel_texture_rect.scale.x,
+				equipment_panel_texture_rect.size.y * equipment_panel_texture_rect.scale.y
+			)
+		)
+
+	return Rect2(Vector2.ZERO, size)
+
+
+func _get_icon_position_for_rect_in_area(source_rect: Rect2, layout_rect: Rect2) -> Vector2:
+	var scaled_position: Vector2 = source_rect.position * INVENTORY_ICON_SOURCE_SCALE
+	var scaled_size: Vector2 = source_rect.size * INVENTORY_ICON_SOURCE_SCALE
+	return layout_rect.position + _get_icon_position_for_size_in_area(scaled_size, layout_rect.size) - scaled_position
+
+
+func _get_attached_inventory_icon_offset() -> Vector2:
+	if item_data == null or item_data.storage_category != ItemData.StorageCategory.WEAPON:
+		return Vector2.ZERO
+	if InventoryManager == null or not InventoryManager.has_any_attached_attachments(item_data):
+		return Vector2.ZERO
+	return item_data.attached_inventory_icon_offset
+
+
+func _get_icon_position_for_size_in_area(target_size: Vector2, layout_size: Vector2) -> Vector2:
+	var x: float = 0.0
+	var y: float = 0.0
+
+	match icon_h_align:
+		IconHAlign.LEFT:
+			x = 0.0
+		IconHAlign.CENTER:
+			x = (layout_size.x - target_size.x) / 2.0
+		IconHAlign.RIGHT:
+			x = layout_size.x - target_size.x
+
+	match icon_v_align:
+		IconVAlign.TOP:
+			y = 0.0
+		IconVAlign.CENTER:
+			y = (layout_size.y - target_size.y) / 2.0
+		IconVAlign.BOTTOM:
+			y = layout_size.y - target_size.y
+
+	return Vector2(x, y)
 
 
 func _get_effective_icon_rotation() -> float:
@@ -290,6 +453,8 @@ func _update_visuals() -> void:
 	if icon == null or name_label == null or endurance_label == null:
 		return
 
+	_update_equipment_panel_texture_visibility()
+
 	if item_data == null:
 		if slot_hint_sprite != null:
 			slot_hint_sprite.visible = true
@@ -298,6 +463,7 @@ func _update_visuals() -> void:
 		icon.visible = false
 		name_label.text = ""
 		endurance_label.text = ""
+		_update_stack_count_background_visibility()
 		scope_overlay.visible = false
 		handle_overlay.visible = false
 		silencer_overlay.visible = false
@@ -305,6 +471,8 @@ func _update_visuals() -> void:
 		_update_endurance_tooltip()
 		tooltip_text = ""
 		return
+
+	_update_equipment_panel_texture_visibility()
 
 	if slot_hint_sprite != null:
 		slot_hint_sprite.visible = false
@@ -319,13 +487,14 @@ func _update_visuals() -> void:
 
 	if _should_show_weapon_ammo(item_data):
 		endurance_label.text = InventoryManager.get_weapon_display_text(item_data)
-	elif item_data.show_stack_count_in_inventory:
+	elif _should_show_stack_count(item_data):
 		endurance_label.text = str(item_data.stack_count)
 	elif show_endurance:
 		endurance_label.text = str(item_data.endurance) + "%"
 	else:
 		endurance_label.text = ""
 
+	_update_stack_count_background_visibility()
 	_update_endurance_indicator()
 	_update_endurance_tooltip()
 	_update_slot_tooltip()
@@ -334,6 +503,67 @@ func _update_visuals() -> void:
 
 func _should_show_weapon_ammo(item: ItemData) -> bool:
 	return item != null and item.storage_category == ItemData.StorageCategory.WEAPON and item.bullet_scene != null and item.magazine_size > 0
+
+
+func _should_show_stack_count(item: ItemData) -> bool:
+	return item != null and max(item.stack_count, 1) > 1
+
+
+func _update_stack_count_background_visibility() -> void:
+	if stack_count_background == null:
+		return
+
+	stack_count_background.visible = _should_show_stack_count(item_data)
+
+
+func _layout_stack_count_background() -> void:
+	if stack_count_background == null:
+		return
+
+	var count_rect: Rect2 = _get_stack_count_background_rect()
+	stack_count_background.position = count_rect.position
+	stack_count_background.size = count_rect.size
+
+
+func _get_stack_count_background_rect() -> Rect2:
+	var rect_size: Vector2 = Vector2(size.x, STACK_COUNT_BACKGROUND_HEIGHT)
+	return Rect2(Vector2(0.0, max(size.y - rect_size.y, 0.0)), rect_size)
+
+
+func _find_equipment_panel_texture_rect() -> TextureRect:
+	if slot_mode != SlotMode.EQUIPMENT:
+		return null
+
+	var candidate: TextureRect = get_node_or_null("TextureRect") as TextureRect
+	if candidate != null:
+		return candidate
+
+	for child in get_children():
+		var texture_rect: TextureRect = child as TextureRect
+		if texture_rect == null:
+			continue
+		if texture_rect == background or texture_rect == icon:
+			continue
+		if texture_rect == scope_overlay or texture_rect == handle_overlay or texture_rect == silencer_overlay:
+			continue
+		if String(texture_rect.name).begins_with("Endurance"):
+			continue
+		return texture_rect
+
+	return null
+
+
+func _update_equipment_panel_texture_visibility() -> void:
+	if equipment_panel_texture_rect == null or not is_instance_valid(equipment_panel_texture_rect):
+		equipment_panel_texture_rect = _find_equipment_panel_texture_rect()
+		if equipment_panel_texture_rect != null:
+			equipment_panel_texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			equipment_panel_texture_rect.z_index = EQUIPMENT_PANEL_TEXTURE_Z_INDEX
+
+	if equipment_panel_texture_rect == null or not is_instance_valid(equipment_panel_texture_rect):
+		return
+
+	equipment_panel_texture_rect.visible = item_data != null
 
 
 func _ensure_attachment_overlay(overlay_name: String) -> TextureRect:
@@ -396,7 +626,8 @@ func _update_attachment_overlay_for_slot(overlay: TextureRect, attachment_slot: 
 
 	overlay.size = final_size
 	overlay.custom_minimum_size = final_size
-	overlay.position = icon.position + (icon.size * 0.5) - (final_size * 0.5) + _get_inventory_offset_for_attachment_slot(attachment_slot)
+	var overlay_center: Vector2 = icon.position + (_get_icon_visual_size() * 0.5) + _get_inventory_offset_for_attachment_slot(attachment_slot)
+	overlay.position = overlay_center - (final_size * 0.5)
 	overlay.pivot_offset = final_size / 2.0
 	overlay.rotation_degrees = _get_inventory_rotation_for_attachment_slot(attachment_slot, attached_attachment)
 	overlay.flip_h = attached_attachment.mounted_scope_flip_h
@@ -593,11 +824,24 @@ func _build_slot_tooltip_text() -> String:
 		lines.append("Время использования: %.1f сек" % max(item_data.medical_use_time_sec, 0.0))
 		return "\n".join(lines)
 
+	if item_data.storage_category == ItemData.StorageCategory.CLOTHING:
+		lines.append("")
+		lines.append("Характеристики:")
+		lines.append("- Тепло: %s" % _format_signed_item_stat(item_data.clothing_warmth, "°C"))
+		lines.append("- Защита: %.0f" % max(item_data.clothing_armor, 0.0))
+
 	if not item_data.description.strip_edges().is_empty():
 		lines.append("")
 		lines.append(item_data.description.strip_edges())
 
 	return "\n".join(lines)
+
+
+func _format_signed_item_stat(value: float, suffix: String = "") -> String:
+	var rounded_value: int = int(round(value))
+	if rounded_value > 0:
+		return "+%d%s" % [rounded_value, suffix]
+	return "%d%s" % [rounded_value, suffix]
 
 
 func _build_medical_effect_lines() -> Array[String]:
@@ -630,10 +874,19 @@ func _get_drag_data(_at_position: Vector2) -> Variant:
 		return null
 
 	var preview := TextureRect.new()
+	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	preview.z_as_relative = false
+	preview.z_index = DRAG_PREVIEW_Z_INDEX
+	preview.set_as_top_level(true)
 	preview.texture = item_data.inventory_icon
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	preview.custom_minimum_size = Vector2(128, 128)
+	preview.scale = INVENTORY_ICON_SOURCE_SCALE
+	if item_data.inventory_icon != null:
+		preview.size = item_data.inventory_icon.get_size()
+	else:
+		preview.size = icon_size
+	preview.custom_minimum_size = preview.size
 	set_drag_preview(preview)
 
 	return {
@@ -656,6 +909,11 @@ func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 	var dragged_item: ItemData = data.get("item", null)
 	if dragged_item == null or dragged_item.stack_count <= 0:
 		return false
+
+	if accepts_weapon_attachments:
+		return _can_accept_weapon_attachment(dragged_item)
+	if accepts_battery_items:
+		return bool(dragged_item.get("is_battery_item"))
 
 	match slot_mode:
 		SlotMode.NEARBY:
@@ -683,6 +941,66 @@ func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 			return dragged_item.storage_category in allowed_storage_categories
 
 	return false
+
+
+func _can_accept_weapon_attachment(attachment_item: ItemData) -> bool:
+	if attachment_item == null or weapon_attachment_target == null:
+		return false
+	if not (attachment_item.is_scope_attachment or attachment_item.is_weapon_attachment):
+		return false
+	if weapon_attachment_slot_filter >= 0 and _get_attachment_slot_for_item(attachment_item) != weapon_attachment_slot_filter:
+		return false
+	if weapon_attachment_target.storage_category != ItemData.StorageCategory.WEAPON:
+		return false
+	if not (weapon_attachment_target.can_receive_weapon_attachments or weapon_attachment_target.can_receive_scope_attachment):
+		return false
+	if not weapon_attachment_target.can_receive_weapon_attachments and _get_attachment_slot_for_item(attachment_item) != ItemData.AttachmentSlot.SCOPE:
+		return false
+	return _is_attachment_weapon_allowed(attachment_item, weapon_attachment_target)
+
+
+func _get_attachment_slot_for_item(attachment_item: ItemData) -> int:
+	if attachment_item == null:
+		return ItemData.AttachmentSlot.SCOPE
+	if attachment_item.is_scope_attachment and not attachment_item.is_weapon_attachment:
+		return ItemData.AttachmentSlot.SCOPE
+	return int(attachment_item.attachment_slot)
+
+
+func _is_attachment_weapon_allowed(attachment_item: ItemData, weapon_item: ItemData) -> bool:
+	if attachment_item == null or weapon_item == null:
+		return false
+	if not attachment_item.allowed_scope_weapons.is_empty():
+		var allowed_by_resource: bool = false
+		for allowed_weapon in attachment_item.allowed_scope_weapons:
+			var allowed_weapon_data: ItemData = allowed_weapon as ItemData
+			if _is_same_weapon_resource(allowed_weapon_data, weapon_item):
+				allowed_by_resource = true
+				break
+		if not allowed_by_resource:
+			return false
+	if not attachment_item.allowed_scope_weapon_types.is_empty() and weapon_item.item_type not in attachment_item.allowed_scope_weapon_types:
+		return false
+	if not attachment_item.allowed_scope_weapon_names.is_empty():
+		var weapon_name: String = weapon_item.item_name.strip_edges().to_lower()
+		var allowed_by_name: bool = false
+		for allowed_name in attachment_item.allowed_scope_weapon_names:
+			if weapon_name == String(allowed_name).strip_edges().to_lower():
+				allowed_by_name = true
+				break
+		if not allowed_by_name:
+			return false
+	return true
+
+
+func _is_same_weapon_resource(left_weapon: ItemData, right_weapon: ItemData) -> bool:
+	if left_weapon == null or right_weapon == null:
+		return false
+	if left_weapon == right_weapon:
+		return true
+	if not left_weapon.resource_path.is_empty() and not right_weapon.resource_path.is_empty() and left_weapon.resource_path == right_weapon.resource_path:
+		return true
+	return left_weapon.item_name.strip_edges().to_lower() == right_weapon.item_name.strip_edges().to_lower()
 
 
 func _drop_data(_at_position: Vector2, data: Variant) -> void:

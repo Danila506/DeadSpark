@@ -6,6 +6,7 @@
 *.tmp
 *.bak
 *.swp
+.tmp_*
 .godot-headless*.log
 .godot*headless*.log
 .godot*.log

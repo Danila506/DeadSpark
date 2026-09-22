@@ -10,6 +10,7 @@ item_name = "Патроны"
 world_icon = ExtResource("3_qmx3t")
 inventory_icon = ExtResource("1_1r0qw")
 inventory_icon_scale = 0.52
+item_weight = 0.045
 stack_count = 30
 max_stack_size = 30
 show_stack_count_in_inventory = true

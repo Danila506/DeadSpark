@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1")
 spawner_id = "deer_spawner"
+world_generated_mode = true
 player_path = NodePath("../../Y-Sort_Objects/Player2")
 spawn_parent_path = NodePath("../../Y-Sort_Objects/Animals/Deer")
 tree_scene = ExtResource("2")

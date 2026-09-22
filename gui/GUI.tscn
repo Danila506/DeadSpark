@@ -4,83 +4,167 @@
 [ext_resource type="PackedScene" uid="uid://fjhj315qaeu5" path="res://items/scenes/pickup_item.tscn" id="2_wh5l6"]
 [ext_resource type="Script" uid="uid://dqetkmtxbiy8r" path="res://gui/InvNavigation/tabs_controller.gd" id="3_r58ew"]
 [ext_resource type="PackedScene" uid="uid://nu6461h6fo73" path="res://gui/slots/InventorySlot.tscn" id="3_xtoeb"]
-[ext_resource type="Texture2D" uid="uid://cnl8hlwp3rrry" path="res://gui/InvNavigation/InvBtn.png" id="4_5or8p"]
-[ext_resource type="Texture2D" uid="uid://nnyw51qx3rwi" path="res://gui/InvNavigation/mapBtn.png" id="5_76ltx"]
-[ext_resource type="Texture2D" uid="uid://33j53ghaaekt" path="res://gui/slots/slotAssets/AR_Weapon.png" id="5_ouivx"]
-[ext_resource type="Texture2D" uid="uid://b6fbumvkvrhv5" path="res://gui/slots/slotAssets/t_shirts.png" id="6_ouivx"]
-[ext_resource type="Texture2D" uid="uid://s5qdw1juil6g" path="res://gui/InvNavigation/craftBtn.png" id="6_ryiew"]
-[ext_resource type="Texture2D" uid="uid://boejejbtspb4o" path="res://gui/slots/slotAssets/GUI_window.png" id="7_5or8p"]
-[ext_resource type="Texture2D" uid="uid://bcl0ab00nuak" path="res://gui/slots/slotAssets/trousers.png" id="7_uysf7"]
-[ext_resource type="Texture2D" uid="uid://ssr87ce8vrk6" path="res://gui/slots/slotAssets/pistols.png" id="8_a41ah"]
-[ext_resource type="Texture2D" uid="uid://dpo3ksok5mrwm" path="res://gui/slots/slotAssets/bagInv.png" id="8_kkqi7"]
-[ext_resource type="Texture2D" uid="uid://cv5cre571so5d" path="res://gui/Craft/CraftCategories.png" id="9_i5qfe"]
-[ext_resource type="Texture2D" uid="uid://bjq8xb4qegia1" path="res://gui/slots/slotAssets/cap.png" id="10_me6xb"]
+[ext_resource type="Texture2D" uid="uid://chx7rpww3cm4u" path="res://gui/slots/slotAssets/noviiGUI.png" id="6_l47aa"]
+[ext_resource type="Texture2D" uid="uid://iq56mmxrl1q" path="res://gui/slots/slotAssets/ovoe_gui.png" id="10_s4sjb"]
 [ext_resource type="Texture2D" uid="uid://cmj12lypj2vbf" path="res://Assets/Misc/EnduranceIndicators/CriticalEndurance.png" id="11_5or8p"]
-[ext_resource type="Texture2D" uid="uid://dg76gv5188mxb" path="res://gui/slots/slotAssets/heavy_armour.png" id="11_g470g"]
 [ext_resource type="Texture2D" uid="uid://dhcg0ll5g8yrq" path="res://Assets/Misc/EnduranceIndicators/HighEndurance.png" id="11_khlg7"]
-[ext_resource type="Texture2D" uid="uid://gy55orxtaurh" path="res://gui/slots/slotAssets/melee_weapons.png" id="11_tfo4u"]
 [ext_resource type="Texture2D" uid="uid://bkt5o8j8u2m7g" path="res://Assets/Misc/EnduranceIndicators/LowEndurance.png" id="12_ryiew"]
 [ext_resource type="Texture2D" uid="uid://d43rd46do8n0" path="res://Assets/Misc/EnduranceIndicators/MediumEndurance.png" id="13_84uxx"]
-[ext_resource type="Texture2D" uid="uid://b8ejed1gd1w7k" path="res://gui/slots/slotAssets/jacket.png" id="13_u7e2m"]
-[ext_resource type="Texture2D" uid="uid://7vbtvb2olu36" path="res://gui/slots/slotAssets/Lut/lut.png" id="18_r58ew"]
-[ext_resource type="Texture2D" uid="uid://dcjdgpsxesv2p" path="res://gui/slots/slotAssets/Lut/bandit_lut_panel.png" id="20_628r3"]
-[ext_resource type="Texture2D" uid="uid://btnhpcynpcsqh" path="res://gui/anchor.png" id="22_84uxx"]
-[ext_resource type="Texture2D" uid="uid://d1arjnfe03b6g" path="res://gui/Craft/craftScrollBG.png" id="22_ryiew"]
 [ext_resource type="Texture2D" uid="uid://bvyfms41anpky" path="res://gui/Craft/craftSlider.png" id="25_yj5lj"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1mqeo"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(33, 233, 36, 38)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4m4s2"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(72, 179, 36, 35)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_poqt6"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(111, 179, 36, 35)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l47aa"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(150, 233, 36, 38)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_84uxx"]
+atlas = ExtResource("6_l47aa")
+region = Rect2(461, 461, 364, 266)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_84uxx"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_i5qfe"]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_u1048"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(63, 679, 32, 28)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_yj5lj"]
-atlas = ExtResource("9_i5qfe")
-region = Rect2(71, 52, 32, 28)
+atlas = ExtResource("10_s4sjb")
+region = Rect2(247, 678, 34, 30)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_0ssh3"]
-atlas = ExtResource("9_i5qfe")
-region = Rect2(218, 51, 34, 30)
+atlas = ExtResource("10_s4sjb")
+region = Rect2(98, 679, 44, 28)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_vuuul"]
-atlas = ExtResource("9_i5qfe")
-region = Rect2(6, 10, 44, 28)
+atlas = ExtResource("10_s4sjb")
+region = Rect2(282, 678, 46, 30)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_avtpy"]
-atlas = ExtResource("9_i5qfe")
-region = Rect2(153, 9, 46, 30)
+atlas = ExtResource("10_s4sjb")
+region = Rect2(145, 679, 44, 28)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_4wehr"]
-atlas = ExtResource("9_i5qfe")
-region = Rect2(4, 52, 44, 28)
+atlas = ExtResource("10_s4sjb")
+region = Rect2(329, 678, 46, 30)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_emul6"]
-atlas = ExtResource("9_i5qfe")
-region = Rect2(151, 51, 46, 30)
+atlas = ExtResource("10_s4sjb")
+region = Rect2(192, 679, 44, 28)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cqpw8"]
-atlas = ExtResource("9_i5qfe")
-region = Rect2(66, 9, 44, 28)
+atlas = ExtResource("10_s4sjb")
+region = Rect2(376, 678, 46, 30)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_mhyt1"]
-atlas = ExtResource("9_i5qfe")
-region = Rect2(213, 8, 46, 30)
+[sub_resource type="AtlasTexture" id="AtlasTexture_gse74"]
+atlas = ExtResource("6_l47aa")
+region = Rect2(14, 178, 364, 266)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ryiew"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_uysf7"]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_s4sjb"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(663, 99, 207, 62)
+
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_kkqi7"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_i5qfe"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(760, 298, 63, 61)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hgup1"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(760, 166, 63, 61)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_628r3"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(875, 99, 61, 62)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_r58ew"]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_5or8p"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(663, 166, 92, 61)
+
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_a41ah"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_35kan"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(663, 298, 92, 61)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_me6xb"]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_ryiew"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(663, 232, 92, 61)
+
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_6n8ie"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_khlg7"]
+atlas = ExtResource("6_l47aa")
+region = Rect2(493, 86, 80, 62)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v64ah"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(828, 166, 62, 193)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nyl6l"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(640, 414, 221, 274)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o0knx"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(208, 111, 17, 17)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_r5k35"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(666, 388, 21, 22)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jkpt1"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(78, 989, 72, 19)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mhyt1"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(327, 893, 72, 19)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5srsr"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(435, 894, 22, 18)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ns5j5"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(407, 894, 22, 18)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ytbm7"]
+atlas = ExtResource("10_s4sjb")
+region = Rect2(500, 622, 100, 19)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_op05d"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_khlg7"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_wuh21"]
+atlas = ExtResource("6_l47aa")
+region = Rect2(246, 457, 132, 198)
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_mhyt1"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5nu5h"]
+atlas = ExtResource("6_l47aa")
+region = Rect2(56, 459, 132, 198)
 
 [node name="GUI" type="CanvasLayer" unique_id=127416507]
 layer = 90
@@ -97,10 +181,10 @@ craft_recipe_list_position = Vector2(148, 190)
 [node name="InventoryContent" type="Control" parent="InventoryRoot" unique_id=427243348]
 layout_mode = 1
 anchors_preset = 0
-offset_left = 659.0
-offset_top = 247.0
-offset_right = 1498.0
-offset_bottom = 872.0
+offset_left = 771.0
+offset_top = 264.0
+offset_right = 1610.0
+offset_bottom = 889.0
 
 [node name="NavBtns" type="Control" parent="InventoryRoot/InventoryContent" unique_id=157509398 node_paths=PackedStringArray("buttons")]
 anchors_preset = 0
@@ -108,34 +192,47 @@ offset_left = -118.0
 offset_top = -143.0
 offset_right = -78.0
 offset_bottom = -103.0
-scale = Vector2(2, 2)
 script = ExtResource("3_r58ew")
 buttons = [NodePath("InvBtn"), NodePath("MapBtn"), NodePath("CraftBtn")]
 
 [node name="InvBtn" type="TextureButton" parent="InventoryRoot/InventoryContent/NavBtns" unique_id=1346546231]
 z_index = 1
 layout_mode = 0
-offset_left = 167.5
-offset_top = 79.99999
-offset_right = 207.5
-offset_bottom = 120.99999
-texture_normal = ExtResource("4_5or8p")
+offset_left = 303.15527
+offset_top = 159.60074
+offset_right = 339.15527
+offset_bottom = 197.60074
+scale = Vector2(2, 2)
+texture_normal = SubResource("AtlasTexture_1mqeo")
 
 [node name="MapBtn" type="TextureButton" parent="InventoryRoot/InventoryContent/NavBtns" unique_id=638367850]
 layout_mode = 0
-offset_left = 210.50002
-offset_top = 80.0
-offset_right = 250.50003
-offset_bottom = 121.0
-texture_normal = ExtResource("5_76ltx")
+offset_left = 385.1308
+offset_top = 160.22003
+offset_right = 425.1308
+offset_bottom = 201.22003
+scale = Vector2(2, 2)
+texture_normal = SubResource("AtlasTexture_4m4s2")
 
 [node name="CraftBtn" type="TextureButton" parent="InventoryRoot/InventoryContent/NavBtns" unique_id=835308527]
 layout_mode = 0
-offset_left = 254.0
-offset_top = 80.0
-offset_right = 294.0
-offset_bottom = 121.0
-texture_normal = ExtResource("6_ryiew")
+offset_left = 466.65045
+offset_top = 160.2923
+offset_right = 506.65045
+offset_bottom = 201.2923
+scale = Vector2(2, 2)
+texture_normal = SubResource("AtlasTexture_poqt6")
+
+[node name="InvBtnAlt" type="TextureButton" parent="InventoryRoot/InventoryContent/NavBtns" unique_id=1030609265]
+visible = false
+layout_mode = 0
+offset_left = 302.99347
+offset_top = 160.32098
+offset_right = 342.99347
+offset_bottom = 201.32098
+scale = Vector2(2, 2)
+disabled = true
+texture_normal = SubResource("AtlasTexture_l47aa")
 
 [node name="NavCraft" type="Control" parent="InventoryRoot/InventoryContent" unique_id=1370963443]
 anchors_preset = 0
@@ -146,10 +243,10 @@ offset_bottom = 40.0
 layout_mode = 0
 offset_left = 133.0
 offset_top = 85.0
-offset_right = 486.0
-offset_bottom = 357.0
+offset_right = 478.0
+offset_bottom = 351.0
 scale = Vector2(2, 2)
-texture = ExtResource("22_ryiew")
+texture = SubResource("AtlasTexture_84uxx")
 
 [node name="ScrollTexture" type="TextureButton" parent="InventoryRoot/InventoryContent/NavCraft" unique_id=1898587218]
 layout_mode = 0
@@ -188,8 +285,8 @@ offset_top = 4.0
 offset_right = 36.0
 offset_bottom = 32.0
 scale = Vector2(2, 2)
-texture_normal = SubResource("AtlasTexture_yj5lj")
-texture_pressed = SubResource("AtlasTexture_0ssh3")
+texture_normal = SubResource("AtlasTexture_u1048")
+texture_pressed = SubResource("AtlasTexture_yj5lj")
 
 [node name="BuildCategory" type="TextureButton" parent="InventoryRoot/InventoryContent/NavCraft/CategoryPanel" unique_id=1587748476]
 layout_mode = 0
@@ -198,8 +295,8 @@ offset_top = 4.0
 offset_right = 116.0
 offset_bottom = 32.0
 scale = Vector2(2, 2)
-texture_normal = SubResource("AtlasTexture_vuuul")
-texture_pressed = SubResource("AtlasTexture_avtpy")
+texture_normal = SubResource("AtlasTexture_0ssh3")
+texture_pressed = SubResource("AtlasTexture_vuuul")
 
 [node name="WeaponCategory" type="TextureButton" parent="InventoryRoot/InventoryContent/NavCraft/CategoryPanel" unique_id=879877245]
 layout_mode = 0
@@ -208,8 +305,8 @@ offset_top = 4.0
 offset_right = 208.0
 offset_bottom = 32.0
 scale = Vector2(2, 2)
-texture_normal = SubResource("AtlasTexture_4wehr")
-texture_pressed = SubResource("AtlasTexture_emul6")
+texture_normal = SubResource("AtlasTexture_avtpy")
+texture_pressed = SubResource("AtlasTexture_4wehr")
 
 [node name="MedicineCategory" type="TextureButton" parent="InventoryRoot/InventoryContent/NavCraft/CategoryPanel" unique_id=925010608]
 layout_mode = 0
@@ -218,8 +315,8 @@ offset_top = 4.0
 offset_right = 300.0
 offset_bottom = 32.0
 scale = Vector2(2, 2)
-texture_normal = SubResource("AtlasTexture_cqpw8")
-texture_pressed = SubResource("AtlasTexture_mhyt1")
+texture_normal = SubResource("AtlasTexture_emul6")
+texture_pressed = SubResource("AtlasTexture_cqpw8")
 
 [node name="NavInv" type="Control" parent="InventoryRoot/InventoryContent" unique_id=790611624]
 anchors_preset = 0
@@ -230,10 +327,10 @@ offset_bottom = 40.0
 layout_mode = 0
 offset_left = 133.0
 offset_top = 85.0
-offset_right = 486.0
-offset_bottom = 357.0
+offset_right = 478.0
+offset_bottom = 351.0
 scale = Vector2(2, 2)
-texture = ExtResource("7_5or8p")
+texture = SubResource("AtlasTexture_gse74")
 
 [node name="NearbyPanel" type="Panel" parent="InventoryRoot/InventoryContent/NavInv" unique_id=1308462056]
 layout_mode = 1
@@ -254,27 +351,26 @@ offset_bottom = 381.0
 
 [node name="AR_Weapon" parent="InventoryRoot/InventoryContent/NavInv" unique_id=1120592219 instance=ExtResource("3_xtoeb")]
 layout_mode = 0
-offset_left = 147.0
-offset_top = 99.0
-offset_right = 352.0
-offset_bottom = 159.0
-scale = Vector2(2, 2)
+offset_left = 139.0
+offset_top = 91.0
+offset_right = 553.0
+offset_bottom = 215.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_uysf7")
-icon_size = Vector2(256, 256)
-use_native_texture_size = true
-apply_item_inventory_icon_scale = false
-hint_sprite_path = NodePath("AR_Weapon")
 
-[node name="AR_Weapon" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/AR_Weapon" unique_id=1630757697]
-position = Vector2(103, 30.5)
-rotation = 1.5707964
-texture = ExtResource("5_ouivx")
+[node name="TextureRect" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/AR_Weapon" unique_id=438964201]
+visible = false
+layout_mode = 0
+offset_right = 207.0
+offset_bottom = 62.0
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_s4sjb")
 
 [node name="EnduranceIndicators" type="Control" parent="InventoryRoot/InventoryContent/NavInv/AR_Weapon" unique_id=282016041]
 anchors_preset = 0
-offset_left = 370.0
-offset_right = 410.0
-offset_bottom = 40.0
+offset_left = -20.0
+offset_top = -20.0
+offset_right = -20.0
+offset_bottom = -20.0
 
 [node name="CriticalEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/AR_Weapon/EnduranceIndicators" unique_id=1053333988]
 layout_mode = 0
@@ -314,26 +410,27 @@ texture = ExtResource("11_khlg7")
 
 [node name="T_Shirts" parent="InventoryRoot/InventoryContent/NavInv" unique_id=816680176 instance=ExtResource("3_xtoeb")]
 layout_mode = 0
-offset_left = 343.0
-offset_top = 495.0
-offset_right = 465.0
-offset_bottom = 615.0
+offset_left = 333.0
+offset_top = 489.0
+offset_right = 459.0
+offset_bottom = 611.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_kkqi7")
 slot_type = 2
-use_native_texture_size = true
-apply_item_inventory_icon_scale = false
-hint_sprite_path = NodePath("TShirts")
 
-[node name="TShirts" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/T_Shirts" unique_id=2094205794]
-position = Vector2(62, 62)
+[node name="TextureRect" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/T_Shirts" unique_id=506646203]
+visible = false
+layout_mode = 0
+offset_right = 63.0
+offset_bottom = 61.0
 scale = Vector2(2, 2)
-texture = ExtResource("6_ouivx")
+texture = SubResource("AtlasTexture_i5qfe")
 
 [node name="EnduranceIndicators" type="Control" parent="InventoryRoot/InventoryContent/NavInv/T_Shirts" unique_id=1250363669]
 anchors_preset = 0
-offset_left = 82.0
-offset_right = 122.0
-offset_bottom = 40.0
+offset_left = -19.961853
+offset_top = -19.697205
+offset_right = -19.961853
+offset_bottom = -19.697205
 
 [node name="CriticalEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/T_Shirts/EnduranceIndicators" unique_id=707923002]
 layout_mode = 0
@@ -369,27 +466,27 @@ texture = ExtResource("11_khlg7")
 
 [node name="Cap" parent="InventoryRoot/InventoryContent/NavInv" unique_id=1342511228 instance=ExtResource("3_xtoeb")]
 layout_mode = 0
-offset_left = 343.0
-offset_top = 231.0
-offset_right = 465.0
-offset_bottom = 351.0
+offset_left = 333.0
+offset_top = 225.0
+offset_right = 459.0
+offset_bottom = 347.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_kkqi7")
 slot_type = 8
-use_native_texture_size = true
-native_texture_scale = 2.0
-apply_item_inventory_icon_scale = false
-hint_sprite_path = NodePath("Cap")
 
-[node name="Cap" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/Cap" unique_id=1968489328]
-position = Vector2(63, 64)
+[node name="TextureRect" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/Cap" unique_id=430615661]
+visible = false
+layout_mode = 0
+offset_right = 63.0
+offset_bottom = 61.0
 scale = Vector2(2, 2)
-texture = ExtResource("10_me6xb")
+texture = SubResource("AtlasTexture_hgup1")
 
 [node name="EnduranceIndicators" type="Control" parent="InventoryRoot/InventoryContent/NavInv/Cap" unique_id=528786000]
 anchors_preset = 0
-offset_left = 82.0
-offset_right = 122.0
-offset_bottom = 40.0
+offset_left = -20.0
+offset_top = -20.0
+offset_right = -20.0
+offset_bottom = -20.0
 
 [node name="CriticalEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/Cap/EnduranceIndicators" unique_id=290356717]
 layout_mode = 0
@@ -425,27 +522,27 @@ texture = ExtResource("11_khlg7")
 
 [node name="MeleeWeapons" parent="InventoryRoot/InventoryContent/NavInv" unique_id=1600606998 instance=ExtResource("3_xtoeb")]
 layout_mode = 0
-offset_left = 569.0
-offset_top = 99.0
-offset_right = 691.0
-offset_bottom = 219.0
+offset_left = 563.0
+offset_top = 91.0
+offset_right = 685.0
+offset_bottom = 211.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_kkqi7")
 slot_type = 7
-use_native_texture_size = true
-native_texture_scale = 2.0
-apply_item_inventory_icon_scale = false
-hint_sprite_path = NodePath("MeleeWeapons")
 
-[node name="MeleeWeapons" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/MeleeWeapons" unique_id=1643393994]
-position = Vector2(62, 59)
+[node name="TextureRect" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/MeleeWeapons" unique_id=761992889]
+visible = false
+layout_mode = 0
+offset_right = 61.0
+offset_bottom = 62.0
 scale = Vector2(2, 2)
-texture = ExtResource("11_tfo4u")
+texture = SubResource("AtlasTexture_628r3")
 
 [node name="EnduranceIndicators" type="Control" parent="InventoryRoot/InventoryContent/NavInv/MeleeWeapons" unique_id=1009769022]
 anchors_preset = 0
-offset_left = 82.0
-offset_right = 122.0
-offset_bottom = 40.0
+offset_left = -20.0
+offset_top = -20.0
+offset_right = -20.0
+offset_bottom = -20.0
 
 [node name="CriticalEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/MeleeWeapons/EnduranceIndicators" unique_id=1444759060]
 layout_mode = 0
@@ -487,38 +584,37 @@ offset_right = 312.0
 offset_bottom = 342.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_kkqi7")
 slot_type = 4
-use_native_texture_size = true
-native_texture_scale = 2.0
-apply_item_inventory_icon_scale = false
-hint_sprite_path = NodePath("HeavyArmour")
 
 [node name="HeavyArmourStoragePanel" type="Panel" parent="InventoryRoot/InventoryContent/NavInv/HeavyArmour" unique_id=882200106]
 layout_mode = 0
-offset_left = -24.0
-offset_top = -17.0
-offset_right = 160.0
-offset_bottom = 103.0
+offset_left = -32.0
+offset_top = -23.0
+offset_right = 152.0
+offset_bottom = 99.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_r58ew")
 
 [node name="HeavyArmourStorageGrid" type="GridContainer" parent="InventoryRoot/InventoryContent/NavInv/HeavyArmour/HeavyArmourStoragePanel" unique_id=889200107]
 layout_mode = 0
-offset_left = -2.0
-offset_top = 59.0
-offset_right = 187.0
-offset_bottom = 113.0
+offset_right = 184.0
+offset_bottom = 122.0
 columns = 3
 
-[node name="HeavyArmour" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/HeavyArmour" unique_id=1082863665]
-position = Vector2(73.99999, 53)
+[node name="TextureRect" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/HeavyArmour" unique_id=500251022]
+visible = false
+layout_mode = 0
+offset_left = -32.0
+offset_top = -23.0
+offset_right = 60.0
+offset_bottom = 38.0
 scale = Vector2(2, 2)
-texture = ExtResource("11_g470g")
+texture = SubResource("AtlasTexture_5or8p")
 
 [node name="EnduranceIndicators" type="Control" parent="InventoryRoot/InventoryContent/NavInv/HeavyArmour" unique_id=1581607940]
 anchors_preset = 0
-offset_left = 120.0
-offset_top = -17.0
-offset_right = 160.0
-offset_bottom = 23.0
+offset_left = -52.0
+offset_top = -43.0
+offset_right = -52.0
+offset_bottom = -43.0
 
 [node name="CriticalEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/HeavyArmour/EnduranceIndicators" unique_id=664490489]
 layout_mode = 0
@@ -564,19 +660,23 @@ use_native_texture_size = true
 native_texture_scale = 2.0
 apply_item_inventory_icon_scale = false
 icon_offset = Vector2(0, -12)
-hint_sprite_path = NodePath("Trousers")
 
-[node name="Trousers" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/Trousers" unique_id=914153630]
-position = Vector2(71, 50)
-scale = Vector2(1.965, 1.965)
-texture = ExtResource("7_uysf7")
+[node name="TextureRect" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/Trousers" unique_id=514810744]
+visible = false
+layout_mode = 0
+offset_left = -28.0
+offset_top = -21.0
+offset_right = 64.0
+offset_bottom = 40.0
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_35kan")
 
 [node name="EnduranceIndicators" type="Control" parent="InventoryRoot/InventoryContent/NavInv/Trousers" unique_id=174892458]
 anchors_preset = 0
-offset_left = 124.0
-offset_top = -15.0
-offset_right = 164.0
-offset_bottom = 25.0
+offset_left = -47.944763
+offset_top = -40.95392
+offset_right = -47.944763
+offset_bottom = -40.95392
 
 [node name="CriticalEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/Trousers/EnduranceIndicators" unique_id=1553438975]
 layout_mode = 0
@@ -612,58 +712,53 @@ texture = ExtResource("11_khlg7")
 
 [node name="TrousersStoragePanel" type="Panel" parent="InventoryRoot/InventoryContent/NavInv/Trousers" unique_id=192513001]
 layout_mode = 0
-offset_left = -20.0
-offset_top = -15.0
-offset_right = 164.0
-offset_bottom = 105.0
+offset_left = -28.0
+offset_top = -21.0
+offset_right = 156.0
+offset_bottom = 101.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_r58ew")
 
 [node name="TrousersStorageGrid" type="GridContainer" parent="InventoryRoot/InventoryContent/NavInv/Trousers/TrousersStoragePanel" unique_id=135441002]
 layout_mode = 0
-offset_top = 60.0
 offset_right = 184.0
-offset_bottom = 114.0
+offset_bottom = 54.0
 columns = 2
 
 [node name="Jacket" parent="InventoryRoot/InventoryContent/NavInv" unique_id=2127236330 instance=ExtResource("3_xtoeb")]
 layout_mode = 0
-offset_left = 147.0
-offset_top = 363.0
-offset_right = 331.0
-offset_bottom = 483.0
+offset_left = 139.0
+offset_top = 357.0
+offset_right = 325.0
+offset_bottom = 479.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_me6xb")
 slot_type = 3
-use_native_texture_size = true
-native_texture_scale = 2.0
-apply_item_inventory_icon_scale = false
-hint_sprite_path = NodePath("Jacket")
+[node name="TextureRect" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/Jacket" unique_id=1551631605]
+visible = false
+layout_mode = 0
+offset_right = 92.0
+offset_bottom = 61.0
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_ryiew")
 
 [node name="ClothingStoragePanel" type="Panel" parent="InventoryRoot/InventoryContent/NavInv/Jacket" unique_id=1706000107]
 layout_mode = 0
-offset_left = -3.0
-offset_top = -4.0
-offset_right = 188.0
-offset_bottom = 121.0
+offset_right = 184.0
+offset_bottom = 122.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_r58ew")
 
 [node name="ClothingStorageGrid" type="GridContainer" parent="InventoryRoot/InventoryContent/NavInv/Jacket/ClothingStoragePanel" unique_id=289705300]
 layout_mode = 0
-offset_left = 2.0
-offset_top = 63.0
-offset_right = 187.0
-offset_bottom = 117.0
+offset_left = 0.04840088
+offset_right = 184.0004
+offset_bottom = 118.0
 columns = 2
-
-[node name="Jacket" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/Jacket" unique_id=202562626]
-position = Vector2(93, 59)
-scale = Vector2(2, 2)
-texture = ExtResource("13_u7e2m")
 
 [node name="EnduranceIndicators" type="Control" parent="InventoryRoot/InventoryContent/NavInv/Jacket" unique_id=615707469]
 anchors_preset = 0
-offset_left = 144.0
-offset_right = 184.0
-offset_bottom = 40.0
+offset_left = -20.0
+offset_top = -20.0
+offset_right = -20.0
+offset_bottom = -20.0
 
 [node name="CriticalEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/Jacket/EnduranceIndicators" unique_id=1585035676]
 layout_mode = 0
@@ -699,28 +794,28 @@ texture = ExtResource("11_khlg7")
 
 [node name="Pistols" parent="InventoryRoot/InventoryContent/NavInv" unique_id=1265124824 instance=ExtResource("3_xtoeb")]
 layout_mode = 0
-offset_left = 703.0
-offset_top = 99.0
-offset_right = 825.0
-offset_bottom = 219.0
+offset_left = 695.0
+offset_top = 91.0
+offset_right = 817.0
+offset_bottom = 215.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_6n8ie")
 slot_type = 1
 icon_size = Vector2(100, 100)
-use_native_texture_size = true
-native_texture_scale = 2.0
-apply_item_inventory_icon_scale = false
-hint_sprite_path = NodePath("Pistols")
 
-[node name="Pistols" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/Pistols" unique_id=166296610]
-position = Vector2(61, 61)
+[node name="TextureRect" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/Pistols" unique_id=182892838]
+visible = false
+layout_mode = 0
+offset_right = 61.0
+offset_bottom = 62.0
 scale = Vector2(2, 2)
-texture = ExtResource("8_a41ah")
+texture = SubResource("AtlasTexture_khlg7")
 
 [node name="EnduranceIndicators" type="Control" parent="InventoryRoot/InventoryContent/NavInv/Pistols" unique_id=1665048633]
 anchors_preset = 0
-offset_left = 82.0
-offset_right = 122.0
-offset_bottom = 40.0
+offset_left = -19.60376
+offset_top = -20.000275
+offset_right = -19.60376
+offset_bottom = -20.000275
 
 [node name="CriticalEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/Pistols/EnduranceIndicators" unique_id=1839977812]
 layout_mode = 0
@@ -756,10 +851,10 @@ texture = ExtResource("11_khlg7")
 
 [node name="LeftHand" parent="InventoryRoot/InventoryContent/NavInv" unique_id=940323958 instance=ExtResource("3_xtoeb")]
 layout_mode = 0
-offset_left = 347.0
-offset_top = 372.0
-offset_right = 463.0
-offset_bottom = 478.0
+offset_left = 333.0
+offset_top = 357.0
+offset_right = 459.0
+offset_bottom = 479.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_6n8ie")
 slot_type = 9
 use_native_texture_size = true
@@ -770,10 +865,10 @@ use_allowed_item_types = true
 
 [node name="ClothingStorageGrid2" type="GridContainer" parent="InventoryRoot/InventoryContent/NavInv/LeftHand" unique_id=1722501069]
 layout_mode = 0
-offset_left = 28.0
-offset_top = 27.0
-offset_right = 88.0
-offset_bottom = 84.0
+offset_left = 32.0
+offset_top = 28.0
+offset_right = 92.0
+offset_bottom = 88.0
 
 [node name="Bag" parent="InventoryRoot/InventoryContent/NavInv" unique_id=96424970 instance=ExtResource("3_xtoeb")]
 layout_mode = 0
@@ -783,41 +878,39 @@ offset_right = 603.0
 offset_bottom = 619.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_6n8ie")
 slot_type = 6
-use_native_texture_size = true
-native_texture_scale = 2.0
-apply_item_inventory_icon_scale = false
-hint_sprite_path = NodePath("Bag")
 
 [node name="BagStoragePanel" type="Panel" parent="InventoryRoot/InventoryContent/NavInv/Bag" unique_id=1314131359]
 layout_mode = 0
-offset_left = -5.0
-offset_top = 246.0
-offset_right = 134.0
-offset_bottom = 372.0
+offset_left = -4.0
+offset_top = 79.0
+offset_right = 120.0
+offset_bottom = 415.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_r58ew")
 
 [node name="BagStorageGrid" type="GridContainer" parent="InventoryRoot/InventoryContent/NavInv/Bag/BagStoragePanel" unique_id=1314131360]
-custom_minimum_size = Vector2(125, 0)
 layout_mode = 0
-offset_left = 8.4
-offset_top = -153.99997
-offset_right = 133.4
-offset_bottom = 22.00003
-theme_override_constants/h_separation = 3
-theme_override_constants/v_separation = 3
+offset_left = 1.0
+offset_top = 1.0
+offset_right = 123.0
+offset_bottom = 184.0
 columns = 2
 
-[node name="Bag" type="Sprite2D" parent="InventoryRoot/InventoryContent/NavInv/Bag" unique_id=1446171175]
-position = Vector2(62, 208)
+[node name="TextureRect" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/Bag" unique_id=377284410]
+visible = false
+layout_mode = 0
+offset_left = -4.0
+offset_top = -2.0
+offset_right = 58.0
+offset_bottom = 191.0
 scale = Vector2(2, 2)
-texture = ExtResource("8_kkqi7")
+texture = SubResource("AtlasTexture_v64ah")
 
 [node name="EnduranceIndicators" type="Control" parent="InventoryRoot/InventoryContent/NavInv/Bag" unique_id=936575771]
 anchors_preset = 0
-offset_left = 86.0
-offset_top = 4.0
-offset_right = 126.0
-offset_bottom = 44.0
+offset_left = -24.0
+offset_top = -22.0
+offset_right = -24.0
+offset_bottom = -22.0
 
 [node name="CriticalEndurance" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/Bag/EnduranceIndicators" unique_id=465546699]
 layout_mode = 0
@@ -851,6 +944,145 @@ offset_right = 30.0
 offset_bottom = 30.0
 texture = ExtResource("11_khlg7")
 
+[node name="ActionControl" type="Control" parent="InventoryRoot/InventoryContent/NavInv" unique_id=572290391]
+anchors_preset = 0
+offset_left = 49.0
+offset_top = -26.0
+offset_right = 89.0
+offset_bottom = 14.0
+
+[node name="DialogBox" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/ActionControl" unique_id=1873084491]
+layout_mode = 0
+offset_left = 1145.0
+offset_top = 134.0
+offset_right = 1366.0
+offset_bottom = 408.0
+scale = Vector2(2, 2)
+texture = SubResource("AtlasTexture_nyl6l")
+
+[node name="Anchor" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/ActionControl/DialogBox" unique_id=908103548]
+z_index = 20
+layout_mode = 0
+offset_left = 204.0
+offset_top = -0.5
+offset_right = 221.0
+offset_bottom = 16.5
+texture = SubResource("AtlasTexture_o0knx")
+flip_h = true
+
+[node name="ExitDialogBox" type="TextureButton" parent="InventoryRoot/InventoryContent/NavInv/ActionControl/DialogBox" unique_id=611414147]
+layout_mode = 0
+offset_left = 1.0
+offset_top = 8.5
+offset_right = 22.0
+offset_bottom = 31.0
+texture_normal = SubResource("AtlasTexture_r5k35")
+
+[node name="OneButton" type="Control" parent="InventoryRoot/InventoryContent/NavInv/ActionControl" unique_id=1123888388]
+anchors_preset = 0
+offset_left = -783.0
+offset_top = -422.0
+offset_right = -743.0
+offset_bottom = -382.0
+scale = Vector2(2, 2)
+
+[node name="Action" type="TextureButton" parent="InventoryRoot/InventoryContent/NavInv/ActionControl/OneButton" unique_id=932702442]
+layout_mode = 0
+offset_left = -10.5
+offset_top = 23.5
+offset_right = 61.5
+offset_bottom = 42.5
+texture_normal = SubResource("AtlasTexture_jkpt1")
+texture_pressed = SubResource("AtlasTexture_mhyt1")
+
+[node name="Info" type="TextureButton" parent="InventoryRoot/InventoryContent/NavInv/ActionControl/OneButton" unique_id=1745969964]
+layout_mode = 0
+offset_left = -10.5
+offset_top = 6.5
+offset_right = 11.5
+offset_bottom = 24.5
+texture_normal = SubResource("AtlasTexture_5srsr")
+texture_pressed = SubResource("AtlasTexture_ns5j5")
+
+[node name="TwoButton" type="Control" parent="InventoryRoot/InventoryContent/NavInv/ActionControl" unique_id=138548666]
+anchors_preset = 0
+offset_left = -567.0
+offset_top = -499.0
+offset_right = -527.0
+offset_bottom = -459.0
+scale = Vector2(2, 2)
+
+[node name="Action" type="TextureButton" parent="InventoryRoot/InventoryContent/NavInv/ActionControl/TwoButton" unique_id=470447946]
+layout_mode = 0
+offset_left = 0.5
+offset_top = 3.0
+offset_right = 72.5
+offset_bottom = 22.0
+texture_normal = SubResource("AtlasTexture_jkpt1")
+texture_pressed = SubResource("AtlasTexture_ytbm7")
+
+[node name="Action2" type="TextureButton" parent="InventoryRoot/InventoryContent/NavInv/ActionControl/TwoButton" unique_id=719479121]
+layout_mode = 0
+offset_left = 0.5
+offset_top = 21.0
+offset_right = 72.5
+offset_bottom = 40.0
+texture_normal = SubResource("AtlasTexture_jkpt1")
+texture_pressed = SubResource("AtlasTexture_ytbm7")
+
+[node name="Info" type="TextureButton" parent="InventoryRoot/InventoryContent/NavInv/ActionControl/TwoButton" unique_id=649203463]
+layout_mode = 0
+offset_left = 0.5
+offset_top = -14.0
+offset_right = 22.5
+offset_bottom = 4.0
+texture_normal = SubResource("AtlasTexture_5srsr")
+texture_pressed = SubResource("AtlasTexture_ns5j5")
+
+[node name="ThreeButton" type="Control" parent="InventoryRoot/InventoryContent/NavInv/ActionControl" unique_id=275296346]
+anchors_preset = 0
+offset_left = -783.0
+offset_top = -219.0
+offset_right = -743.0
+offset_bottom = -179.0
+scale = Vector2(2, 2)
+
+[node name="Action" type="TextureButton" parent="InventoryRoot/InventoryContent/NavInv/ActionControl/ThreeButton" unique_id=261329765]
+layout_mode = 0
+offset_left = 792.0
+offset_top = 287.0
+offset_right = 864.0
+offset_bottom = 306.0
+texture_normal = SubResource("AtlasTexture_jkpt1")
+texture_pressed = SubResource("AtlasTexture_ytbm7")
+
+[node name="Action2" type="TextureButton" parent="InventoryRoot/InventoryContent/NavInv/ActionControl/ThreeButton" unique_id=1756169258]
+layout_mode = 0
+offset_left = 792.0
+offset_top = 305.0
+offset_right = 864.0
+offset_bottom = 324.0
+texture_normal = SubResource("AtlasTexture_jkpt1")
+texture_pressed = SubResource("AtlasTexture_ytbm7")
+
+[node name="Action3" type="TextureButton" parent="InventoryRoot/InventoryContent/NavInv/ActionControl/ThreeButton" unique_id=565183307]
+layout_mode = 0
+offset_left = 792.0
+offset_top = 323.0
+offset_right = 864.0
+offset_bottom = 342.0
+texture_normal = SubResource("AtlasTexture_jkpt1")
+texture_pressed = SubResource("AtlasTexture_ytbm7")
+
+[node name="Info" type="TextureButton" parent="InventoryRoot/InventoryContent/NavInv/ActionControl/ThreeButton" unique_id=1613657688]
+layout_mode = 0
+offset_left = 792.0
+offset_top = 270.0
+offset_right = 814.0
+offset_bottom = 288.0
+texture_normal = SubResource("AtlasTexture_5srsr")
+texture_pressed = SubResource("AtlasTexture_ns5j5")
+
 [node name="NavMap" type="Control" parent="InventoryRoot/InventoryContent" unique_id=1374612296]
 anchors_preset = 0
 offset_right = 40.0
@@ -859,12 +1091,12 @@ offset_bottom = 40.0
 [node name="Anchor" type="TextureRect" parent="InventoryRoot/InventoryContent" unique_id=490953120]
 z_index = 20
 layout_mode = 0
-offset_left = 115.0
-offset_top = 67.0
-offset_right = 132.0
-offset_bottom = 84.0
+offset_left = 117.0
+offset_top = 69.0
+offset_right = 134.0
+offset_bottom = 86.0
 scale = Vector2(2, 2)
-texture = ExtResource("22_84uxx")
+texture = SubResource("AtlasTexture_o0knx")
 
 [node name="Lut" type="Control" parent="InventoryRoot/InventoryContent" unique_id=1388283242]
 anchors_preset = 0
@@ -879,35 +1111,15 @@ offset_right = 825.0
 offset_bottom = 615.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_op05d")
 
-[node name="LutBG" type="TextureRect" parent="InventoryRoot/InventoryContent/Lut/Lut" unique_id=16839569]
+[node name="BoxLutPanel" type="TextureRect" parent="InventoryRoot/InventoryContent/Lut/Lut" unique_id=993013691]
 layout_mode = 0
-offset_left = -26.0
-offset_top = -28.0
-offset_right = 96.0
-offset_bottom = 180.0
+mouse_filter = 2
+offset_left = -24.0
+offset_top = -20.0
+offset_right = 89.0
+offset_bottom = 178.0
 scale = Vector2(2, 2)
-texture = ExtResource("18_r58ew")
-metadata/_aseprite_wizard_interface_config_ = {
-"layer_section": true,
-"pending_changes": {
-"convert_fps_field": 60.0,
-"convert_ms_field": 16.0,
-"convert_to_fps": false,
-"embed_tex": true,
-"i_mode": 0,
-"keep_anim_length": false,
-"layers": [],
-"o_ex_p": "",
-"o_folder": "",
-"o_name": "",
-"only_visible": false,
-"player": "",
-"scale": "1.0",
-"slice": "",
-"source": "",
-"source_uid": -1
-}
-}
+texture = SubResource("AtlasTexture_wuh21")
 
 [node name="CenterContainer" type="CenterContainer" parent="InventoryRoot/InventoryContent/Lut/Lut" unique_id=455976980]
 layout_mode = 0
@@ -920,26 +1132,28 @@ layout_mode = 2
 
 [node name="BanditLut" type="Panel" parent="InventoryRoot/InventoryContent/Lut" unique_id=947313947]
 layout_mode = 0
-offset_left = 616.0
+offset_left = 974.0
 offset_top = 237.0
-offset_right = 828.0
+offset_right = 1186.0
 offset_bottom = 619.0
-theme_override_styles/panel = SubResource("StyleBoxEmpty_khlg7")
+theme_override_styles/panel = SubResource("StyleBoxEmpty_mhyt1")
 
 [node name="BanditLutPanel" type="TextureRect" parent="InventoryRoot/InventoryContent/Lut/BanditLut" unique_id=1096830120]
 layout_mode = 0
-offset_left = -21.0
-offset_top = -24.0
-offset_right = 101.0
-offset_bottom = 184.0
+mouse_filter = 2
+offset_left = -376.88574
+offset_top = -16.0
+offset_right = -263.88574
+offset_bottom = 182.0
 scale = Vector2(2, 2)
-texture = ExtResource("20_628r3")
+texture = SubResource("AtlasTexture_5nu5h")
 
 [node name="CenterContainer" type="CenterContainer" parent="InventoryRoot/InventoryContent/Lut/BanditLut" unique_id=349083188]
 layout_mode = 0
-offset_top = 54.0
-offset_right = 212.0
-offset_bottom = 214.0
+offset_left = -371.0
+offset_top = 57.0
+offset_right = -157.0
+offset_bottom = 374.0
 
 [node name="GridContainer" type="GridContainer" parent="InventoryRoot/InventoryContent/Lut/BanditLut/CenterContainer" unique_id=1493557559]
 layout_mode = 2

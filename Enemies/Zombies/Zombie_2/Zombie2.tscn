@@ -1,0 +1,170 @@
+[gd_scene format=3 uid="uid://d3hakottynqp5"]
+
+[ext_resource type="Texture2D" uid="uid://dajmhnecqolt0" path="res://Player/ActionBar/outlineActionBar.png" id="1_nts31"]
+[ext_resource type="Texture2D" uid="uid://dko3w0d1rftw7" path="res://Player/ActionBar/actionBar.png" id="2_pqbuw"]
+[ext_resource type="Script" uid="uid://tlfk3rgg5kle" path="res://Enemies/AI/enemy_state_machine.gd" id="3_5es7s"]
+[ext_resource type="Script" uid="uid://0uwk7s2m00xq" path="res://Enemies/AI/states/idle_state.gd" id="4_ljvch"]
+[ext_resource type="Script" uid="uid://xggr7owiq26w" path="res://Enemies/AI/states/patrol_state.gd" id="5_aywkg"]
+[ext_resource type="Script" uid="uid://1ebb683deknx" path="res://Enemies/AI/states/suspicious_state.gd" id="6_q0ecg"]
+[ext_resource type="Script" uid="uid://djpb772ys8qw6" path="res://Enemies/AI/states/chase_state.gd" id="7_r3y5d"]
+[ext_resource type="Script" uid="uid://d4g8an7n5ibfx" path="res://Enemies/AI/states/attack_state.gd" id="8_cblr3"]
+[ext_resource type="Script" uid="uid://uwlred0fxjsi" path="res://Enemies/AI/states/search_state.gd" id="9_s6bi2"]
+[ext_resource type="Script" uid="uid://3uv07djx1bdg" path="res://Enemies/AI/states/return_state.gd" id="10_lm64u"]
+[ext_resource type="Script" uid="uid://beuiqqvbwiioj" path="res://Enemies/AI/states/stun_state.gd" id="11_dg66y"]
+[ext_resource type="Script" uid="uid://cq6rpdmdlvah3" path="res://Enemies/AI/states/dead_state.gd" id="12_yrrqs"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_l26we"]
+animations = [{
+"frames": [],
+"loop": true,
+"name": &"attack_down",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"attack_front",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"attack_up",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": false,
+"name": &"die",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"down",
+"speed": 10.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"front",
+"speed": 10.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"idle_down",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"idle_front",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"idle_up",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"up",
+"speed": 10.0
+}]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_f8uiu"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_j481q"]
+radius = 200.15994
+
+[node name="Zombie2" type="Node2D" unique_id=1376873548]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1544676237]
+sprite_frames = SubResource("SpriteFrames_l26we")
+animation = &"attack_down"
+metadata/_aseprite_wizard_interface_config_ = {
+"animation_section": true,
+"layer_section": true,
+"output_section": true,
+"pending_changes": {},
+"slice_section": true
+}
+metadata/_aseprite_wizard_config_ = {
+"embed_tex": true,
+"layers": [],
+"o_ex_p": "",
+"o_folder": "",
+"o_name": "",
+"only_visible": false,
+"scale": "1.0",
+"should_round_fps": true,
+"slice": "",
+"source": "res://Assets/project/Wolf redactor-Sheet.aseprite",
+"source_uid": -1
+}
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=2114132303]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=1658382222]
+position = Vector2(-1, 13)
+scale = Vector2(0.34, 0.055)
+shape = SubResource("CapsuleShape2D_f8uiu")
+
+[node name="DangeonZone" type="Area2D" parent="." unique_id=1768366913]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DangeonZone" unique_id=1638897484]
+visible = false
+shape = SubResource("CircleShape2D_j481q")
+
+[node name="ActionBarRoot" type="Control" parent="." unique_id=2106273546]
+layout_mode = 3
+anchors_preset = 0
+offset_left = -26.0
+offset_top = -22.0
+offset_right = 9.0
+offset_bottom = -12.0
+
+[node name="ActionBarFill" type="TextureProgressBar" parent="ActionBarRoot" unique_id=395799596]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 6.5
+offset_right = 35.0
+offset_bottom = 9.5
+value = 100.0
+texture_under = ExtResource("1_nts31")
+texture_progress = ExtResource("2_pqbuw")
+texture_progress_offset = Vector2(1, 1)
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="." unique_id=1907152949]
+
+[node name="StateMachine" type="Node" parent="." unique_id=1269352801]
+script = ExtResource("3_5es7s")
+
+[node name="IdleState" type="Node" parent="StateMachine" unique_id=1226670949]
+script = ExtResource("4_ljvch")
+
+[node name="PatrolState" type="Node" parent="StateMachine" unique_id=844699239]
+script = ExtResource("5_aywkg")
+
+[node name="SuspiciousState" type="Node" parent="StateMachine" unique_id=559119497]
+script = ExtResource("6_q0ecg")
+
+[node name="ChaseState" type="Node" parent="StateMachine" unique_id=614292717]
+script = ExtResource("7_r3y5d")
+
+[node name="AttackState" type="Node" parent="StateMachine" unique_id=1448780551]
+script = ExtResource("8_cblr3")
+
+[node name="SearchState" type="Node" parent="StateMachine" unique_id=62661086]
+script = ExtResource("9_s6bi2")
+
+[node name="ReturnState" type="Node" parent="StateMachine" unique_id=398164242]
+script = ExtResource("10_lm64u")
+
+[node name="StunState" type="Node" parent="StateMachine" unique_id=700663552]
+script = ExtResource("11_dg66y")
+
+[node name="DeadState" type="Node" parent="StateMachine" unique_id=1734654365]
+script = ExtResource("12_yrrqs")
+
+[node name="PatrolPoints" type="Node2D" parent="." unique_id=1912225416]
+
+[node name="Marker2D2" type="Marker2D" parent="PatrolPoints" unique_id=1302859133]
+position = Vector2(-36, 17)
+
+[node name="Marker2D" type="Marker2D" parent="PatrolPoints" unique_id=1388801811]
+position = Vector2(18, 43)

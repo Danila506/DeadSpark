@@ -1,0 +1,29 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+[STUTTER_MONITOR] enabled=true threshold_ms=25.0 freeze_ms=120.0 summary_sec=5.0 log=C:/Users/belak/AppData/Roaming/Godot/app_userdata/Dead Spark/logs/stutter_monitor.log scene=res://tests/enemy_bandit_persistence_reload_test.tscn
+Current platform / OS name: Windows
+LAN discovery listener unavailable on 24560 (code=2), discovery disabled for this instance
+WARNING: BanditBase: saved population manifest profile differs; saved state takes priority
+   at: push_warning (core/variant/variant_utility.cpp:1034)
+   GDScript backtrace (most recent call first):
+       [0] restore_persisted_population_state (res://Enemies/Bandits/bandit_base.gd:125)
+       [1] restore_camp (res://World/Generation/enemy_population_persistence.gd:45)
+       [2] restore_population_state (res://Enemies/Bandits/bandit_base.gd:109)
+       [3] _assert_saved_restore (res://tests/enemy_bandit_persistence_reload_test.gd:145)
+       [4] _run (res://tests/enemy_bandit_persistence_reload_test.gd:191)
+WARNING: BanditBase: saved population manifest profile differs; saved state takes priority
+   at: push_warning (core/variant/variant_utility.cpp:1034)
+   GDScript backtrace (most recent call first):
+       [0] restore_persisted_population_state (res://Enemies/Bandits/bandit_base.gd:125)
+       [1] restore_camp (res://World/Generation/enemy_population_persistence.gd:45)
+       [2] restore_population_state (res://Enemies/Bandits/bandit_base.gd:109)
+       [3] _assert_saved_restore (res://tests/enemy_bandit_persistence_reload_test.gd:145)
+       [4] _run (res://tests/enemy_bandit_persistence_reload_test.gd:194)
+[STUTTER_FREEZE] t=1787ms frame=150.00ms fps=1 process=0.00ms physics=0.00ms draws=0 render_objs=0 nodes=33 orphans=8 objects=2000 static_mb=44.59 vram_mb=0.00 msg_mb=0.01 chunks=0 pending=0 scheduler_queue=0 scheduler_tasks=0 scheduler_ms=0.00 recent=recent_tasks=[]
+ENEMY_BANDIT_PERSISTENCE_RELOAD_TEST=PASS digest=4ef819d6d959fc7559e75af9678ed5495ba290b86e29682a5b408819a161c55d
+[STUTTER_SUMMARY] t=1831ms spikes=2 freezes=2 max_frame=150.00ms avg_fps=1 frame=0.00ms process=0.94ms physics=1.94ms draws=0 render_objs=0 nodes=8 orphans=117 static_mb=44.79 vram_mb=0.00 msg_mb=0.01 chunks=0 pending=0 scheduler_queue=0 scheduler_ms=0.00 recent=recent_tasks=[]
+[STUTTER_MONITOR] session_end uptime_ms=1832
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2641)
+ERROR: 1 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:810)

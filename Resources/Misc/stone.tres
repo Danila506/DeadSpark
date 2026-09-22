@@ -10,5 +10,6 @@ item_name = "Камни"
 world_icon = ExtResource("3_0vdk4")
 inventory_icon = ExtResource("2_fffmo")
 inventory_icon_scale = 0.8
+item_weight = 0.35
 max_stack_size = 3
 show_stack_count_in_inventory = true

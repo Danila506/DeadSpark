@@ -49,6 +49,7 @@ func spawn_bleeding_trail_mark() -> void:
 		return
 	blood_mark.texture = frame_texture
 	blood_mark.top_level = true
+	blood_mark.z_as_relative = false
 	blood_mark.scale = player.bleeding_trail_scale
 	blood_mark.modulate = Color(1.0, 1.0, 1.0, 0.95)
 	blood_mark.z_index = player.bleeding_trail_z_index
@@ -62,7 +63,8 @@ func spawn_bleeding_trail_mark() -> void:
 		fx_root.add_child(blood_mark)
 
 	var fade_tween: Tween = blood_mark.create_tween()
-	fade_tween.tween_property(blood_mark, "modulate:a", 0.0, max(player.bleeding_trail_lifetime_sec, 0.1))
+	fade_tween.tween_interval(max(player.bleeding_trail_lifetime_sec, 0.1))
+	fade_tween.tween_property(blood_mark, "modulate:a", 0.0, max(player.bleeding_trail_fade_out_sec, 0.05))
 	fade_tween.finished.connect(func() -> void:
 		if is_instance_valid(blood_mark):
 			if player.get_node_or_null("/root/EffectPool") != null:
@@ -100,6 +102,7 @@ func spawn_hit_blood(source: Node, hit_context: Dictionary = {}) -> void:
 	if blood_sprite == null:
 		return
 	blood_sprite.top_level = true
+	blood_sprite.z_as_relative = false
 	blood_sprite.sprite_frames = BLEEDING_EFFECT_FRAMES
 	blood_sprite.animation = animation_name
 	blood_sprite.global_position = hit_position

@@ -12,6 +12,7 @@ static var _global_reserved_footprints: Dictionary = {}
 static var _global_reserved_footprint_grid: Dictionary = {}
 
 @export var enabled: bool = true
+@export var world_generated_mode: bool = false
 @export var spawner_id: String = ""
 @export var player_path: NodePath
 @export var spawn_parent_path: NodePath
@@ -116,6 +117,11 @@ func _ready() -> void:
 	if not enabled:
 		set_process(false)
 		return
+	if world_generated_mode and _contains_deer_scene():
+		push_error("ChunkTreeSpawner: Deer must be materialized by EnemyPopulation manifests in world-generated mode")
+		enabled = false
+		set_process(false)
+		return
 
 	_ensure_global_spawn_registry()
 	_rebuild_spawn_scene_cache()
@@ -168,6 +174,15 @@ func _exit_tree() -> void:
 	_release_loaded_spawn_reservations()
 
 
+func _contains_deer_scene() -> bool:
+	if tree_scene != null and tree_scene.resource_path == "res://Animals/Deer/Deer.tscn":
+		return true
+	for scene in tree_scenes:
+		if scene != null and scene.resource_path == "res://Animals/Deer/Deer.tscn":
+			return true
+	return false
+
+
 func disable_generation_runtime() -> void:
 	enabled = false
 	set_process(false)
@@ -186,6 +201,7 @@ func disable_generation_runtime() -> void:
 
 func _apply_config(cfg: ChunkTreeSpawnerConfig) -> void:
 	enabled = cfg.enabled
+	world_generated_mode = cfg.world_generated_mode
 	spawner_id = cfg.spawner_id
 	player_path = cfg.player_path
 	spawn_parent_path = cfg.spawn_parent_path

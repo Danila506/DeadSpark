@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EnvironmentEntry" format=3]
+
+[ext_resource type="Script" path="res://World/Generation/environment_entry.gd" id="1"]
+[ext_resource type="PackedScene" path="res://Enemies/Bandits/BanditBase2.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+entry_id = "bandit_camp_2"
+category = "structures"
+target_path = NodePath("../../Y-Sort_Objects")
+scene = ExtResource("2")
+density = 1.0
+max_instances_per_chunk = 1
+candidate_budget_per_chunk = 64
+chunk_spawn_probability = 0.18
+max_instances_per_world = 2
+minimum_spacing_cells = 1
+footprint_size = Vector2i(10, 8)
+footprint_offset = Vector2i(-5, -4)
+occupancy_flags = 24

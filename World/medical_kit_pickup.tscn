@@ -1,0 +1,9 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://items/scenes/pickup_item.tscn" id="1"]
+[ext_resource type="Script" path="res://World/Generation/generated_item_pickup.gd" id="2"]
+[ext_resource type="Resource" path="res://Resources/Medicine/healthBox.tres" id="3"]
+
+[node name="MedicalKit" instance=ExtResource("1")]
+script = ExtResource("2")
+item_data = ExtResource("3")

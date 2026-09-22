@@ -3,6 +3,22 @@
 [ext_resource type="Texture2D" uid="uid://d0264ysx6ywrs" path="res://Assets/itemAssets/animation_sprites/clothes/плащ полатка.png" id="1_v3vn0"]
 [ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="3_3rdvb"]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_down"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(96, 288, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_left"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(128, 288, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_right"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(160, 288, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_up"]
+atlas = ExtResource("1_v3vn0")
+region = Rect2(64, 288, 32, 32)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_lobij"]
 atlas = ExtResource("1_v3vn0")
 region = Rect2(64, 96, 32, 32)
@@ -97,6 +113,38 @@ region = Rect2(128, 352, 32, 32)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_wyhrp"]
 animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_down")
+}],
+"loop": true,
+"name": &"Aim_down",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_left")
+}],
+"loop": true,
+"name": &"Aim_left",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_right")
+}],
+"loop": true,
+"name": &"Aim_right",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_up")
+}],
+"loop": true,
+"name": &"Aim_up",
+"speed": 5.0
+}, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_lobij")
@@ -232,6 +280,8 @@ can_be_stored_in_clothing = false
 item_name = "Плащ палатка"
 world_icon = SubResource("AtlasTexture_ydjk7")
 inventory_icon = SubResource("AtlasTexture_v3vn0")
+item_weight = 1.3
+clothing_warmth = 4.0
 item_type = 3
 equipped_frames = SubResource("SpriteFrames_wyhrp")
 extra_storage_slots = 2

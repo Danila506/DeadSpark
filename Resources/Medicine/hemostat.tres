@@ -11,3 +11,4 @@ item_name = "Гемостат"
 world_icon = ExtResource("3_18n11")
 inventory_icon = ExtResource("1_esy0i")
 inventory_icon_scale = 0.8
+item_weight = 0.06

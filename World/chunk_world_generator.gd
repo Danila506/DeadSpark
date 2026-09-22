@@ -2931,6 +2931,27 @@ func get_pending_generation_chunk_count() -> int:
 	return maxi(1, pending_count) if has_generation_pending() else 0
 
 
+func get_chunk_generation_debug_snapshot() -> Dictionary:
+	return {
+		"expected_count": world_chunks_x * world_chunks_y,
+		"generated_chunk_ids": _canonical_chunk_ids(_loaded_chunks.keys()),
+		"pending_load_chunk_ids": _canonical_chunk_ids(_pending_load_chunks),
+		"pending_unload_chunk_ids": _canonical_chunk_ids(_pending_unload_chunks),
+		"scheduled_load_chunk_ids": _canonical_chunk_ids(_scheduled_load_chunks.keys()),
+		"scheduled_unload_chunk_ids": _canonical_chunk_ids(_scheduled_unload_chunks.keys()),
+		"queue_counts": {"pending_load": _pending_load_chunks.size(), "pending_unload": _pending_unload_chunks.size(), "scheduled_load": _scheduled_load_chunks.size(), "scheduled_unload": _scheduled_unload_chunks.size()}
+	}
+
+
+func _canonical_chunk_ids(values: Array) -> Array[String]:
+	var result: Array[String] = []
+	for value in values:
+		var chunk := value as Vector2i
+		result.append("%d,%d" % [chunk.x, chunk.y])
+	result.sort()
+	return result
+
+
 func force_generate_step(chunk_budget: int = -1) -> void:
 	if not enabled or _tile_map == null or _player == null:
 		return
@@ -3074,6 +3095,76 @@ func get_debug_world_generation_info() -> Dictionary:
 		"scheduled_load_chunks": _scheduled_load_chunks.keys(),
 		"scheduled_unload_chunks": _scheduled_unload_chunks.keys()
 	}
+
+
+func get_generation_compatibility_profile() -> Dictionary:
+	var resource_uid := GenerationHashes.resource_uid(config) if config != null else ""
+	return {
+		"id": "legacy_tile_layer:%s" % String(name),
+		"pass_version": 1,
+		"resource_uid": resource_uid,
+		"algorithm": "chunk_cell_hash_v1",
+		"tile_source": source_id,
+		"tile_options_atlas": tile_options_atlas,
+		"tile_option_weights": tile_option_weights,
+		"fill_probability": fill_probability,
+		"terrain": {
+			"use_terrain_connect": use_terrain_connect,
+			"terrain_set_id": terrain_set_id,
+			"terrain_id": terrain_id,
+			"terrain_blob_mode": terrain_blob_mode,
+			"blob_size_scale_min": blob_size_scale_min,
+			"blob_size_scale_max": blob_size_scale_max,
+			"blob_lobe_count_min": blob_lobe_count_min,
+			"blob_lobe_count_max": blob_lobe_count_max,
+			"blob_lobe_offset_factor": blob_lobe_offset_factor,
+			"blob_edge_jitter": blob_edge_jitter,
+			"blob_cell_keep_probability": blob_cell_keep_probability
+		},
+		"biome": {
+			"partition_enabled": biome_partition_enabled,
+			"partition_count": biome_partition_count,
+			"partition_index": biome_partition_index,
+			"partition_period_chunks": biome_partition_period_chunks,
+			"half_split_enabled": biome_half_split_enabled,
+			"half_split_vertical": biome_half_split_vertical,
+			"half_split_upper_or_left": biome_half_split_upper_or_left
+		}
+	}
+
+
+func get_generation_output_manifest() -> Dictionary:
+	var cells: Array[Vector2i] = []
+	# Recompute the base tile decisions from the immutable inputs. Reading the
+	# runtime TileMap or scheduler queues here would turn this into a timing hash.
+	for chunk_y in range(_world_min_chunk.y, _world_max_chunk.y + 1):
+		for chunk_x in range(_world_min_chunk.x, _world_max_chunk.x + 1):
+			var chunk := Vector2i(chunk_x, chunk_y)
+			if not _is_chunk_allowed_for_biome(chunk):
+				continue
+			var origin := chunk * chunk_size_tiles
+			var chunk_cells: Array[Vector2i] = []
+			for local_y in range(chunk_size_tiles):
+				for local_x in range(chunk_size_tiles):
+					var cell := origin + Vector2i(local_x, local_y)
+					if not _is_protected_cell(cell) and _cell_fill_roll(cell) <= fill_probability:
+						chunk_cells.append(cell)
+			if ensure_non_empty_chunk and chunk_cells.is_empty():
+				var fallback := _pick_fallback_cell(origin)
+				if not _is_protected_cell(fallback):
+					chunk_cells.append(fallback)
+			cells.append_array(chunk_cells)
+	var tiles: Array[Dictionary] = []
+	for cell in cells:
+		tiles.append({
+			"cell": cell,
+			# The manifest expresses the deterministic generator decision rather
+			# than TileMap runtime state, which can be changed by unrelated nodes.
+			"source_id": source_id,
+			"atlas": _pick_tile(cell),
+			"alternative": 0
+		})
+	return {"id": "legacy_tile_layer:%s" % String(name), "tiles": tiles}
 
 
 func _resolve_fallback_tile_map() -> TileMapLayer:

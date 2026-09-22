@@ -1,0 +1,14 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+[STUTTER_MONITOR] enabled=true threshold_ms=25.0 freeze_ms=120.0 summary_sec=5.0 log=C:/Users/belak/AppData/Roaming/Godot/app_userdata/Dead Spark/logs/stutter_monitor.log scene=res://tests/audit_gameplay_probe.tscn
+Current platform / OS name: Windows
+[STUTTER_FREEZE] t=162ms frame=142.10ms fps=1 process=0.00ms physics=0.00ms draws=0 render_objs=0 nodes=787 orphans=0 objects=3649 static_mb=52.07 vram_mb=0.00 msg_mb=0.04 chunks=0 pending=0 scheduler_queue=0 scheduler_tasks=0 scheduler_ms=0.00 recent=recent_tasks=[]
+AUDIT invalid_drop_drag_started=true
+AUDIT invalid_drop_source_empty=false world_pickups=0
+AUDIT unopened_neighbor_closed_loot=false
+AUDIT same_seed_tree_save_keys_changed=0/5 felled_states_restored=5
+AUDIT async_matches_sync=true
+AUDIT battery_before=10.0 after_save=10.0 after_drop_copy=10.0
+REMAINING_GAMEPLAY_FIXES_TEST=PASS
+[STUTTER_SUMMARY] t=316ms spikes=3 freezes=2 max_frame=142.10ms avg_fps=1 frame=0.00ms process=0.52ms physics=151.75ms draws=0 render_objs=0 nodes=8 orphans=833 static_mb=52.78 vram_mb=0.00 msg_mb=0.04 chunks=0 pending=0 scheduler_queue=0 scheduler_ms=0.00 recent=recent_tasks=[]
+[STUTTER_MONITOR] session_end uptime_ms=316

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EnvironmentEntry" format=3 uid="uid://djlbnttqg21qd"]
+
+[ext_resource type="Script" uid="uid://ccxhw813rxe58" path="res://World/Generation/environment_entry.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://c7wk2x7wsxtqd" path="res://World/Assets/Bunker/Bunker.tscn" id="2"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/Loot/bunker_loot_profile.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+entry_id = "bunker"
+category = "structures"
+target_path = NodePath("../../Y-Sort_Objects")
+scene = ExtResource("2")
+density = 1.0
+max_instances_per_chunk = 1
+candidate_budget_per_chunk = 64
+footprint_size = Vector2i(6, 6)
+occupancy_flags = 24
+chunk_spawn_probability = 0.22
+max_instances_per_world = 3
+footprint_offset = Vector2i(-3, -3)
+loot_profile = ExtResource("3")

@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://bjocxmfqkwaq5"]
+
+[ext_resource type="Script" uid="uid://bgtxbv5l52a3" path="res://tests/manual_block_c_validation.gd" id="1"]
+
+[node name="ManualBlockCValidation" type="Node2D" unique_id=1667759210]
+script = ExtResource("1")
+world_seed = 15885

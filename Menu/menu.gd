@@ -61,6 +61,35 @@ func _ready() -> void:
 	_apply_menu_texts()
 	_hide_lan_overlay()
 	_set_status("")
+	call_deferred("_start_lan_smoke_from_command_line")
+
+
+func _start_lan_smoke_from_command_line() -> void:
+	var mode := _get_cli_arg("lan-smoke-mode")
+	if mode.is_empty() or NetworkManager == null:
+		return
+	var port := int(_get_cli_arg("lan-port", str(DEFAULT_LAN_PORT)))
+	if mode == "host":
+		NetworkManager.host_lan_game(port)
+	elif mode == "client":
+		NetworkManager.join_lan_game(_get_cli_arg("lan-host", "127.0.0.1"), port)
+		await _await_lan_smoke_client_connection()
+
+
+func _await_lan_smoke_client_connection() -> void:
+	for _frame in range(600):
+		if NetworkManager != null and NetworkManager.is_client():
+			get_tree().change_scene_to_file(NETWORK_WORLD_PATH)
+			return
+		await get_tree().process_frame
+
+
+func _get_cli_arg(key: String, default_value: String = "") -> String:
+	for arg in OS.get_cmdline_user_args():
+		var prefix := "--%s=" % key
+		if arg.begins_with(prefix):
+			return arg.trim_prefix(prefix)
+	return default_value
 
 
 func _exit_tree() -> void:

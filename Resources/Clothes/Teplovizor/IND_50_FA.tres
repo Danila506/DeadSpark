@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bgc6s13ysex1s"]
+
+[ext_resource type="Texture2D" uid="uid://boti2euxw5v6e" path="res://Assets/itemAssets/inventory_icon/Clothes/Teplovizor/IND_50_FA_Wrd.png" id="1_world"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="2_item_data"]
+[ext_resource type="SpriteFrames" uid="uid://brrs3r6t08qxh" path="res://Resources/Clothes/Teplovizor/IND_50_FA_Sprites.tres" id="3_frames"]
+[ext_resource type="Texture2D" uid="uid://ejvrlqdvrhcr" path="res://Assets/itemAssets/inventory_icon/Clothes/Teplovizor/IND_50_FA_Inv.png" id="4_inventory"]
+
+[resource]
+script = ExtResource("2_item_data")
+storage_category = 2
+can_be_stored_in_clothing = false
+item_name = "IND-50 FA"
+world_icon = ExtResource("1_world")
+inventory_icon = ExtResource("4_inventory")
+item_weight = 2.2
+clothing_warmth = 2.0
+clothing_armor = 5.0
+description = "Шлем IND-50 FA без установленного тепловизора."
+item_type = 8
+equipped_frames = ExtResource("3_frames")

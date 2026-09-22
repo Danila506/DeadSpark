@@ -119,7 +119,6 @@ position = Vector2(-5, 5)
 texture = SubResource("AtlasTexture_ph06y")
 
 [node name="HouseOutside" type="Sprite2D" parent="." unique_id=400060226]
-visible = false
 texture = SubResource("AtlasTexture_hh2io")
 
 [node name="WardrobeSprites" type="Node2D" parent="." unique_id=2098787499]
@@ -151,8 +150,10 @@ position = Vector2(-0.5, 0)
 shape = SubResource("RectangleShape2D_wardrobe_area")
 
 [node name="Door\'sSprites" type="Node2D" parent="." unique_id=446555314]
+y_sort_enabled = true
 
 [node name="Door" type="Sprite2D" parent="Door\'sSprites" unique_id=259796742]
+y_sort_enabled = true
 position = Vector2(-66, 42)
 texture = SubResource("AtlasTexture_rbvy5")
 offset = Vector2(0.5, -0.5)
@@ -164,11 +165,13 @@ texture = SubResource("AtlasTexture_nl7bi")
 offset = Vector2(0.5, -0.5)
 
 [node name="DoorOpened" type="Sprite2D" parent="Door\'sSprites" unique_id=619460090]
-position = Vector2(-75, 42)
+visible = false
+position = Vector2(-74, 36)
 texture = SubResource("AtlasTexture_fimqk")
 
 [node name="DoorOutlineOpened" type="Sprite2D" parent="Door\'sSprites" unique_id=933209507]
-position = Vector2(-75, 42)
+visible = false
+position = Vector2(-74, 36)
 texture = SubResource("AtlasTexture_6km6v")
 
 [node name="InteractLabel" type="Label" parent="." unique_id=201001]

@@ -1,8 +1,8 @@
 extends Node
 
 const SAVE_FILE_PATH: String = "user://savegame.json"
-const SAVE_SCHEMA_VERSION: int = 3
-const WORLD_GENERATOR_VERSION: int = 1
+const SAVE_SCHEMA_VERSION: int = 4
+const WORLD_GENERATOR_VERSION: int = 2
 const DEFAULT_WORLD_SEED: int = 0
 const FALLBACK_LEVEL_PATH: String = "res://level.tscn"
 const MENU_SCENE_PATH: String = "res://Menu/Menu.tscn"
@@ -18,6 +18,9 @@ var _startup_is_continue_load: bool = false
 var _world_generation_state: Dictionary = {
 	"seed": DEFAULT_WORLD_SEED,
 	"generator_version": WORLD_GENERATOR_VERSION,
+	"generation_compatibility_hash": "",
+	"world_manifest_hash": "",
+	"generation_output_hash": "",
 	"modified_objects": {}
 }
 
@@ -43,6 +46,8 @@ func save_game(path: String = SAVE_FILE_PATH) -> int:
 	if scene_path.is_empty():
 		scene_path = FALLBACK_LEVEL_PATH
 
+	# Return a reserved consumable before serializing an interrupted action.
+	get_tree().call_group("inventory_root", "cancel_pending_consumable")
 	var save_payload: Dictionary = {
 		"schema_version": SAVE_SCHEMA_VERSION,
 		"scene_path": scene_path,
@@ -167,6 +172,12 @@ func get_world_generation_state() -> Dictionary:
 	return _world_generation_state.duplicate(true)
 
 
+func set_generation_contract(report: Dictionary) -> void:
+	_world_generation_state["generation_compatibility_hash"] = String(report.get("generation_compatibility_hash", ""))
+	_world_generation_state["world_manifest_hash"] = String(report.get("world_manifest_hash", ""))
+	_world_generation_state["generation_output_hash"] = String(report.get("generation_output_hash", ""))
+
+
 func record_world_generation_object_state(node: Node) -> void:
 	if node == null:
 		return
@@ -185,6 +196,7 @@ func serialize_item(item: ItemData) -> Dictionary:
 
 	var runtime_copy: ItemData = item.create_instance(item.stack_count, item.endurance) if item.has_method("create_instance") else null
 	if runtime_copy != null and runtime_copy.has_method("to_save_dict"):
+		runtime_copy.battery_charge_seconds = item.battery_charge_seconds
 		runtime_copy.runtime_storage_items = item.runtime_storage_items.duplicate(true)
 		if InventoryManager != null and InventoryManager.has_method("copy_runtime_state"):
 			InventoryManager.copy_runtime_state(item, runtime_copy)
@@ -403,6 +415,9 @@ func _normalize_world_generation_state(raw_state: Variant) -> Dictionary:
 	return {
 		"seed": int(state.get("seed", DEFAULT_WORLD_SEED)),
 		"generator_version": int(state.get("generator_version", WORLD_GENERATOR_VERSION)),
+		"generation_compatibility_hash": String(state.get("generation_compatibility_hash", "")),
+		"world_manifest_hash": String(state.get("world_manifest_hash", "")),
+		"generation_output_hash": String(state.get("generation_output_hash", "")),
 		"modified_objects": modified_objects
 	}
 
@@ -425,6 +440,9 @@ func _reset_runtime_state_for_new_game() -> void:
 	_world_generation_state = {
 		"seed": DEFAULT_WORLD_SEED,
 		"generator_version": WORLD_GENERATOR_VERSION,
+		"generation_compatibility_hash": "",
+		"world_manifest_hash": "",
+		"generation_output_hash": "",
 		"modified_objects": {}
 	}
 	_has_active_world_seed = false
@@ -433,6 +451,9 @@ func _reset_runtime_state_for_new_game() -> void:
 func _set_world_generation_seed(seed: int) -> void:
 	_world_generation_state["seed"] = int(seed)
 	_world_generation_state["generator_version"] = WORLD_GENERATOR_VERSION
+	_world_generation_state["generation_compatibility_hash"] = ""
+	_world_generation_state["world_manifest_hash"] = ""
+	_world_generation_state["generation_output_hash"] = ""
 	if not (_world_generation_state.get("modified_objects", {}) is Dictionary):
 		_world_generation_state["modified_objects"] = {}
 	_has_active_world_seed = true
@@ -476,6 +497,9 @@ func _collect_world_pickups(scene_root: Node) -> Array:
 		if not (pickup is Node):
 			continue
 		var pickup_node: Node = pickup as Node
+		# Generated pickups persist by stable ID, independently of loose world drops.
+		if pickup_node.is_in_group("generated_item_pickup"):
+			continue
 		if not scene_root.is_ancestor_of(pickup_node):
 			continue
 		if not ("item_data" in pickup_node):
@@ -504,6 +528,9 @@ func _restore_world_pickups(scene_root: Node) -> void:
 		if not (pickup is Node):
 			continue
 		var pickup_node: Node = pickup as Node
+		# Generated pickups persist by stable ID, independently of loose world drops.
+		if pickup_node.is_in_group("generated_item_pickup"):
+			continue
 		if not scene_root.is_ancestor_of(pickup_node):
 			continue
 		if pickup_node.has_method("remove_from_world"):

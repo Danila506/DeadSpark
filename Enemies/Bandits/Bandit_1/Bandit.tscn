@@ -61,10 +61,6 @@ region = Rect2(288, 144, 32, 32)
 atlas = ExtResource("2_lklax")
 region = Rect2(320, 144, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_44h45"]
-atlas = ExtResource("2_lklax")
-region = Rect2(352, 144, 32, 32)
-
 [sub_resource type="AtlasTexture" id="AtlasTexture_iijq0"]
 atlas = ExtResource("2_lklax")
 region = Rect2(64, 96, 32, 32)
@@ -212,9 +208,6 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_dtfv1")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_44h45")
 }],
 "loop": true,
 "name": &"Die",
@@ -360,6 +353,10 @@ size = Vector2(11, 9)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tdird"]
 size = Vector2(13.5, 5.5)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_ftoku"]
+atlas = ExtResource("2_lklax")
+region = Rect2(356, 160, 25, 16)
+
 [node name="Bandit1" type="CharacterBody2D" unique_id=793374030]
 script = ExtResource("1_t4kwu")
 config = ExtResource("2_2qgfr")
@@ -399,15 +396,6 @@ metadata/_aseprite_wizard_config_ = {
 position = Vector2(0, -2.3841858e-07)
 scale = Vector2(0.34, 0.055)
 shape = SubResource("CapsuleShape2D_a03bs")
-
-[node name="HitboxArea" type="Area2D" parent="." unique_id=1123001]
-visible = false
-collision_mask = 0
-monitoring = false
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="HitboxArea" unique_id=994521348]
-position = Vector2(0, -13)
-shape = SubResource("CapsuleShape2D_t4kwu")
 
 [node name="DetectionZone" type="Area2D" parent="." unique_id=43092362]
 visible = false
@@ -503,29 +491,6 @@ position = Vector2(-100, -90)
 [node name="Marker2D" type="Marker2D" parent="PatrolPoints" unique_id=687728458]
 position = Vector2(108, 63)
 
-[node name="HitBoxes" type="Node2D" parent="." unique_id=1652456897]
-
-[node name="HeadHitbox" type="Area2D" parent="HitBoxes" unique_id=711700509]
-visible = false
-metadata/damage_zone = "head"
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="HitBoxes/HeadHitbox" unique_id=129730727]
-position = Vector2(0, -19)
-shape = SubResource("CircleShape2D_t4kwu")
-
-[node name="BodyHitbox" type="Area2D" parent="HitBoxes" unique_id=293467737]
-visible = false
-metadata/damage_zone = "body"
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="HitBoxes/BodyHitbox" unique_id=1020059495]
-position = Vector2(0.5, -9.5)
-shape = SubResource("RectangleShape2D_2qgfr")
-
-[node name="LegsHitbox" type="Area2D" parent="HitBoxes" unique_id=1106149830]
-visible = false
-metadata/damage_zone = "legs"
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="HitBoxes/LegsHitbox" unique_id=864091301]
-position = Vector2(0.46, -1.75)
-scale = Vector2(0.965, 1)
-shape = SubResource("RectangleShape2D_tdird")
+[node name="DyingSprite" type="Sprite2D" parent="." unique_id=1111486809]
+position = Vector2(0, -2)
+texture = SubResource("AtlasTexture_ftoku")

@@ -1,5 +1,7 @@
 extends CharacterBody2D
 
+signal died(deer: Node)
+
 @onready var body_sprite: AnimatedSprite2D = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
 @onready var danger_zone: Area2D = get_node_or_null("DangeonZone") as Area2D
 @onready var health_bar_root: Control = get_node_or_null("ActionBarRoot") as Control
@@ -122,6 +124,7 @@ func handle_secondary_interaction(interactor: Node) -> bool:
 
 func _kill() -> void:
 	is_dead = true
+	died.emit(self)
 	add_to_group("secondary_interactable")
 	if danger_zone != null:
 		_player_inside_danger_zone = false

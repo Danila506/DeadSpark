@@ -1,0 +1,15 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+[STUTTER_MONITOR] enabled=true threshold_ms=25.0 freeze_ms=120.0 summary_sec=5.0 log=C:/Users/belak/AppData/Roaming/Godot/app_userdata/Dead Spark/logs/stutter_monitor.log scene=res://tests/enemy_population_contract_test.tscn
+Current platform / OS name: Windows
+LAN discovery listener unavailable on 24560 (code=2), discovery disabled for this instance
+ENEMY_POPULATION_CONTRACT_TEST=PASS digest=158a9f295b6f3f5d9d015367a55c4adf88e06c91e87670aaa466aed408a020dc
+[STUTTER_FREEZE] t=25ms frame=150.00ms fps=1 process=0.00ms physics=0.00ms draws=0 render_objs=0 nodes=17 orphans=19 objects=1744 static_mb=28.01 vram_mb=0.00 msg_mb=0.00 chunks=0 pending=0 scheduler_queue=0 scheduler_tasks=0 scheduler_ms=0.00 recent=recent_tasks=[]
+[STUTTER_SUMMARY] t=25ms spikes=1 freezes=1 max_frame=150.00ms avg_fps=1 frame=0.00ms process=0.70ms physics=0.00ms draws=0 render_objs=0 nodes=8 orphans=28 static_mb=28.00 vram_mb=0.00 msg_mb=0.00 chunks=0 pending=0 scheduler_queue=0 scheduler_ms=0.00 recent=recent_tasks=[]
+[STUTTER_MONITOR] session_end uptime_ms=26
+ERROR: 2 RID allocations of type 'P12GodotShape2D' were leaked at exit.
+ERROR: 4 RID allocations of type 'PN13RendererDummy14TextureStorage12DummyTextureE' were leaked at exit.
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2641)
+ERROR: 74 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:810)

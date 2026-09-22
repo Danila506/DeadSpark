@@ -28,12 +28,16 @@ func _ready() -> void:
 	if variants.is_empty():
 		return
 
-	var idx := randi() % variants.size()
+	var idx: int
 	if use_position_as_seed:
 		var px := int(round(global_position.x))
 		var py := int(round(global_position.y))
-		var h := (px * 73856093) ^ (py * 19349663)
+		# Grid positions are even multiples: a raw XOR preserves parity and can
+		# make half the variants unreachable. Mix coordinates before selection.
+		var h := WorldSeedService.derive_seed(0, "environment/visual", [px, py])
 		idx = posmod(h, variants.size())
+	else:
+		idx = randi() % variants.size()
 
 	sprite.texture = variants[idx]
 

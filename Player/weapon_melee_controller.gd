@@ -7,9 +7,13 @@ const MELEE_SWING_ANIMATION_FRONT: String = "SwingAttackFront"
 const MELEE_SWING_ANIMATION_BACK: String = "SwingAttackBack"
 const MELEE_SWING_ANIMATION_RIGHT_LEGACY: String = "SwingAttackRight"
 const MELEE_SWING_ANIMATION_DOWN_LEGACY: String = "SwingAttackDown"
+const MELEE_SWING_ANIMATION_USING_FALLBACK: String = "Using"
 const MELEE_COOLDOWN: float = 0.45
+const GROUND_EFFECT_Z_INDEX: int = -1
 
 var controller
+var attack_is_authoritative: bool = true
+var attack_direction_override: Vector2 = Vector2.ZERO
 
 
 func _init(owner) -> void:
@@ -17,26 +21,60 @@ func _init(owner) -> void:
 
 
 func try_melee_attack() -> void:
+	if controller.player != null and controller.player.action_in_progress:
+		return
 	var manual_attack_pressed: bool = Input.is_action_just_pressed("shoot") or Input.is_action_just_pressed("melee_attack")
 	if not controller.auto_melee_attack_enabled and not manual_attack_pressed:
 		return
 
+	var attack_direction: Vector2 = get_player_facing_vector()
+	if controller.is_networked_game():
+		controller.request_network_melee(attack_direction)
+	else:
+		start_melee_attack(attack_direction, true, true)
+
+
+func start_melee_attack(attack_direction: Vector2, require_target: bool, authoritative: bool) -> bool:
 	var is_unarmed_attack: bool = can_use_unarmed_melee()
 	if controller.current_melee_weapon == null and not is_unarmed_attack:
-		return
+		return false
 	if controller.is_reloading:
-		return
+		return false
 	if controller.melee_attack_cooldown > 0.0 or controller.melee_attack_timer > 0.0:
-		return
-	if find_best_melee_target() == null:
-		return
+		return false
+	var safe_direction: Vector2 = attack_direction.normalized()
+	if safe_direction == Vector2.ZERO:
+		safe_direction = get_player_facing_vector()
+	if require_target and find_best_melee_target(safe_direction) == null:
+		return false
 
+	attack_is_authoritative = authoritative
+	attack_direction_override = safe_direction
 	controller.melee_attack_cooldown = MELEE_COOLDOWN
 	controller.melee_attack_timer = max(controller.melee_attack_duration_sec, 0.05)
 	controller.melee_hit_timer = max(controller.melee_hit_delay_sec, 0.01)
 	controller.melee_hit_applied = false
 	controller.melee_attack_animation_playing = false
 	play_melee_attack_animation()
+	return true
+
+
+func play_network_melee_visual(attack_direction: Vector2) -> void:
+	attack_is_authoritative = false
+	attack_direction_override = attack_direction.normalized()
+	controller.melee_attack_timer = max(controller.melee_attack_duration_sec, 0.05)
+	controller.melee_hit_timer = max(controller.melee_hit_delay_sec, 0.01)
+	controller.melee_hit_applied = false
+	controller.melee_attack_animation_playing = false
+	play_melee_attack_animation()
+
+
+func cancel_melee_attack() -> void:
+	controller.melee_attack_timer = 0.0
+	controller.melee_hit_timer = 0.0
+	controller.melee_hit_applied = false
+	attack_direction_override = Vector2.ZERO
+	stop_melee_attack_animation()
 
 
 func update_melee_attack(delta: float) -> void:
@@ -57,6 +95,7 @@ func update_melee_attack(delta: float) -> void:
 		controller.melee_attack_timer = 0.0
 		controller.melee_hit_timer = 0.0
 		controller.melee_hit_applied = false
+		attack_direction_override = Vector2.ZERO
 		stop_melee_attack_animation()
 
 
@@ -79,6 +118,8 @@ func play_melee_attack_animation() -> void:
 				animation_name = MELEE_SWING_ANIMATION_FRONT
 			elif melee_slot.sprite_frames.has_animation(MELEE_SWING_ANIMATION_RIGHT_LEGACY):
 				animation_name = MELEE_SWING_ANIMATION_RIGHT_LEGACY
+			elif melee_slot.sprite_frames.has_animation(MELEE_SWING_ANIMATION_USING_FALLBACK):
+				animation_name = MELEE_SWING_ANIMATION_USING_FALLBACK
 		_:
 			if melee_slot.sprite_frames.has_animation(MELEE_SWING_ANIMATION_FRONT):
 				animation_name = MELEE_SWING_ANIMATION_FRONT
@@ -88,6 +129,8 @@ func play_melee_attack_animation() -> void:
 				animation_name = MELEE_SWING_ANIMATION_BACK
 			elif melee_slot.sprite_frames.has_animation(MELEE_SWING_ANIMATION_DOWN_LEGACY):
 				animation_name = MELEE_SWING_ANIMATION_DOWN_LEGACY
+			elif melee_slot.sprite_frames.has_animation(MELEE_SWING_ANIMATION_USING_FALLBACK):
+				animation_name = MELEE_SWING_ANIMATION_USING_FALLBACK
 
 	if animation_name == "":
 		return
@@ -122,8 +165,11 @@ func get_melee_visual_slot() -> EquipmentVisualSlot:
 
 
 func apply_melee_hit() -> void:
-	var best_target: Node2D = find_best_melee_target()
+	if not attack_is_authoritative:
+		return
+	var best_target: Node2D = find_best_melee_target(attack_direction_override)
 	if best_target == null:
+		controller._complete_server_network_melee()
 		return
 
 	var melee_damage: float = max(controller.unarmed_melee_damage, 0.0)
@@ -138,22 +184,22 @@ func apply_melee_hit() -> void:
 	}
 	best_target.call("take_damage_from", melee_damage, controller.player, hit_context)
 	if controller.current_melee_weapon != null:
-		InventoryManager.apply_endurance_percent_loss_to_equipped(
-			ItemData.ItemType.MeleeWeapon,
-			controller.current_melee_weapon.weapon_endurance_loss_percent_per_melee_hit
-		)
+		controller._apply_current_weapon_endurance_loss(controller.current_melee_weapon.weapon_endurance_loss_percent_per_melee_hit)
 	start_melee_camera_shake()
+	controller._complete_server_network_melee()
 
 
 func can_use_unarmed_melee() -> bool:
 	return controller.current_weapon == null and controller.current_melee_weapon == null
 
 
-func find_best_melee_target() -> Node2D:
+func find_best_melee_target(direction_override: Vector2 = Vector2.ZERO) -> Node2D:
 	if controller.player == null:
 		return null
 
-	var attack_direction: Vector2 = get_player_facing_vector()
+	var attack_direction: Vector2 = direction_override.normalized()
+	if attack_direction == Vector2.ZERO:
+		attack_direction = get_player_facing_vector()
 	var full_circle_attack: bool = controller.melee_hit_angle_degrees >= 360.0
 	var half_angle_cos: float = cos(deg_to_rad(clamp(controller.melee_hit_angle_degrees, 1.0, 359.0) * 0.5))
 	var best_target: Node2D = null
@@ -191,12 +237,15 @@ func find_best_melee_target() -> Node2D:
 
 func get_melee_target_nodes() -> Array[Node]:
 	var result: Array[Node] = []
-	for enemy_node in controller.get_tree().get_nodes_in_group(ENEMY_GROUP):
+	var scene_tree: SceneTree = controller.player.get_tree() if controller.player != null else null
+	if scene_tree == null:
+		return result
+	for enemy_node in scene_tree.get_nodes_in_group(ENEMY_GROUP):
 		if enemy_node is Node:
 			result.append(enemy_node as Node)
 
 	if _can_current_weapon_chop_trees():
-		for tree_node in controller.get_tree().get_nodes_in_group(AXE_CHOPPABLE_GROUP):
+		for tree_node in scene_tree.get_nodes_in_group(AXE_CHOPPABLE_GROUP):
 			if tree_node is Node and not result.has(tree_node):
 				result.append(tree_node as Node)
 	return result
@@ -270,8 +319,9 @@ func spawn_melee_blood_effect(hit_world_position: Vector2) -> void:
 	blood_sprite.global_position = hit_world_position + controller.melee_blood_offset
 	if controller.melee_blood_random_rotation:
 		blood_sprite.rotation = randf_range(-0.45, 0.45)
-	blood_sprite.z_index = 20
 	blood_sprite.top_level = true
+	blood_sprite.z_as_relative = false
+	blood_sprite.z_index = GROUND_EFFECT_Z_INDEX
 
 	if blood_sprite.get_parent() == null:
 		fx_root.add_child(blood_sprite)
@@ -330,6 +380,10 @@ func resolve_blood_hit_animation_name(frames: SpriteFrames) -> String:
 
 
 func get_melee_attack_direction() -> String:
+	if attack_direction_override != Vector2.ZERO:
+		if absf(attack_direction_override.x) >= absf(attack_direction_override.y):
+			return "right" if attack_direction_override.x >= 0.0 else "left"
+		return "down" if attack_direction_override.y >= 0.0 else "up"
 	if controller.player != null and "facing_direction" in controller.player:
 		return String(controller.player.facing_direction)
 	return "right"

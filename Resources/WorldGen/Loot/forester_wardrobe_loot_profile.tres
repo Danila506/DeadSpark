@@ -1,0 +1,128 @@
+[gd_resource type="Resource" script_class="LootProfile" format=3 uid="uid://kxc4utt8885e"]
+
+[ext_resource type="Script" uid="uid://bl87g8yri5ghs" path="res://World/Generation/loot_profile.gd" id="1"]
+[ext_resource type="Script" uid="uid://drt3avtqr1b4p" path="res://World/Generation/loot_entry.gd" id="2"]
+[ext_resource type="Resource" uid="uid://v8hq4kii7a13" path="res://Resources/Clothes/jacket.tres" id="item_0"]
+[ext_resource type="Resource" uid="uid://bfwxhlpo4p3fw" path="res://Resources/Clothes/trousers.tres" id="item_1"]
+[ext_resource type="Resource" uid="uid://cqgvlw4isebjk" path="res://Resources/Clothes/tShirts.tres" id="item_2"]
+[ext_resource type="Resource" uid="uid://bq0yevm8wscn4" path="res://Resources/Clothes/ushanka.tres" id="item_3"]
+[ext_resource type="Resource" uid="uid://dpq465qgj4whh" path="res://Resources/Clothes/rabochie_shtany.tres" id="item_4"]
+[ext_resource type="Resource" uid="uid://d0wjni3hiepd2" path="res://Resources/Clothes/bag.tres" id="item_5"]
+[ext_resource type="Resource" uid="uid://dthi7baabffud" path="res://Resources/Misc/batteries.tres" id="item_6"]
+[ext_resource type="Resource" uid="uid://3h7wstb74hel" path="res://Resources/Misc/matches.tres" id="item_7"]
+[ext_resource type="Resource" uid="uid://jngofc3t4qk7" path="res://Resources/Misc/rope.tres" id="item_8"]
+[ext_resource type="Resource" uid="uid://dh3vaa454s8yq" path="res://Resources/Misc/electrical_tape.tres" id="item_9"]
+[ext_resource type="Resource" uid="uid://c1f7yxn21thfu" path="res://Resources/Misc/sewing_kit.tres" id="item_10"]
+[ext_resource type="Resource" uid="uid://bo0tqlhnbx6la" path="res://Resources/Misc/weapon_cleaning_kit.tres" id="item_11"]
+[ext_resource type="Resource" uid="uid://dy2kaiwsfvgkl" path="res://Resources/Misc/wood.tres" id="item_12"]
+[ext_resource type="Resource" path="res://Resources/Food/tushenka.tres" id="item_13"]
+[ext_resource type="Resource" uid="uid://brhx7jeqn1s68" path="res://Resources/Food/apple.tres" id="item_14"]
+[ext_resource type="Resource" uid="uid://dvquglkn8pwxm" path="res://Resources/Medicine/bandage.tres" id="item_15"]
+
+[sub_resource type="Resource" id="entry_0"]
+script = ExtResource("2")
+entry_id = "clothes_jacket"
+item = ExtResource("item_0")
+weight = 2.0
+unique = true
+
+[sub_resource type="Resource" id="entry_1"]
+script = ExtResource("2")
+entry_id = "clothes_trousers"
+item = ExtResource("item_1")
+weight = 2.0
+unique = true
+
+[sub_resource type="Resource" id="entry_2"]
+script = ExtResource("2")
+entry_id = "clothes_tshirts"
+item = ExtResource("item_2")
+weight = 2.0
+unique = true
+
+[sub_resource type="Resource" id="entry_3"]
+script = ExtResource("2")
+entry_id = "clothes_ushanka"
+item = ExtResource("item_3")
+weight = 2.0
+unique = true
+
+[sub_resource type="Resource" id="entry_4"]
+script = ExtResource("2")
+entry_id = "clothes_rabochie_shtany"
+item = ExtResource("item_4")
+weight = 2.0
+unique = true
+
+[sub_resource type="Resource" id="entry_5"]
+script = ExtResource("2")
+entry_id = "clothes_bag"
+item = ExtResource("item_5")
+weight = 0.4
+unique = true
+
+[sub_resource type="Resource" id="entry_6"]
+script = ExtResource("2")
+entry_id = "misc_batteries"
+item = ExtResource("item_6")
+unique = true
+
+[sub_resource type="Resource" id="entry_7"]
+script = ExtResource("2")
+entry_id = "misc_matches"
+item = ExtResource("item_7")
+unique = true
+
+[sub_resource type="Resource" id="entry_8"]
+script = ExtResource("2")
+entry_id = "misc_rope"
+item = ExtResource("item_8")
+unique = true
+
+[sub_resource type="Resource" id="entry_9"]
+script = ExtResource("2")
+entry_id = "misc_electrical_tape"
+item = ExtResource("item_9")
+unique = true
+
+[sub_resource type="Resource" id="entry_10"]
+script = ExtResource("2")
+entry_id = "misc_sewing_kit"
+item = ExtResource("item_10")
+unique = true
+
+[sub_resource type="Resource" id="entry_11"]
+script = ExtResource("2")
+entry_id = "misc_weapon_cleaning_kit"
+item = ExtResource("item_11")
+unique = true
+
+[sub_resource type="Resource" id="entry_12"]
+script = ExtResource("2")
+entry_id = "misc_wood"
+item = ExtResource("item_12")
+unique = true
+
+[sub_resource type="Resource" id="entry_13"]
+script = ExtResource("2")
+entry_id = "food_tushenka"
+item = ExtResource("item_13")
+unique = true
+
+[sub_resource type="Resource" id="entry_14"]
+script = ExtResource("2")
+entry_id = "food_apple"
+item = ExtResource("item_14")
+unique = true
+
+[sub_resource type="Resource" id="entry_15"]
+script = ExtResource("2")
+entry_id = "medicine_bandage"
+item = ExtResource("item_15")
+unique = true
+
+[resource]
+script = ExtResource("1")
+profile_id = "forester_wardrobe"
+slot_ids = Array[String](["slot_00", "slot_01", "slot_02"])
+entries = Array[ExtResource("2")]([SubResource("entry_0"), SubResource("entry_1"), SubResource("entry_2"), SubResource("entry_3"), SubResource("entry_4"), SubResource("entry_5"), SubResource("entry_6"), SubResource("entry_7"), SubResource("entry_8"), SubResource("entry_9"), SubResource("entry_10"), SubResource("entry_11"), SubResource("entry_12"), SubResource("entry_13"), SubResource("entry_14"), SubResource("entry_15")])

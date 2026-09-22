@@ -3,6 +3,8 @@ extends Node2D
 const MOBILE_CONTROLS_SCENE: PackedScene = preload("res://Smartphone/mobile_controls.tscn")
 const MOBILE_PROFILER_OVERLAY_SCRIPT = preload("res://Autoloads/mobile_profiler_overlay.gd")
 const MAX_GENERATION_DRAIN_ROUNDS: int = 64
+const PARACHUTE_SPAWN_TEXTURE: Texture2D = preload("res://Assets/itemAssets/animation_sprites/misc/parachute_spawn.png")
+const PARACHUTE_SPAWN_NODE_NAME: StringName = &"ParachuteSpawn"
 
 @export_category("World Bounds")
 @export var player_path: NodePath
@@ -25,6 +27,20 @@ const MAX_GENERATION_DRAIN_ROUNDS: int = 64
 	NodePath("Snowfall")
 ]
 
+@export_category("Day Night Cycle")
+@export var day_night_cycle_enabled: bool = true
+@export var day_night_canvas_modulate_path: NodePath = NodePath("NightCanvasModulate")
+@export_range(0.0, 60.0, 0.05) var day_night_update_interval_sec: float = 0.1
+@export_range(0.1, 60.0, 0.1) var day_night_color_transition_sec: float = 20.0
+@export var night_first_half_color: Color = Color(0.035, 0.045, 0.09, 1.0)
+@export var night_second_half_color: Color = Color(0.06, 0.075, 0.13, 1.0)
+@export var morning_first_half_color: Color = Color(0.18, 0.17, 0.22, 1.0)
+@export var morning_second_half_color: Color = Color(0.86, 0.78, 0.64, 1.0)
+@export var day_first_half_color: Color = Color(1.0, 1.0, 0.94, 1.0)
+@export var day_second_half_color: Color = Color(0.92, 0.94, 0.98, 1.0)
+@export var evening_first_half_color: Color = Color(0.78, 0.62, 0.58, 1.0)
+@export var evening_second_half_color: Color = Color(0.42, 0.38, 0.52, 1.0)
+
 @export_category("Safe Spawn")
 @export var safe_player_spawn_enabled: bool = true
 @export var safe_spawn_points_root_path: NodePath = NodePath("Y-Sort_Objects/ItemSpawner")
@@ -33,6 +49,10 @@ const MAX_GENERATION_DRAIN_ROUNDS: int = 64
 @export var safe_spawn_search_step_px: float = 28.0
 @export var safe_spawn_search_max_rings: int = 28
 @export var safe_spawn_recheck_frames: int = 8
+@export var spawn_parachute_enabled: bool = true
+@export var spawn_parachute_on_continue_load: bool = false
+@export var spawn_parachute_offset: Vector2 = Vector2.ZERO
+@export var spawn_parachute_z_offset: int = -1
 
 @export_category("Startup Loading")
 @export var startup_loading_enabled: bool = true
@@ -64,9 +84,13 @@ var _layer_max_tile_span_by_id := {}
 var _loading_canvas: CanvasLayer
 var _loading_label: Label
 var _startup_paused_generators: Array[Node] = []
+var _startup_gameplay_process_modes: Dictionary = {}
 var _startup_is_continue_load: bool = false
 var _mobile_controls: MobileControls
 var _mobile_profiler_overlay: MobileProfilerOverlay
+var _day_night_canvas_modulate: CanvasModulate
+var _day_night_clock: Node
+var _day_night_update_timer: float = 0.0
 
 
 func _ready() -> void:
@@ -74,13 +98,17 @@ func _ready() -> void:
 	if startup_loading_enabled:
 		_create_loading_overlay()
 		_set_startup_world_visible(false)
+		_set_startup_gameplay_processing(false)
 		await _preload_world_generation()
+		_set_startup_gameplay_processing(true)
 
 	_apply_world_mood_grade()
+	_setup_day_night_cycle()
 	_player = _resolve_player()
 	_setup_world_bounds()
 	if safe_player_spawn_enabled:
 		await _ensure_player_safe_spawn_deferred()
+	_spawn_parachute_under_player()
 	_spawn_starter_items_near_player()
 
 	if startup_loading_enabled:
@@ -89,6 +117,10 @@ func _ready() -> void:
 
 	_setup_mobile_controls()
 	_setup_mobile_profiler_overlay()
+
+
+func _process(delta: float) -> void:
+	_update_day_night_cycle(delta)
 
 
 func _create_loading_overlay() -> void:
@@ -140,6 +172,21 @@ func _destroy_loading_overlay() -> void:
 	_loading_label = null
 
 
+## Generation now yields frames; hidden gameplay must not advance during loading.
+func _set_startup_gameplay_processing(active: bool) -> void:
+	if active:
+		for target in _startup_gameplay_process_modes:
+			if is_instance_valid(target):
+				target.process_mode = _startup_gameplay_process_modes[target]
+		_startup_gameplay_process_modes.clear()
+		return
+	for path in startup_hidden_nodes:
+		var target := get_node_or_null(path)
+		if target != null and not _startup_gameplay_process_modes.has(target):
+			_startup_gameplay_process_modes[target] = target.process_mode
+			target.process_mode = Node.PROCESS_MODE_DISABLED
+
+
 func _set_startup_world_visible(is_visible: bool) -> void:
 	for path in startup_hidden_nodes:
 		if path == NodePath(""):
@@ -164,6 +211,16 @@ func _preload_world_generation() -> void:
 	if generation_scheduler != null:
 		scheduler_was_enabled = bool(generation_scheduler.get("enabled"))
 		generation_scheduler.set("enabled", false)
+	if world_generation_root.has_method("generate_startup"):
+		_set_loading_status("Генерация мира...")
+		await world_generation_root.call(
+			"generate_startup",
+			startup_preload_chunk_budget,
+			startup_preload_max_frames
+		)
+		if generation_scheduler != null and is_instance_valid(generation_scheduler):
+			generation_scheduler.set("enabled", scheduler_was_enabled)
+		return
 
 	var tile_sources: Array[Node] = []
 	var spawner_sources: Array[Node] = []
@@ -364,6 +421,34 @@ func _spawn_starter_items_near_player() -> void:
 	item_spawner.call("spawn_starter_items_near_player_if_enabled")
 
 
+func _spawn_parachute_under_player() -> void:
+	if not spawn_parachute_enabled:
+		return
+	if _startup_is_continue_load and not spawn_parachute_on_continue_load:
+		return
+	if _player == null or not is_instance_valid(_player):
+		_player = _resolve_player()
+		if _player == null:
+			return
+
+	var spawn_parent := _player.get_parent() as Node2D
+	if spawn_parent == null:
+		spawn_parent = self
+
+	var parachute := spawn_parent.get_node_or_null(String(PARACHUTE_SPAWN_NODE_NAME)) as Sprite2D
+	if parachute == null:
+		parachute = Sprite2D.new()
+		parachute.name = PARACHUTE_SPAWN_NODE_NAME
+		parachute.texture = PARACHUTE_SPAWN_TEXTURE
+		parachute.centered = true
+		parachute.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		spawn_parent.add_child(parachute)
+
+	parachute.global_position = _player.global_position + spawn_parachute_offset
+	parachute.z_as_relative = false
+	parachute.z_index = _player.z_index + spawn_parachute_z_offset
+
+
 func _resolve_player() -> Node2D:
 	if player_path != NodePath(""):
 		return get_node_or_null(player_path) as Node2D
@@ -424,6 +509,104 @@ func _apply_world_mood_grade() -> void:
 func apply_world_mood_color(color: Color) -> void:
 	world_mood_color = color
 	_apply_world_mood_grade()
+
+
+func _setup_day_night_cycle() -> void:
+	if not day_night_cycle_enabled:
+		return
+	_day_night_canvas_modulate = get_node_or_null(day_night_canvas_modulate_path) as CanvasModulate
+	if _day_night_canvas_modulate == null:
+		push_warning("Level: day/night CanvasModulate not found: %s" % str(day_night_canvas_modulate_path))
+		return
+	_resolve_day_night_clock()
+	_apply_day_night_color(0.0, true)
+
+
+func _update_day_night_cycle(delta: float) -> void:
+	if not day_night_cycle_enabled:
+		return
+	if _day_night_canvas_modulate == null or not is_instance_valid(_day_night_canvas_modulate):
+		_day_night_canvas_modulate = get_node_or_null(day_night_canvas_modulate_path) as CanvasModulate
+		if _day_night_canvas_modulate == null:
+			return
+
+	_day_night_update_timer -= maxf(delta, 0.0)
+	if _day_night_update_timer > 0.0:
+		return
+	_day_night_update_timer = maxf(day_night_update_interval_sec, 0.0)
+	_apply_day_night_color(maxf(delta, day_night_update_interval_sec), false)
+
+
+func _apply_day_night_color(delta: float, force: bool = false) -> void:
+	if _day_night_canvas_modulate == null:
+		return
+	var time_minutes := _get_day_night_time_minutes()
+	var target_color := _get_day_night_color_for_minutes(time_minutes)
+	if force:
+		_day_night_canvas_modulate.color = target_color
+		return
+
+	var transition_sec := maxf(day_night_color_transition_sec, 0.1)
+	var weight := clampf(delta / transition_sec, 0.0, 1.0)
+	_day_night_canvas_modulate.color = _day_night_canvas_modulate.color.lerp(target_color, weight)
+
+
+func _resolve_day_night_clock() -> Node:
+	if _day_night_clock != null and is_instance_valid(_day_night_clock):
+		return _day_night_clock
+	_day_night_clock = get_tree().get_first_node_in_group("game_clock")
+	return _day_night_clock
+
+
+func _get_day_night_time_minutes() -> float:
+	var clock := _resolve_day_night_clock()
+	if clock != null and clock.has_method("get_game_time_minutes_of_day"):
+		return _normalize_day_night_minutes(float(clock.call("get_game_time_minutes_of_day")))
+	return 9.0 * 60.0
+
+
+func _get_day_night_color_for_minutes(time_minutes: float) -> Color:
+	var points := _get_day_night_color_points()
+
+	for i in range(points.size()):
+		var current: Dictionary = points[i]
+		var next: Dictionary = points[(i + 1) % points.size()]
+		var current_time := float(current.get("time", 0.0))
+		var next_time := float(next.get("time", 0.0))
+		var span := _forward_day_night_delta(current_time, next_time)
+		var elapsed := _forward_day_night_delta(current_time, time_minutes)
+		if elapsed <= span:
+			var weight := 0.0 if is_zero_approx(span) else clampf(elapsed / span, 0.0, 1.0)
+			return (current.get("color", day_first_half_color) as Color).lerp(next.get("color", day_first_half_color) as Color, weight)
+
+	return day_first_half_color
+
+
+func _get_day_night_color_points() -> Array[Dictionary]:
+	return [
+		{"time": 0.0, "color": night_first_half_color},
+		{"time": 3.0 * 60.0, "color": night_second_half_color},
+		{"time": 6.0 * 60.0, "color": morning_first_half_color},
+		{"time": 8.0 * 60.0, "color": morning_second_half_color},
+		{"time": 10.0 * 60.0, "color": day_first_half_color},
+		{"time": 14.5 * 60.0, "color": day_second_half_color},
+		{"time": 19.0 * 60.0, "color": evening_first_half_color},
+		{"time": 21.5 * 60.0, "color": evening_second_half_color}
+	]
+
+
+func _normalize_day_night_minutes(value: float) -> float:
+	var wrapped := fmod(value, 24.0 * 60.0)
+	if wrapped < 0.0:
+		wrapped += 24.0 * 60.0
+	return wrapped
+
+
+func _forward_day_night_delta(from_minutes: float, to_minutes: float) -> float:
+	var delta := _normalize_day_night_minutes(to_minutes - from_minutes)
+	if is_zero_approx(delta) and not is_equal_approx(from_minutes, to_minutes):
+		return 24.0 * 60.0
+	return delta
 
 
 func _setup_world_bounds() -> void:

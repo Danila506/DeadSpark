@@ -1,50 +1,50 @@
 [gd_resource type="SpriteFrames" format=3 uid="uid://7bc7lsd2cotr"]
 
-[ext_resource type="Texture2D" uid="uid://cfdqwvfqlnsnk" path="res://Assets/Effects/blood.png" id="1_hytpb"]
+[ext_resource type="Texture2D" uid="uid://cflow8ga1v5w1" path="res://Assets/Effects/efekty.png" id="1_hytpb"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_p0538"]
 atlas = ExtResource("1_hytpb")
-region = Rect2(13, 17, 32, 32)
+region = Rect2(0, 25, 44, 25)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_bg8de"]
 atlas = ExtResource("1_hytpb")
-region = Rect2(45, 17, 32, 32)
+region = Rect2(44, 25, 44, 25)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_8bnuf"]
 atlas = ExtResource("1_hytpb")
-region = Rect2(77, 17, 32, 32)
+region = Rect2(88, 25, 44, 25)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_xtce3"]
 atlas = ExtResource("1_hytpb")
-region = Rect2(175, 40, 22, 29)
+region = Rect2(162, 0, 27, 41)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_1d0bq"]
 atlas = ExtResource("1_hytpb")
-region = Rect2(197, 40, 22, 29)
+region = Rect2(189, 0, 27, 41)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_vmrrh"]
 atlas = ExtResource("1_hytpb")
-region = Rect2(219, 40, 22, 29)
+region = Rect2(216, 0, 27, 41)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_1liwv"]
 atlas = ExtResource("1_hytpb")
-region = Rect2(241, 40, 22, 29)
+region = Rect2(243, 0, 27, 41)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_2sisr"]
 atlas = ExtResource("1_hytpb")
-region = Rect2(175, 11, 22, 29)
+region = Rect2(168, 38, 24, 38)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_go6bj"]
 atlas = ExtResource("1_hytpb")
-region = Rect2(197, 11, 22, 29)
+region = Rect2(192, 38, 24, 38)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_j7pk5"]
 atlas = ExtResource("1_hytpb")
-region = Rect2(219, 11, 22, 29)
+region = Rect2(216, 38, 24, 38)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_6fc4r"]
 atlas = ExtResource("1_hytpb")
-region = Rect2(241, 11, 22, 29)
+region = Rect2(240, 38, 24, 38)
 
 [resource]
 animations = [{

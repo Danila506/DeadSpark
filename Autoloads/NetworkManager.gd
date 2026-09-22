@@ -90,6 +90,9 @@ var _network_tick_max_steps_per_frame: int = NETWORK_TICK_MAX_STEPS_PER_FRAME
 var _net_stats_ping_interval_sec: float = NET_STATS_PING_INTERVAL_SEC
 
 func _ready() -> void:
+	# Godot installs an OfflineMultiplayerPeer by default; no live session exists yet.
+	if multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
+		multiplayer.multiplayer_peer = null
 	print("Current platform / OS name: %s" % OS.get_name())
 	_apply_network_profile()
 	_ensure_network_signals_connected()
@@ -493,6 +496,7 @@ func _on_peer_connected(peer_id: int) -> void:
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	print("Peer disconnected: %d" % peer_id)
+	_known_session_peer_ids.erase(peer_id)
 	clear_peer_world_ready(peer_id)
 	clear_peer_session_phase(peer_id)
 	peer_left.emit(peer_id)
@@ -669,10 +673,13 @@ func _handle_discovery_request(from_ip: String, from_port: int) -> void:
 		"host_name": OS.get_name()
 	}
 	var data: PackedByteArray = JSON.stringify(response).to_utf8_buffer()
-	var responder: PacketPeerUDP = PacketPeerUDP.new()
-	if responder.set_dest_address(from_ip, from_port) != OK:
+	# Reuse the bound socket so the response is flushed from the advertised
+	# discovery endpoint before a short-lived local peer can be destroyed.
+	if _discovery_listener == null:
 		return
-	responder.put_packet(data)
+	if _discovery_listener.set_dest_address(from_ip, from_port) != OK:
+		return
+	_discovery_listener.put_packet(data)
 
 
 func _handle_discovery_response(payload: Dictionary, from_ip: String) -> void:
@@ -712,17 +719,9 @@ func _begin_host_migration_if_possible() -> bool:
 	var local_peer_id: int = _last_session_local_peer_id
 	if local_peer_id <= 1:
 		return false
-	var candidate_ids: Array[int] = []
-	for peer_id_variant in _known_session_peer_ids.keys():
-		var peer_id: int = int(peer_id_variant)
-		if peer_id > 1:
-			candidate_ids.append(peer_id)
-	if not candidate_ids.has(local_peer_id):
-		candidate_ids.append(local_peer_id)
-	if candidate_ids.is_empty():
+	var elected_peer_id: int = _elect_host_migration_peer_id(local_peer_id)
+	if elected_peer_id <= 1:
 		return false
-	candidate_ids.sort()
-	var elected_peer_id: int = candidate_ids[0]
 	_host_migration_active = true
 	_host_migration_is_new_host = local_peer_id == elected_peer_id
 	_host_migration_port = _last_join_port
@@ -735,6 +734,20 @@ func _begin_host_migration_if_possible() -> bool:
 	else:
 		_host_migration_next_discovery_ms = Time.get_ticks_msec() + 700
 	return true
+
+
+func _elect_host_migration_peer_id(local_peer_id: int) -> int:
+	var candidate_ids: Array[int] = []
+	for peer_id_variant in _known_session_peer_ids.keys():
+		var peer_id: int = int(peer_id_variant)
+		if peer_id > 1:
+			candidate_ids.append(peer_id)
+	if not candidate_ids.has(local_peer_id):
+		candidate_ids.append(local_peer_id)
+	if candidate_ids.is_empty():
+		return 0
+	candidate_ids.sort()
+	return candidate_ids[0]
 
 
 func _complete_host_migration_as_host() -> void:

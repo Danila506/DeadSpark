@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="LootProfile" format=3 uid="uid://5bt4qdx6fejt"]
+
+[ext_resource type="Script" uid="uid://bl87g8yri5ghs" path="res://World/Generation/loot_profile.gd" id="1"]
+[ext_resource type="Script" uid="uid://drt3avtqr1b4p" path="res://World/Generation/loot_entry.gd" id="2"]
+[ext_resource type="Resource" uid="uid://dvquglkn8pwxm" path="res://Resources/Medicine/bandage.tres" id="3"]
+
+[sub_resource type="Resource" id="LootEntry_medicine"]
+script = ExtResource("2")
+entry_id = "medical_bandage"
+item = ExtResource("3")
+max_quantity = 2
+
+[resource]
+script = ExtResource("1")
+profile_id = "medicine_kit_world_loot"
+slot_ids = Array[String](["slot_00", "slot_01", "slot_02"])
+entries = Array[ExtResource("2")]([SubResource("LootEntry_medicine")])

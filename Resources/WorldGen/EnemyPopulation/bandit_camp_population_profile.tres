@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="EnemyPopulationProfile" format=3 uid="uid://dfx6rhog7oh6k"]
+
+[ext_resource type="Script" uid="uid://dejwg2x2pqtt3" path="res://World/Generation/enemy_population_profile.gd" id="1"]
+[ext_resource type="Script" uid="uid://csh3rflrlxeku" path="res://World/Generation/enemy_population_entry.gd" id="2"]
+[ext_resource type="PackedScene" uid="uid://b51pe08mamc2b" path="res://Enemies/Bandits/Bandit_1/Bandit.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://ds2p7ve3epaqh" path="res://Enemies/Bandits/Bandit_2/Bandit_2.tscn" id="4"]
+[ext_resource type="PackedScene" uid="uid://ruxa7cb3sagx" path="res://Enemies/Bandits/Bandit_3/Bandit_3.tscn" id="5"]
+[ext_resource type="PackedScene" uid="uid://c8dg8n6te6kjx" path="res://Enemies/Bandits/Bandit_4/Bandit_4.tscn" id="6"]
+
+[sub_resource type="Resource" id="Entry1"]
+script = ExtResource("2")
+entry_id = "bandit_01"
+enemy_scene = ExtResource("3")
+allowed_marker_tags = Array[String](["guard"])
+
+[sub_resource type="Resource" id="Entry2"]
+script = ExtResource("2")
+entry_id = "bandit_02"
+enemy_scene = ExtResource("4")
+allowed_marker_tags = Array[String](["guard"])
+
+[sub_resource type="Resource" id="Entry3"]
+script = ExtResource("2")
+entry_id = "bandit_03"
+enemy_scene = ExtResource("5")
+allowed_marker_tags = Array[String](["guard"])
+
+[sub_resource type="Resource" id="Entry4"]
+script = ExtResource("2")
+entry_id = "bandit_04"
+enemy_scene = ExtResource("6")
+allowed_marker_tags = Array[String](["guard"])
+
+[resource]
+script = ExtResource("1")
+profile_id = "bandit_camp_population_v1"
+entries = Array[ExtResource("2")]([SubResource("Entry1"), SubResource("Entry2"), SubResource("Entry3"), SubResource("Entry4")])
+max_total_count = 4
+spawn_budget = 4

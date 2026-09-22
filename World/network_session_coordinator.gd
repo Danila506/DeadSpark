@@ -35,6 +35,12 @@ func on_peer_spawned(peer_id: int) -> void:
 	set_phase(peer_id, PeerSessionPhase.PLAYER_SPAWNED)
 
 
+func on_peer_spawn_acknowledged(peer_id: int) -> void:
+	_peer_spawn_acknowledged[peer_id] = true
+	_peer_spawn_watchdog_elapsed_sec.erase(peer_id)
+	set_phase(peer_id, PeerSessionPhase.PLAYER_SPAWNED)
+
+
 func on_peer_active(peer_id: int) -> void:
 	_peer_spawn_acknowledged[peer_id] = true
 	_peer_spawn_watchdog_elapsed_sec.erase(peer_id)

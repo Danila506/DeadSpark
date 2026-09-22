@@ -11,3 +11,4 @@ item_name = "Антидот"
 world_icon = ExtResource("3_g66iu")
 inventory_icon = ExtResource("1_ay06o")
 inventory_icon_scale = 0.8
+item_weight = 0.12

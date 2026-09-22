@@ -18,12 +18,12 @@ var is_bleeding: bool = false
 var is_fractured: bool = false
 var is_diseased: bool = false
 
-@export var water_drain_amount: float = 4.0
+@export var water_drain_amount: float = 1.0
 @export var water_drain_interval: float = 6.0
 var water_timer: float = 0.0
 
 @export var food_drain_amount: float = 1.0
-@export var food_drain_interval: float = 3.5
+@export var food_drain_interval: float = 8
 var food_timer: float = 0.0
 @export var passive_regen_per_sec: float = 1.2
 @export var passive_regen_threshold_ratio: float = 0.75
@@ -80,10 +80,30 @@ enum {
 @export_range(0.05, 1.0, 0.05) var stealth_animation_multiplier: float = 0.5
 @export var base_noise_level: float = 1.0
 @export_range(0.05, 1.0, 0.05) var stealth_noise_multiplier: float = 0.25
+@export var thermal_vision_action_name: StringName = &"toggle_thermal_vision"
 
 const WALK_SNOW_STREAM: AudioStream = preload("res://Assets/AudioWaw/WeaponSounds/WalkSnow.wav")
+const THERMAL_VISION_CONTROLLER = preload("res://Player/thermal_vision_controller.gd")
+const BREATH_STEAM_TEXTURE: Texture2D = preload("res://Assets/Misc/par_iz_rta.png")
 const WALK_SNOW_MIN_MOVE_LENGTH: float = 0.1
 const WALK_SNOW_MIN_PLAY_SECONDS: float = 0.3
+
+@export_category("Breath Steam")
+@export var breath_steam_enabled: bool = true
+@export var breath_steam_interval_sec: float = 2.0
+@export var breath_steam_idle_delay_sec: float = 1.5
+@export var breath_steam_lifetime_sec: float = 1.15
+@export var breath_steam_amount: int = 3
+@export var breath_steam_scale_min: float = 1.8
+@export var breath_steam_scale_max: float = 2.6
+@export var breath_steam_velocity_min: float = 10.0
+@export var breath_steam_velocity_max: float = 20.0
+@export var breath_steam_upward_gravity: float = -7.0
+@export var breath_steam_damping: float = 10.0
+@export var breath_steam_down_offset: Vector2 = Vector2(0.0, -28.0)
+@export var breath_steam_up_offset: Vector2 = Vector2(0.0, -31.0)
+@export var breath_steam_left_offset: Vector2 = Vector2(-8.0, -29.0)
+@export var breath_steam_right_offset: Vector2 = Vector2(8.0, -29.0)
 
 
 @onready var anim: AnimatedSprite2D = $BodySprite
@@ -153,6 +173,7 @@ var _net_last_sent_equipment_signature_by_peer: Dictionary = {}
 var _net_reported_active_weapon_slot: int = ItemData.ItemType.AR_Weapon
 var _net_reported_equipped_paths: Dictionary = {}
 var _net_reported_equipment_initialized: bool = false
+var _net_applying_authoritative_ammo_state: bool = false
 var _pause_menu_layer: CanvasLayer = null
 var _pause_menu_root: Control = null
 var _pause_menu_panel: PanelContainer = null
@@ -174,20 +195,7 @@ var _net_debug_server_input_gap_sum_ms: float = 0.0
 var _net_debug_server_input_gap_max_ms: float = 0.0
 var _net_debug_server_last_input_recv_ms: int = 0
 var _net_server_last_input_recv_ms: int = 0
-var _net_server_smoothed_input: Vector2 = Vector2.ZERO
-var _net_server_last_nonzero_input: Vector2 = Vector2.ZERO
 var _net_client_input_send_timer_sec: float = 0.0
-var _net_client_state_send_timer_sec: float = 0.0
-var _net_state_seq: int = 0
-var _net_last_applied_state_seq: int = -1
-var _net_server_last_state_recv_ms: int = 0
-var _net_server_last_state_position: Vector2 = Vector2.ZERO
-var _net_server_last_state_velocity: Vector2 = Vector2.ZERO
-var _net_server_has_state: bool = false
-var _net_debug_server_state_count: int = 0
-var _net_debug_server_state_gap_sum_ms: float = 0.0
-var _net_debug_server_state_gap_max_ms: float = 0.0
-var _net_debug_server_last_state_recv_ms: int = 0
 
 @export var net_eq_active_weapon_slot: int = ItemData.ItemType.AR_Weapon:
 	set(value):
@@ -232,19 +240,20 @@ var _net_debug_server_last_state_recv_ms: int = 0
 
 @export var bleeding_effect_animation_name: String = "Bleeding"
 @export var bleeding_trail_interval_sec: float = 0.20
-@export var bleeding_trail_lifetime_sec: float = 1.2
+@export var bleeding_trail_lifetime_sec: float = 60.0
+@export var bleeding_trail_fade_out_sec: float = 0.8
 @export var bleeding_trail_scale: Vector2 = Vector2(0.95, 0.95)
 @export var bleeding_trail_offset: Vector2 = Vector2(0.0, 2.0)
 @export var bleeding_trail_random_radius: float = 2.0
 @export var bleeding_trail_random_rotation: bool = true
-@export var bleeding_trail_z_index: int = 1
+@export var bleeding_trail_z_index: int = -1
 @export var hit_blood_animation_names: Array[String] = ["bloodyVariant1", "BloodyVariant2"]
 @export var hit_blood_anim_fps: float = 16.0
 @export var hit_blood_effect_scale: Vector2 = Vector2(0.9, 0.9)
 @export var hit_blood_offset: Vector2 = Vector2(0.0, -10.0)
 @export var hit_blood_fly_distance: float = 14.0
 @export var hit_blood_fly_duration_sec: float = 0.16
-@export var hit_blood_z_index: int = 35
+@export var hit_blood_z_index: int = -1
 
 const LOW_NEED_HINT_THRESHOLD_RATIO: float = 0.5
 const LOW_NEED_HINT_INTERVAL_SEC: float = 30.0
@@ -255,19 +264,8 @@ const NET_RECONCILE_SOFT_DEADZONE: float = 4.0
 const NET_RECONCILE_SOFT_BLEND_ALPHA: float = 0.18
 const NET_RECONCILE_VELOCITY_BLEND_ALPHA: float = 0.25
 const NET_RECONCILE_HARD_SNAP_DISTANCE: float = 160.0
-const NET_ENABLE_STATE_SYNC: bool = true
-const NET_SERVER_INPUT_STALE_TIMEOUT_MS: int = 140
-const NET_SERVER_INPUT_SMOOTH_ALPHA: float = 0.22
-const NET_SERVER_INPUT_HOLD_MS: int = 260
+const NET_SERVER_INPUT_STALE_TIMEOUT_MS: int = 180
 const NET_CLIENT_INPUT_SEND_INTERVAL_SEC: float = 1.0 / 30.0
-const NET_CLIENT_STATE_SEND_INTERVAL_SEC: float = 1.0 / 20.0
-const NET_SERVER_STATE_STALE_TIMEOUT_MS: int = 700
-const NET_SERVER_STATE_HARD_TIMEOUT_MS: int = 2200
-const NET_SERVER_STATE_MAX_DELTA_PER_UPDATE: float = 120.0
-const NET_SERVER_STATE_MAX_DELTA_MARGIN_PX: float = 24.0
-const NET_SERVER_STATE_MAX_ELAPSED_SEC: float = 0.35
-const NET_SERVER_STATE_POSITION_BLEND: float = 0.55
-const NET_SERVER_STATE_EXTRAPOLATION_MAX_SEC: float = 0.12
 const NET_INPUT_ACTIONS_PRIMARY: Array[StringName] = [&"move_left", &"move_right", &"move_up", &"move_down"]
 const NET_INPUT_ACTIONS_FALLBACK: Array[StringName] = [&"left", &"right", &"up", &"down"]
 const NET_VITALS_SYNC_INTERVAL_SEC: float = 0.10
@@ -298,6 +296,11 @@ var timed_action_controller
 var status_hint_controller
 var death_effects_controller
 var blood_effects_controller
+var thermal_vision_controller: Node = null
+var thermal_vision_requested: bool = false
+var breath_steam_particles: GPUParticles2D = null
+var breath_steam_cooldown: float = 0.0
+var breath_steam_idle_time: float = 0.0
 
 
 func _enter_tree() -> void:
@@ -313,6 +316,7 @@ func _ready() -> void:
 	death_effects_controller = PLAYER_DEATH_EFFECTS_CONTROLLER.new(self)
 	blood_effects_controller = PLAYER_BLOOD_EFFECTS_CONTROLLER.new(self)
 	add_to_group("player")
+	_ensure_breath_steam_particles()
 	base_move_speed = max(max(base_move_speed, speed), 1.0)
 	speed = base_move_speed
 	_update_stealth_state()
@@ -328,19 +332,18 @@ func _ready() -> void:
 	_ensure_status_hint_label()
 	_net_target_position = global_position
 	_net_target_velocity = Vector2.ZERO
-	_net_server_smoothed_input = Vector2.ZERO
-	_net_server_last_nonzero_input = Vector2.ZERO
 	_net_client_input_send_timer_sec = 0.0
-	_net_client_state_send_timer_sec = 0.0
 	_net_last_remote_position = global_position
-	_net_server_last_state_position = global_position
 	_net_last_remote_update_ms = Time.get_ticks_msec()
 	_net_can_send_updates = not _is_networked_game()
 	if camera_2d != null and _is_networked_game():
 		camera_2d.enabled = _is_local_network_player()
+	_ensure_thermal_vision_input_action()
+	_setup_thermal_vision_controller()
+	_refresh_thermal_vision_state(true)
 	_lan_smoke_net_debug = _has_cli_flag("lan-smoke-log-eq")
 	_lan_net_debug_enabled = _has_cli_flag("lan-net-debug")
-	print("Local player authority true/false for peer %d: %s" % [peer_id, str(is_multiplayer_authority())])
+	print("Local player authority true/false for peer %d: %s" % [peer_id, str(_is_local_control_enabled())])
 	if _is_networked_game() and _is_local_network_player():
 		call_deferred("_enable_network_updates_after_spawn_sync")
 	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node") and _is_local_control_enabled():
@@ -355,6 +358,8 @@ func _exit_tree() -> void:
 	if NetworkManager != null and NetworkManager.has_signal("network_tick"):
 		if NetworkManager.network_tick.is_connected(_on_network_tick):
 			NetworkManager.network_tick.disconnect(_on_network_tick)
+	if NetworkManager != null and NetworkManager.is_server() and peer_id > 1:
+		InventoryManager.clear_network_peer_inventory(peer_id)
 	get_tree().paused = false
 	if _pause_menu_layer != null and is_instance_valid(_pause_menu_layer):
 		_pause_menu_layer.queue_free()
@@ -385,6 +390,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key_event: InputEventKey = event as InputEventKey
+
+		if event.is_action_pressed(thermal_vision_action_name):
+			_toggle_thermal_vision()
+			get_viewport().set_input_as_handled()
+			return
 
 		if key_event.physical_keycode == KEY_E:
 			if try_primary_interaction():
@@ -445,20 +455,7 @@ func _physics_process(delta: float) -> void:
 			if _is_local_network_player():
 				server_input = _get_network_input_vector()
 			else:
-				if NET_ENABLE_STATE_SYNC and _net_server_has_state:
-					_apply_server_received_state()
-					return
-				var now_ms: int = Time.get_ticks_msec()
-				var input_age_ms: int = now_ms - _net_server_last_input_recv_ms
-				if server_input.length_squared() > 0.0001:
-					_net_server_last_nonzero_input = server_input
-				elif input_age_ms <= NET_SERVER_INPUT_HOLD_MS and _net_server_last_nonzero_input.length_squared() > 0.0001:
-					server_input = _net_server_last_nonzero_input
-				if input_age_ms > NET_SERVER_INPUT_STALE_TIMEOUT_MS * 2:
-					server_input = Vector2.ZERO
-					_net_server_last_nonzero_input = Vector2.ZERO
-				_net_server_smoothed_input = _net_server_smoothed_input.lerp(server_input, NET_SERVER_INPUT_SMOOTH_ALPHA)
-				server_input = _net_server_smoothed_input
+				server_input = _resolve_server_remote_input(Time.get_ticks_msec())
 			_apply_network_movement(delta, server_input)
 			return
 
@@ -475,12 +472,6 @@ func _physics_process(delta: float) -> void:
 					_net_client_input_send_timer_sec = NET_CLIENT_INPUT_SEND_INTERVAL_SEC
 					rpc_id(1, "rpc_submit_input", local_input, _net_input_seq)
 					_net_input_seq += 1
-				if NET_ENABLE_STATE_SYNC:
-					_net_client_state_send_timer_sec -= maxf(delta, 0.0)
-					if _net_client_state_send_timer_sec <= 0.0:
-						_net_client_state_send_timer_sec = NET_CLIENT_STATE_SEND_INTERVAL_SEC
-						rpc_id(1, "rpc_submit_state", global_position, velocity, _net_state_seq)
-						_net_state_seq += 1
 			return
 
 		_apply_remote_snapshot_interpolation()
@@ -499,13 +490,23 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
-	if not _is_local_control_enabled():
+	_update_breath_steam_visual(delta)
+	var is_network_server: bool = _is_networked_game() and NetworkManager != null and NetworkManager.is_server()
+	if is_network_server:
+		if not is_dead:
+			_update_needs(delta)
+			_update_stamina(delta)
+		if not _is_local_network_player():
+			return
+	elif not _is_local_control_enabled():
 		return
 	if is_dead:
 		return
 
-	_update_needs(delta)
-	_update_stamina(delta)
+	_update_thermal_battery_drain(delta)
+	if not _is_networked_game():
+		_update_needs(delta)
+		_update_stamina(delta)
 	_update_timed_action(delta)
 	_update_low_need_hints(delta)
 	_update_status_hint_visual(delta)
@@ -513,11 +514,11 @@ func _process(delta: float) -> void:
 
 
 func _on_network_tick(tick_delta_sec: float, _tick_id: int) -> void:
+	if peer_id <= 0:
+		return
 	if not _is_networked_game() or NetworkManager == null:
 		return
 	if not NetworkManager.is_server():
-		return
-	if is_dead:
 		return
 
 	_net_state_tick_elapsed_sec += tick_delta_sec
@@ -533,7 +534,8 @@ func _update_needs(delta: float) -> void:
 
 func _update_stamina(delta: float) -> void:
 	if vitals_controller != null:
-		vitals_controller.update_stamina(delta, inventory_root)
+		var local_inventory_ui: Node = inventory_root if _is_local_control_enabled() else null
+		vitals_controller.update_stamina(delta, local_inventory_ui)
 
 
 func _collect_equipment_visual_slots() -> void:
@@ -581,13 +583,170 @@ func _get_equipment_layer_z_index(slot_type: int) -> int:
 func _connect_inventory_signals() -> void:
 	if not InventoryManager.equipment_changed.is_connected(_on_equipment_changed):
 		InventoryManager.equipment_changed.connect(_on_equipment_changed)
+	if not InventoryManager.ammo_state_changed.is_connected(_on_ammo_state_changed):
+		InventoryManager.ammo_state_changed.connect(_on_ammo_state_changed)
 
 
 func _on_equipment_changed(_slot_type: int, _item: ItemData) -> void:
 	_update_carry_weight_state()
-	_publish_local_equipment_state_to_replication()
+	if not InventoryManager.network_authoritative_update_in_progress:
+		_publish_local_equipment_state_to_replication()
 	_refresh_equipment_visuals()
+	_refresh_thermal_vision_state()
 	_force_refresh_animation()
+
+
+func _on_ammo_state_changed(_item: ItemData) -> void:
+	if _net_applying_authoritative_ammo_state:
+		return
+	_publish_local_equipment_state_to_replication()
+
+
+func apply_network_authoritative_ammo_state(item: ItemData, ammo_in_mag: int, reserve_ammo: int) -> void:
+	if item == null:
+		return
+	_net_applying_authoritative_ammo_state = true
+	InventoryManager.set_ammo_state(item, ammo_in_mag, reserve_ammo)
+	_net_applying_authoritative_ammo_state = false
+
+
+func apply_network_authoritative_inventory_action_vitals(payload: Dictionary) -> void:
+	if not _is_networked_game() or NetworkManager == null or NetworkManager.is_server():
+		return
+	health = clampf(float(payload.get("health", health)), 0.0, max_health)
+	water = clampf(float(payload.get("water", water)), 0.0, max_water)
+	food = clampf(float(payload.get("food", food)), 0.0, max_food)
+	stamina = clampf(float(payload.get("stamina", stamina)), 0.0, max_stamina)
+	radiation = maxf(float(payload.get("radiation", radiation)), 0.0)
+	is_bleeding = bool(payload.get("is_bleeding", is_bleeding))
+	is_fractured = bool(payload.get("is_fractured", is_fractured))
+	is_diseased = bool(payload.get("is_diseased", is_diseased))
+	disease_time_left = maxf(float(payload.get("disease_time_left", disease_time_left)), 0.0)
+	stats_changed.emit()
+	status_effects_changed.emit()
+
+
+func _ensure_thermal_vision_input_action() -> void:
+	if InputMap.has_action(thermal_vision_action_name):
+		return
+	InputMap.add_action(thermal_vision_action_name)
+	var toggle_key: InputEventKey = InputEventKey.new()
+	toggle_key.physical_keycode = KEY_T
+	InputMap.action_add_event(thermal_vision_action_name, toggle_key)
+
+
+func _toggle_thermal_vision() -> void:
+	if not _has_equipped_thermal_vision_provider():
+		thermal_vision_requested = false
+		_refresh_thermal_vision_state()
+		return
+	thermal_vision_requested = not thermal_vision_requested
+	_refresh_thermal_vision_state()
+	_refresh_equipment_visuals()
+
+
+func toggle_thermal_vision_from_inventory() -> void:
+	_toggle_thermal_vision()
+
+
+func is_thermal_vision_enabled() -> bool:
+	if thermal_vision_controller == null or not is_instance_valid(thermal_vision_controller):
+		return false
+	if thermal_vision_controller.has_method("is_thermal_enabled"):
+		return bool(thermal_vision_controller.call("is_thermal_enabled"))
+	return thermal_vision_requested and _has_equipped_thermal_vision_provider()
+
+
+func _setup_thermal_vision_controller() -> void:
+	if thermal_vision_controller != null and is_instance_valid(thermal_vision_controller):
+		return
+	if not _is_local_control_enabled():
+		return
+
+	thermal_vision_controller = THERMAL_VISION_CONTROLLER.new()
+	thermal_vision_controller.name = "ThermalVisionController"
+	add_child(thermal_vision_controller)
+
+
+func _refresh_thermal_vision_state(immediate: bool = false) -> void:
+	if thermal_vision_controller == null or not is_instance_valid(thermal_vision_controller):
+		return
+
+	var has_provider: bool = _has_equipped_thermal_vision_provider()
+	if not has_provider:
+		thermal_vision_requested = false
+	thermal_vision_controller.set_thermal_enabled(has_provider and thermal_vision_requested, immediate)
+
+
+func _has_equipped_thermal_vision_provider() -> bool:
+	for equipped_item in InventoryManager.equipped.values():
+		if equipped_item == null:
+			continue
+		if _can_item_power_thermal_vision(equipped_item):
+			return true
+	return false
+
+
+func _can_item_power_thermal_vision(item: ItemData) -> bool:
+	if item == null:
+		return false
+	if not bool(item.get("enables_thermal_vision")):
+		return false
+	if not bool(item.get("thermal_battery_required")):
+		return true
+	return _get_thermal_battery_charge(item) > 0.0
+
+
+func _update_thermal_battery_drain(delta: float) -> void:
+	if thermal_vision_controller == null or not is_instance_valid(thermal_vision_controller):
+		return
+	if not is_thermal_vision_enabled():
+		return
+
+	var provider: ItemData = _get_active_thermal_vision_provider()
+	if provider == null or not bool(provider.get("thermal_battery_required")):
+		return
+
+	var battery: ItemData = _get_thermal_battery_item(provider)
+	if battery == null:
+		thermal_vision_requested = false
+		_refresh_thermal_vision_state()
+		_refresh_equipment_visuals()
+		return
+
+	var drain_per_second: float = maxf(float(provider.get("thermal_battery_drain_per_second")), 0.0)
+	battery.battery_charge_seconds = maxf(battery.battery_charge_seconds - (maxf(delta, 0.0) * drain_per_second), 0.0)
+	if battery.battery_charge_seconds > 0.0:
+		return
+
+	thermal_vision_requested = false
+	_refresh_thermal_vision_state()
+	_refresh_equipment_visuals()
+
+
+func _get_active_thermal_vision_provider() -> ItemData:
+	for equipped_item in InventoryManager.equipped.values():
+		if equipped_item == null:
+			continue
+		if _can_item_power_thermal_vision(equipped_item):
+			return equipped_item
+	return null
+
+
+func _get_thermal_battery_item(provider: ItemData) -> ItemData:
+	if provider == null or provider.runtime_storage_items.is_empty():
+		return null
+	var battery: ItemData = provider.runtime_storage_items[0]
+	if battery == null or not bool(battery.get("is_battery_item")):
+		return null
+	return battery
+
+
+func _get_thermal_battery_charge(provider: ItemData) -> float:
+	var battery: ItemData = _get_thermal_battery_item(provider)
+	if battery == null:
+		return 0.0
+	return maxf(battery.battery_charge_seconds, 0.0)
 
 
 func _refresh_equipment_visuals() -> void:
@@ -601,20 +760,31 @@ func _refresh_equipment_visuals() -> void:
 	for visual_slot in equipment_visual_slots:
 		var equipped_item: ItemData = InventoryManager.get_equipped(visual_slot.item_type)
 
-		if equipped_item == null or equipped_item.equipped_frames == null:
+		var equipped_frames: SpriteFrames = _get_equipment_frames_for_item(equipped_item)
+		if equipped_item == null or equipped_frames == null:
 			visual_slot.sprite_frames = null
 			visual_slot.visible = false
 			continue
 
 		if _is_switchable_weapon_slot(visual_slot.item_type) and visual_slot.item_type != active_weapon_slot:
-			visual_slot.sprite_frames = equipped_item.equipped_frames
+			visual_slot.sprite_frames = equipped_frames
 			visual_slot.visible = false
 			continue
 
-		visual_slot.sprite_frames = equipped_item.equipped_frames
+		visual_slot.sprite_frames = equipped_frames
 		visual_slot.visible = true
 
 		_apply_equipment_animation(visual_slot, String(anim.animation))
+
+
+func _get_equipment_frames_for_item(item: ItemData) -> SpriteFrames:
+	if item == null:
+		return null
+	if bool(item.get("enables_thermal_vision")) and thermal_vision_requested and _can_item_power_thermal_vision(item):
+		var thermal_frames: SpriteFrames = item.thermal_vision_equipped_frames
+		if thermal_frames != null:
+			return thermal_frames
+	return item.equipped_frames
 
 
 func _sync_equipment_animation(animation_name: String) -> void:
@@ -663,6 +833,7 @@ func _apply_equipment_animation(visual_slot: EquipmentVisualSlot, requested_anim
 	if target_frame_count > 0:
 		visual_slot.frame = clamp(anim.frame, 0, target_frame_count - 1)
 	visual_slot.speed_scale = target_speed_scale
+	visual_slot.clear_attachment_overlays()
 
 
 func _get_equipment_animation_name(frames: SpriteFrames, requested_animation: String) -> String:
@@ -729,45 +900,6 @@ func _find_directional_equipment_animation_fallback(frames: SpriteFrames, reques
 	return ""
 
 
-func _update_scope_overlay_for_slot(visual_slot: EquipmentVisualSlot, equipped_item: ItemData, animation_name: String) -> void:
-	if visual_slot == null:
-		return
-	if not visual_slot.has_method("set_scope_overlay"):
-		return
-	if equipped_item == null or equipped_item.storage_category != ItemData.StorageCategory.WEAPON:
-		visual_slot.clear_scope_overlay()
-		return
-
-	var attached_scope: ItemData = InventoryManager.get_attached_scope(equipped_item)
-	if attached_scope == null:
-		visual_slot.clear_scope_overlay()
-		return
-
-	var scope_texture: Texture2D = attached_scope.get_attachment_mounted_texture() if attached_scope.has_method("get_attachment_mounted_texture") else attached_scope.mounted_scope_texture
-	if scope_texture == null:
-		scope_texture = attached_scope.inventory_icon
-	if scope_texture == null:
-		visual_slot.clear_scope_overlay()
-		return
-
-	var alignment: Dictionary = _get_weapon_scope_alignment(equipped_item, animation_name)
-	visual_slot.set_scope_overlay(
-		scope_texture,
-		alignment.get("offset", Vector2.ZERO),
-		alignment.get("scale", attached_scope.mounted_scope_scale),
-		float(alignment.get("rotation", attached_scope.mounted_scope_rotation_degrees)),
-		visual_slot.visible
-	)
-
-
-func _get_weapon_scope_alignment(_weapon: ItemData, _animation_name: String) -> Dictionary:
-	return {
-		"offset": Vector2.ZERO,
-		"scale": Vector2.ONE,
-		"rotation": 0.0
-	}
-
-
 func movement_loop(delta: float) -> void:
 	if movement_controller != null:
 		movement_controller.movement_loop(delta, inventory_root, weapon_controller)
@@ -776,23 +908,28 @@ func movement_loop(delta: float) -> void:
 func _update_aim_movement_animation(input_vector: Vector2) -> void:
 	var aim_dir: String = weapon_controller.get_aim_direction_4way()
 	facing_direction = aim_dir
+	_set_idle_dir_from_string(aim_dir)
 
-	if input_vector == Vector2.ZERO:
-		_set_idle_dir_from_string(aim_dir)
-		_play_body_animation_if_exists("Aim_" + aim_dir)
+	if input_vector != Vector2.ZERO:
+		update_move_animation(input_vector)
 		return
 
-	update_move_animation(input_vector)
+	if _play_body_animation_if_exists("Aim_" + aim_dir):
+		return
+
+	idle()
 
 
-func _play_body_animation_if_exists(animation_name: String) -> void:
+func _play_body_animation_if_exists(animation_name: String) -> bool:
 	if anim.sprite_frames == null:
-		return
+		return false
 
 	if anim.sprite_frames.has_animation(animation_name):
 		anim.play(animation_name)
 		anim.speed_scale = _get_current_animation_speed_scale()
 		_sync_equipment_animation(animation_name)
+		return true
+	return false
 
 
 func _play_action_animation_if_available() -> bool:
@@ -800,10 +937,11 @@ func _play_action_animation_if_available() -> bool:
 		return false
 	if anim == null or anim.sprite_frames == null:
 		return false
-	if not anim.sprite_frames.has_animation(current_action_animation):
+	var action_animation := _find_equipment_animation_case_insensitive(anim.sprite_frames, current_action_animation)
+	if action_animation.is_empty():
 		return false
 
-	anim.play(current_action_animation)
+	anim.play(action_animation)
 	anim.speed_scale = _get_current_animation_speed_scale()
 	_sync_equipment_animation(current_action_animation)
 	return true
@@ -860,7 +998,21 @@ func take_enemy_damage(amount: float, bleed_chance: float = 0.25, damage_type: i
 func _apply_clothing_endurance_from_damage(amount: float, damage_type: int) -> void:
 	if InventoryManager == null:
 		return
+	if _is_networked_game() and NetworkManager != null and NetworkManager.is_server() and peer_id > 1:
+		if InventoryManager.apply_damage_to_network_peer_equipped_clothing(peer_id, amount, damage_type):
+			var shared_world: Node = get_tree().get_first_node_in_group("network_shared_world")
+			if shared_world != null and shared_world.has_method("send_inventory_state"):
+				shared_world.call("send_inventory_state", peer_id)
+		return
 	InventoryManager.apply_damage_to_equipped_clothing(amount, damage_type)
+
+
+func get_incoming_damage_after_armor(amount: float, damage_type: int) -> float:
+	if InventoryManager == null:
+		return maxf(amount, 0.0)
+	if _is_networked_game() and NetworkManager != null and NetworkManager.is_server() and peer_id > 1:
+		return InventoryManager.get_damage_after_network_peer_equipped_clothing_armor(peer_id, amount, damage_type)
+	return InventoryManager.get_damage_after_equipped_clothing_armor(amount, damage_type)
 
 
 func _resolve_damage_type_from_source(source: Node) -> int:
@@ -891,8 +1043,14 @@ func _source_matches_any_group(source: Node, groups: Array[StringName]) -> bool:
 
 
 func die() -> void:
+	if is_dead:
+		return
+	if action_in_progress and timed_action_controller.cancellation_callback.is_valid():
+		cancel_timed_action()
 	if death_effects_controller != null:
 		death_effects_controller.die()
+	if is_dead and _is_networked_game() and NetworkManager.is_server():
+		_broadcast_vitals_sync(peer_id, health, true)
 
 
 func _setup_walk_snow_sfx() -> void:
@@ -932,6 +1090,191 @@ func _update_walk_snow_sfx(input_vector: Vector2, delta: float) -> void:
 func _stop_walk_snow_sfx() -> void:
 	if walk_snow_sfx != null and walk_snow_sfx.playing:
 		walk_snow_sfx.stop()
+
+
+func _ensure_breath_steam_particles() -> void:
+	if breath_steam_particles != null or not breath_steam_enabled:
+		return
+	if BREATH_STEAM_TEXTURE == null:
+		return
+
+	breath_steam_particles = GPUParticles2D.new()
+	breath_steam_particles.name = "BreathSteamParticles"
+	breath_steam_particles.texture = BREATH_STEAM_TEXTURE
+	breath_steam_particles.amount = max(breath_steam_amount, 1)
+	breath_steam_particles.lifetime = maxf(breath_steam_lifetime_sec, 0.1)
+	breath_steam_particles.one_shot = true
+	breath_steam_particles.explosiveness = 1.0
+	breath_steam_particles.randomness = 0.9
+	breath_steam_particles.local_coords = true
+	breath_steam_particles.emitting = false
+	breath_steam_particles.z_as_relative = true
+	breath_steam_particles.z_index = 20
+	breath_steam_particles.material = _create_particle_atlas_material(3, 1)
+	breath_steam_particles.process_material = _create_breath_steam_process_material()
+	add_child(breath_steam_particles)
+
+
+func _update_breath_steam_visual(delta: float) -> void:
+	if not breath_steam_enabled:
+		if breath_steam_particles != null:
+			breath_steam_particles.emitting = false
+		return
+	if breath_steam_particles == null:
+		_ensure_breath_steam_particles()
+	if breath_steam_particles == null:
+		return
+
+	var should_show: bool = not is_dead and _is_current_body_animation_idle()
+	if not should_show:
+		breath_steam_cooldown = 0.0
+		breath_steam_idle_time = 0.0
+		breath_steam_particles.emitting = false
+		return
+
+	breath_steam_idle_time += maxf(delta, 0.0)
+	if breath_steam_idle_time < maxf(breath_steam_idle_delay_sec, 0.0):
+		return
+
+	breath_steam_cooldown -= maxf(delta, 0.0)
+	if breath_steam_cooldown > 0.0:
+		return
+
+	_apply_breath_steam_direction()
+	breath_steam_particles.position = _get_breath_steam_base_offset()
+	breath_steam_particles.amount = max(breath_steam_amount, 1)
+	breath_steam_particles.lifetime = maxf(breath_steam_lifetime_sec, 0.1)
+	breath_steam_particles.restart()
+	breath_steam_particles.emitting = true
+	breath_steam_cooldown = maxf(breath_steam_interval_sec, 0.1)
+
+
+func _is_current_body_animation_idle() -> bool:
+	if anim == null:
+		return false
+	var animation_name: String = String(anim.animation)
+	return animation_name.begins_with("Idle_") and velocity.length() <= 0.01 and not action_in_progress
+
+
+func _get_breath_steam_base_offset() -> Vector2:
+	match idle_dir:
+		UP:
+			return breath_steam_up_offset
+		LEFT:
+			return breath_steam_left_offset
+		RIGHT:
+			return breath_steam_right_offset
+		_:
+			return breath_steam_down_offset
+
+
+func _create_particle_atlas_material(h_frames: int, v_frames: int) -> CanvasItemMaterial:
+	var material := CanvasItemMaterial.new()
+	material.particles_animation = true
+	material.particles_anim_h_frames = max(h_frames, 1)
+	material.particles_anim_v_frames = max(v_frames, 1)
+	material.particles_anim_loop = false
+	return material
+
+
+func _create_breath_steam_process_material() -> ParticleProcessMaterial:
+	var material := ParticleProcessMaterial.new()
+	material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_POINT
+	material.direction = Vector3(0.0, 1.0, 0.0)
+	material.spread = 28.0
+	material.initial_velocity_min = breath_steam_velocity_min
+	material.initial_velocity_max = maxf(breath_steam_velocity_max, breath_steam_velocity_min)
+	material.gravity = Vector3(0.0, breath_steam_upward_gravity, 0.0)
+	material.damping_min = breath_steam_damping
+	material.damping_max = breath_steam_damping
+	material.scale_min = breath_steam_scale_min
+	material.scale_max = maxf(breath_steam_scale_max, breath_steam_scale_min)
+	material.angular_velocity_min = -25.0
+	material.angular_velocity_max = 25.0
+	material.color = Color(0.92, 0.92, 0.92, 0.58)
+	material.color_ramp = _create_breath_steam_alpha_ramp()
+	material.anim_speed_min = 0.0
+	material.anim_speed_max = 0.15
+	material.anim_offset_min = 0.0
+	material.anim_offset_max = 1.0
+	return material
+
+
+func _apply_breath_steam_direction() -> void:
+	if breath_steam_particles == null:
+		return
+
+	var material: ParticleProcessMaterial = breath_steam_particles.process_material as ParticleProcessMaterial
+	if material == null:
+		return
+
+	var profile: Dictionary = _get_breath_steam_direction_profile()
+	var direction: Vector2 = profile.get("direction", Vector2.DOWN)
+	if direction == Vector2.ZERO:
+		direction = Vector2.DOWN
+	direction = direction.normalized()
+
+	material.direction = Vector3(direction.x, direction.y, 0.0)
+	material.spread = float(profile.get("spread", 28.0))
+	material.initial_velocity_min = float(profile.get("velocity_min", breath_steam_velocity_min))
+	material.initial_velocity_max = float(profile.get("velocity_max", breath_steam_velocity_max))
+	material.gravity = Vector3(0.0, float(profile.get("gravity_y", breath_steam_upward_gravity)), 0.0)
+	material.damping_min = float(profile.get("damping", breath_steam_damping))
+	material.damping_max = material.damping_min
+
+
+func _get_breath_steam_direction_profile() -> Dictionary:
+	match idle_dir:
+		UP:
+			return {
+				"direction": Vector2(0.0, -0.72),
+				"spread": 24.0,
+				"velocity_min": breath_steam_velocity_min * 0.75,
+				"velocity_max": breath_steam_velocity_max * 0.85,
+				"gravity_y": breath_steam_upward_gravity,
+				"damping": breath_steam_damping
+			}
+		LEFT:
+			return {
+				"direction": Vector2(-1.0, -0.18),
+				"spread": 26.0,
+				"velocity_min": breath_steam_velocity_min,
+				"velocity_max": breath_steam_velocity_max,
+				"gravity_y": breath_steam_upward_gravity,
+				"damping": breath_steam_damping
+			}
+		RIGHT:
+			return {
+				"direction": Vector2(1.0, -0.18),
+				"spread": 26.0,
+				"velocity_min": breath_steam_velocity_min,
+				"velocity_max": breath_steam_velocity_max,
+				"gravity_y": breath_steam_upward_gravity,
+				"damping": breath_steam_damping
+			}
+		_:
+			return {
+				"direction": Vector2(0.0, 0.55),
+				"spread": 30.0,
+				"velocity_min": breath_steam_velocity_min * 0.8,
+				"velocity_max": breath_steam_velocity_max * 0.9,
+				"gravity_y": breath_steam_upward_gravity * 1.15,
+				"damping": breath_steam_damping
+			}
+
+
+func _create_breath_steam_alpha_ramp() -> GradientTexture1D:
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.22, 0.72, 1.0])
+	gradient.colors = PackedColorArray([
+		Color(1.0, 1.0, 1.0, 0.0),
+		Color(1.0, 1.0, 1.0, 0.75),
+		Color(1.0, 1.0, 1.0, 0.38),
+		Color(1.0, 1.0, 1.0, 0.0)
+	])
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = gradient
+	return ramp
 
 
 func _go_to_menu(save_before_exit: bool = true) -> void:
@@ -1119,8 +1462,8 @@ func has_passive_regeneration() -> bool:
 	return vitals_controller != null and vitals_controller.has_passive_regeneration()
 
 
-func start_timed_action(duration: float, on_complete: Callable, _label: String = "", blocks_movement: bool = true, action_animation_name: String = "") -> bool:
-	return timed_action_controller != null and timed_action_controller.start_timed_action(duration, on_complete, _label, blocks_movement, action_animation_name)
+func start_timed_action(duration: float, on_complete: Callable, _label: String = "", blocks_movement: bool = true, action_animation_name: String = "", on_cancel: Callable = Callable()) -> bool:
+	return timed_action_controller != null and timed_action_controller.start_timed_action(duration, on_complete, _label, blocks_movement, action_animation_name, on_cancel)
 
 
 func cancel_timed_action(expected_callback: Callable = Callable()) -> bool:
@@ -1173,6 +1516,7 @@ func _update_status_hint_visual(delta: float) -> void:
 
 
 func update_move_animation(input_vector: Vector2) -> void:
+	if action_in_progress and _play_action_animation_if_available(): return
 	if abs(input_vector.x) > abs(input_vector.y):
 		if input_vector.x > 0.0:
 			right_move()
@@ -1218,6 +1562,7 @@ func right_move() -> void:
 
 
 func idle() -> void:
+	if action_in_progress and _play_action_animation_if_available(): return
 	var idle_animation_name: String = _get_idle_body_animation_name()
 
 	match idle_dir:
@@ -1289,6 +1634,8 @@ func _get_current_speed_multiplier() -> float:
 	var stamina_multiplier: float = lerp(min_exhausted_speed_multiplier, 1.0, _get_stamina_ratio())
 	var stealth_multiplier: float = _get_stealth_movement_multiplier()
 	var carry_multiplier: float = _get_encumbrance_speed_multiplier()
+	if weapon_controller != null and weapon_controller.get_is_reloading():
+		carry_multiplier *= 0.5
 	if is_fractured:
 		return stamina_multiplier * stealth_multiplier * carry_multiplier * clamp(fracture_speed_multiplier, 0.0, 1.0)
 	return stamina_multiplier * stealth_multiplier * carry_multiplier
@@ -1414,6 +1761,8 @@ func _trigger_primary_interaction() -> bool:
 
 
 func try_primary_interaction() -> bool:
+	if action_in_progress and timed_action_controller.cancellation_callback.is_valid():
+		return cancel_timed_action()
 	if inventory_root != null and "is_inventory_open" in inventory_root and inventory_root.is_inventory_open:
 		return true
 	if _trigger_primary_interaction():
@@ -1505,41 +1854,22 @@ func rpc_submit_input(input_vector: Vector2, input_seq: int) -> void:
 		return
 	if input_seq <= _net_last_applied_input_seq:
 		return
+	if not input_vector.is_finite():
+		return
 	if _lan_net_debug_enabled:
 		_record_server_input_arrival()
 	_net_server_last_input_recv_ms = Time.get_ticks_msec()
-	_net_input_vector = input_vector.limit_length(1.0)
+	_net_input_vector = _sanitize_network_input(input_vector)
 	_net_last_applied_input_seq = input_seq
 
 
-@rpc("any_peer", "call_remote", "unreliable_ordered")
-func rpc_submit_state(client_position: Vector2, client_velocity: Vector2, state_seq: int) -> void:
-	if not NET_ENABLE_STATE_SYNC:
-		return
-	if not _is_networked_game() or NetworkManager == null or not NetworkManager.is_server():
-		return
-	var sender_id: int = multiplayer.get_remote_sender_id()
-	if sender_id != peer_id:
-		return
-	if state_seq <= _net_last_applied_state_seq:
-		return
-	_net_last_applied_state_seq = state_seq
-	var now_ms: int = Time.get_ticks_msec()
-	var previous_state_recv_ms: int = _net_server_last_state_recv_ms
-	_net_server_last_state_recv_ms = now_ms
-	if _lan_net_debug_enabled:
-		_record_server_state_arrival()
-
-	var clamped_velocity: Vector2 = client_velocity.limit_length(NET_MAX_SPEED)
-	var safe_position: Vector2 = client_position
-	if _net_server_has_state:
-		var delta_pos: Vector2 = safe_position - _net_server_last_state_position
-		var max_delta: float = _get_allowed_client_state_delta(previous_state_recv_ms, now_ms)
-		if delta_pos.length() > max_delta:
-			safe_position = _net_server_last_state_position + delta_pos.normalized() * max_delta
-	_net_server_last_state_position = safe_position
-	_net_server_last_state_velocity = clamped_velocity
-	_net_server_has_state = true
+func _resolve_server_remote_input(now_ms: int) -> Vector2:
+	# A received zero vector is an explicit joystick release. Keeping the previous
+	# direction here makes continuously arriving zero packets sustain movement.
+	if now_ms - _net_server_last_input_recv_ms > NET_SERVER_INPUT_STALE_TIMEOUT_MS:
+		_net_input_vector = Vector2.ZERO
+		return Vector2.ZERO
+	return _sanitize_network_input(_net_input_vector)
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
@@ -1622,12 +1952,11 @@ func rpc_sync_player_snapshot(payload: Dictionary) -> void:
 		_net_last_server_ack_seq = maxi(_net_last_server_ack_seq, ack_input_seq)
 		_reconcile_local_authoritative_state(server_position, server_velocity)
 
-	health = clamp(
-		_dequantize_scalar(int(payload.get("hp", _quantize_scalar(health, NET_SNAPSHOT_HEALTH_SCALE))), NET_SNAPSHOT_HEALTH_SCALE),
-		0.0,
-		max_health
-	)
-	stats_changed.emit()
+	_receive_timed_action_state(int(payload.get("act_rev", 0)), String(payload.get("act", "")), bool(payload.get("act_block", true)))
+	# Delayed alive snapshots must not overwrite the terminal death state.
+	if is_dead:
+		return
+	_apply_network_vitals_payload(payload)
 	var server_is_dead: bool = bool(payload.get("dead", false))
 	if server_is_dead and not is_dead:
 		if _is_local_network_player():
@@ -1635,35 +1964,12 @@ func rpc_sync_player_snapshot(payload: Dictionary) -> void:
 		else:
 			is_dead = true
 
-	_net_remote_active_weapon_slot = int(payload.get("aws", _net_remote_active_weapon_slot))
-	if not _is_local_network_player():
-		var equipment_payload: Variant = payload.get("eq", {})
-		if equipment_payload is Dictionary and not (equipment_payload as Dictionary).is_empty():
-			var eq := equipment_payload as Dictionary
-			_net_remote_equipped_paths = {
-				ItemData.ItemType.AR_Weapon: String(eq.get("ar", "")),
-				ItemData.ItemType.Pistols: String(eq.get("pi", "")),
-				ItemData.ItemType.MeleeWeapon: String(eq.get("me", "")),
-				ItemData.ItemType.T_shirts: String(eq.get("ts", "")),
-				ItemData.ItemType.Jacket: String(eq.get("ja", "")),
-				ItemData.ItemType.HeavyArmour: String(eq.get("ha", "")),
-				ItemData.ItemType.Trousers: String(eq.get("tr", "")),
-				ItemData.ItemType.Bag: String(eq.get("ba", "")),
-				ItemData.ItemType.Cap: String(eq.get("ca", ""))
-			}
-			if _lan_smoke_net_debug:
-				print("[LAN_SMOKE_EQ] peer=%d remote_peer=%d aws=%d ar=%s pi=%s me=%s" % [
-					NetworkManager.get_local_peer_id() if NetworkManager != null else 0,
-					peer_id,
-					_net_remote_active_weapon_slot,
-					String(eq.get("ar", "")),
-					String(eq.get("pi", "")),
-					String(eq.get("me", ""))
-				])
-			_refresh_equipment_visuals()
+	_apply_network_equipment_payload(payload)
 
 
 func _get_network_input_vector() -> Vector2:
+	if action_in_progress and action_blocks_movement:
+		return Vector2.ZERO
 	var mobile_controls_node: Node = get_tree().get_first_node_in_group("mobile_controls")
 	if mobile_controls_node != null and mobile_controls_node.has_method("get_move_input_vector"):
 		var mobile_vector: Vector2 = mobile_controls_node.call("get_move_input_vector") as Vector2
@@ -1686,6 +1992,12 @@ func _get_network_input_vector() -> Vector2:
 			NET_INPUT_ACTIONS_FALLBACK[3]
 		)
 	return Vector2.ZERO
+
+
+func _sanitize_network_input(input_vector: Vector2) -> Vector2:
+	if not input_vector.is_finite():
+		return Vector2.ZERO
+	return input_vector.limit_length(1.0)
 
 
 func _push_remote_snapshot(server_position: Vector2, server_velocity: Vector2, server_time_sec: float = -1.0) -> void:
@@ -1826,7 +2138,8 @@ func _broadcast_player_snapshot_interest(delta: float) -> void:
 			if include_equipment_for_peer:
 				if payload_with_equipment.is_empty():
 					payload_with_equipment = _build_player_snapshot_payload(true)
-				rpc_id(target_peer_id, "rpc_sync_player_snapshot", payload_with_equipment)
+				rpc_id(target_peer_id, "rpc_sync_player_equipment", payload_with_equipment)
+				rpc_id(target_peer_id, "rpc_sync_player_snapshot", payload_base)
 				_net_last_sent_equipment_signature_by_peer[target_peer_id] = equipment_signature
 			else:
 				rpc_id(target_peer_id, "rpc_sync_player_snapshot", payload_base)
@@ -1933,7 +2246,18 @@ func _build_player_snapshot_payload(include_equipment: bool) -> Dictionary:
 		"vy": _quantize_scalar(velocity.y, NET_SNAPSHOT_VEL_SCALE),
 		"ack": _net_last_applied_input_seq,
 		"hp": _quantize_scalar(health, NET_SNAPSHOT_HEALTH_SCALE),
+		"wa": _quantize_scalar(water, NET_SNAPSHOT_HEALTH_SCALE),
+		"fo": _quantize_scalar(food, NET_SNAPSHOT_HEALTH_SCALE),
+		"st": _quantize_scalar(stamina, NET_SNAPSHOT_HEALTH_SCALE),
+		"ra": _quantize_scalar(radiation, NET_SNAPSHOT_HEALTH_SCALE),
+		"bl": is_bleeding,
+		"fr": is_fractured,
+		"di": is_diseased,
+		"dt": _quantize_scalar(disease_time_left, NET_SNAPSHOT_HEALTH_SCALE),
 		"dead": is_dead,
+		"act": current_action_animation if action_in_progress else "",
+		"act_rev": _net_action_revision,
+		"act_block": action_blocks_movement,
 		"aws": int(eq_state.get("aws", ItemData.ItemType.AR_Weapon))
 	}
 	if include_equipment:
@@ -1951,19 +2275,37 @@ func _build_player_snapshot_payload(include_equipment: bool) -> Dictionary:
 	return payload
 
 
+func _apply_network_vitals_payload(payload: Dictionary) -> void:
+	var previous_bleeding: bool = is_bleeding
+	var previous_fractured: bool = is_fractured
+	var previous_diseased: bool = is_diseased
+	health = clampf(_dequantize_scalar(int(payload.get("hp", _quantize_scalar(health, NET_SNAPSHOT_HEALTH_SCALE))), NET_SNAPSHOT_HEALTH_SCALE), 0.0, max_health)
+	water = clampf(_dequantize_scalar(int(payload.get("wa", _quantize_scalar(water, NET_SNAPSHOT_HEALTH_SCALE))), NET_SNAPSHOT_HEALTH_SCALE), 0.0, max_water)
+	food = clampf(_dequantize_scalar(int(payload.get("fo", _quantize_scalar(food, NET_SNAPSHOT_HEALTH_SCALE))), NET_SNAPSHOT_HEALTH_SCALE), 0.0, max_food)
+	stamina = clampf(_dequantize_scalar(int(payload.get("st", _quantize_scalar(stamina, NET_SNAPSHOT_HEALTH_SCALE))), NET_SNAPSHOT_HEALTH_SCALE), 0.0, max_stamina)
+	radiation = maxf(_dequantize_scalar(int(payload.get("ra", _quantize_scalar(radiation, NET_SNAPSHOT_HEALTH_SCALE))), NET_SNAPSHOT_HEALTH_SCALE), 0.0)
+	is_bleeding = bool(payload.get("bl", is_bleeding))
+	is_fractured = bool(payload.get("fr", is_fractured))
+	is_diseased = bool(payload.get("di", is_diseased))
+	disease_time_left = maxf(_dequantize_scalar(int(payload.get("dt", _quantize_scalar(disease_time_left, NET_SNAPSHOT_HEALTH_SCALE))), NET_SNAPSHOT_HEALTH_SCALE), 0.0)
+	stats_changed.emit()
+	if previous_bleeding != is_bleeding or previous_fractured != is_fractured or previous_diseased != is_diseased:
+		status_effects_changed.emit()
+
+
 func _get_authoritative_equipment_state_for_broadcast() -> Dictionary:
 	if _is_networked_game() and NetworkManager != null and NetworkManager.is_server() and not _is_local_network_player() and _net_reported_equipment_initialized:
 		return {
-			"aws": _net_reported_active_weapon_slot,
-			"ar": String(_net_reported_equipped_paths.get(ItemData.ItemType.AR_Weapon, "")),
-			"pi": String(_net_reported_equipped_paths.get(ItemData.ItemType.Pistols, "")),
-			"me": String(_net_reported_equipped_paths.get(ItemData.ItemType.MeleeWeapon, "")),
-			"ts": String(_net_reported_equipped_paths.get(ItemData.ItemType.T_shirts, "")),
-			"ja": String(_net_reported_equipped_paths.get(ItemData.ItemType.Jacket, "")),
-			"ha": String(_net_reported_equipped_paths.get(ItemData.ItemType.HeavyArmour, "")),
-			"tr": String(_net_reported_equipped_paths.get(ItemData.ItemType.Trousers, "")),
-			"ba": String(_net_reported_equipped_paths.get(ItemData.ItemType.Bag, "")),
-			"ca": String(_net_reported_equipped_paths.get(ItemData.ItemType.Cap, ""))
+			"aws": InventoryManager.get_network_peer_active_weapon_slot(peer_id),
+			"ar": _get_network_peer_equipped_definition_path(ItemData.ItemType.AR_Weapon),
+			"pi": _get_network_peer_equipped_definition_path(ItemData.ItemType.Pistols),
+			"me": _get_network_peer_equipped_definition_path(ItemData.ItemType.MeleeWeapon),
+			"ts": _get_network_peer_equipped_definition_path(ItemData.ItemType.T_shirts),
+			"ja": _get_network_peer_equipped_definition_path(ItemData.ItemType.Jacket),
+			"ha": _get_network_peer_equipped_definition_path(ItemData.ItemType.HeavyArmour),
+			"tr": _get_network_peer_equipped_definition_path(ItemData.ItemType.Trousers),
+			"ba": _get_network_peer_equipped_definition_path(ItemData.ItemType.Bag),
+			"ca": _get_network_peer_equipped_definition_path(ItemData.ItemType.Cap)
 		}
 	return {
 		"aws": InventoryManager.get_active_weapon_slot(),
@@ -2125,11 +2467,7 @@ func _emit_network_debug_metrics() -> void:
 	var pending_inputs: int = maxi(_net_input_seq - _net_last_server_ack_seq - 1, 0) if is_local_actor else 0
 	var server_input_rate: float = float(_net_debug_server_input_count)
 	var server_input_gap_avg_ms: float = _net_debug_server_input_gap_sum_ms / float(max(_net_debug_server_input_count - 1, 1))
-	var server_state_rate: float = float(_net_debug_server_state_count)
-	var server_state_gap_avg_ms: float = _net_debug_server_state_gap_sum_ms / float(max(_net_debug_server_state_count - 1, 1))
-	var server_state_age_ms: int = Time.get_ticks_msec() - _net_server_last_state_recv_ms if _net_server_has_state else -1
-	var using_state_sync: bool = (not is_local_actor) and _has_recent_client_state()
-	print("[LAN_NET_DEBUG] role=%s actor_peer=%d local_peer=%d is_local_actor=%s rtt=%.1fms loss=%.1f%% target_err=%.2f corr_avg=%.2f corr_max=%.2f snaps=%d snapsrcv=%d snap_gap_avg=%.1fms snap_gap_max=%.1fms pending_inputs=%d input_rate=%.0f/s input_gap_avg=%.1fms input_gap_max=%.1fms state_sync=%s state_rate=%.0f/s state_gap_avg=%.1fms state_gap_max=%.1fms state_age=%dms server_speed=%.1f" % [
+	print("[LAN_NET_DEBUG] role=%s actor_peer=%d local_peer=%d is_local_actor=%s rtt=%.1fms loss=%.1f%% target_err=%.2f corr_avg=%.2f corr_max=%.2f snaps=%d snapsrcv=%d snap_gap_avg=%.1fms snap_gap_max=%.1fms pending_inputs=%d input_rate=%.0f/s input_gap_avg=%.1fms input_gap_max=%.1fms server_speed=%.1f" % [
 		role,
 		peer_id,
 		local_peer,
@@ -2147,11 +2485,6 @@ func _emit_network_debug_metrics() -> void:
 		server_input_rate,
 		server_input_gap_avg_ms,
 		_net_debug_server_input_gap_max_ms,
-		str(using_state_sync),
-		server_state_rate,
-		server_state_gap_avg_ms,
-		_net_debug_server_state_gap_max_ms,
-		server_state_age_ms,
 		velocity.length()
 	])
 	_net_debug_correction_count = 0
@@ -2164,9 +2497,6 @@ func _emit_network_debug_metrics() -> void:
 	_net_debug_server_input_count = 0
 	_net_debug_server_input_gap_sum_ms = 0.0
 	_net_debug_server_input_gap_max_ms = 0.0
-	_net_debug_server_state_count = 0
-	_net_debug_server_state_gap_sum_ms = 0.0
-	_net_debug_server_state_gap_max_ms = 0.0
 
 
 func _record_server_input_arrival() -> void:
@@ -2177,43 +2507,6 @@ func _record_server_input_arrival() -> void:
 		_net_debug_server_input_gap_sum_ms += gap_ms
 		_net_debug_server_input_gap_max_ms = maxf(_net_debug_server_input_gap_max_ms, gap_ms)
 	_net_debug_server_last_input_recv_ms = now_ms
-
-
-func _record_server_state_arrival() -> void:
-	var now_ms: int = Time.get_ticks_msec()
-	_net_debug_server_state_count += 1
-	if _net_debug_server_last_state_recv_ms > 0:
-		var gap_ms: float = float(max(now_ms - _net_debug_server_last_state_recv_ms, 0))
-		_net_debug_server_state_gap_sum_ms += gap_ms
-		_net_debug_server_state_gap_max_ms = maxf(_net_debug_server_state_gap_max_ms, gap_ms)
-	_net_debug_server_last_state_recv_ms = now_ms
-
-
-func _has_recent_client_state() -> bool:
-	if not _net_server_has_state:
-		return false
-	var age_ms: int = Time.get_ticks_msec() - _net_server_last_state_recv_ms
-	return age_ms <= NET_SERVER_STATE_STALE_TIMEOUT_MS
-
-
-func _has_usable_client_state() -> bool:
-	if not _net_server_has_state:
-		return false
-	var age_ms: int = Time.get_ticks_msec() - _net_server_last_state_recv_ms
-	return age_ms <= NET_SERVER_STATE_HARD_TIMEOUT_MS
-
-
-func _get_allowed_client_state_delta(previous_recv_ms: int, now_ms: int) -> float:
-	if previous_recv_ms <= 0 or now_ms <= previous_recv_ms:
-		return NET_SERVER_STATE_MAX_DELTA_MARGIN_PX
-	var elapsed_sec: float = clampf(
-		float(now_ms - previous_recv_ms) / 1000.0,
-		0.0,
-		NET_SERVER_STATE_MAX_ELAPSED_SEC
-	)
-	var max_expected_speed: float = maxf(base_move_speed * _get_current_speed_multiplier(), 1.0)
-	var allowed_delta: float = max_expected_speed * elapsed_sec + NET_SERVER_STATE_MAX_DELTA_MARGIN_PX
-	return clampf(allowed_delta, NET_SERVER_STATE_MAX_DELTA_MARGIN_PX, NET_SERVER_STATE_MAX_DELTA_PER_UPDATE)
 
 
 func _reconcile_local_authoritative_state(server_position: Vector2, server_velocity: Vector2) -> void:
@@ -2231,35 +2524,6 @@ func _reconcile_local_authoritative_state(server_position: Vector2, server_veloc
 	var blend_alpha: float = clampf(NET_RECONCILE_SOFT_BLEND_ALPHA, 0.01, 1.0)
 	global_position += correction * blend_alpha
 	velocity = velocity.lerp(server_velocity, clampf(NET_RECONCILE_VELOCITY_BLEND_ALPHA, 0.0, 1.0))
-
-
-func _apply_server_received_state() -> void:
-	var state_age_ms: int = Time.get_ticks_msec() - _net_server_last_state_recv_ms
-	if state_age_ms > NET_SERVER_STATE_HARD_TIMEOUT_MS:
-		velocity = velocity.lerp(Vector2.ZERO, 0.35)
-		if velocity.length() <= 0.01:
-			velocity = Vector2.ZERO
-			idle()
-		else:
-			update_move_animation(velocity.normalized())
-		return
-	var target_position: Vector2 = _net_server_last_state_position
-	if state_age_ms > 0:
-		var extrapolation_sec: float = minf(float(state_age_ms) / 1000.0, NET_SERVER_STATE_EXTRAPOLATION_MAX_SEC)
-		target_position += _net_server_last_state_velocity * extrapolation_sec
-	var clamped_delta: Vector2 = target_position - global_position
-	if clamped_delta.length() > NET_SERVER_STATE_MAX_DELTA_PER_UPDATE:
-		target_position = global_position + clamped_delta.normalized() * NET_SERVER_STATE_MAX_DELTA_PER_UPDATE
-	global_position = global_position.lerp(target_position, NET_SERVER_STATE_POSITION_BLEND)
-	velocity = _net_server_last_state_velocity
-	if state_age_ms > NET_SERVER_STATE_STALE_TIMEOUT_MS:
-		velocity = velocity.lerp(Vector2.ZERO, 0.20)
-	if velocity.length() <= 0.01:
-		idle()
-	else:
-		update_move_animation(velocity.normalized())
-
-
 @rpc("any_peer", "reliable")
 func rpc_sync_equipment_state(
 	state_peer_id: int,
@@ -2337,6 +2601,7 @@ func _publish_local_equipment_state_to_replication() -> void:
 	net_eq_trousers_path = _get_equipped_definition_path(ItemData.ItemType.Trousers)
 	net_eq_bag_path = _get_equipped_definition_path(ItemData.ItemType.Bag)
 	net_eq_cap_path = _get_equipped_definition_path(ItemData.ItemType.Cap)
+	_push_local_equipment_state_to_server()
 
 
 func _on_replicated_equipment_changed() -> void:
@@ -2387,11 +2652,17 @@ func _load_item_definition_for_path(path: String) -> ItemData:
 
 
 func _apply_network_movement(delta: float, input_vector: Vector2) -> void:
-	var normalized_input: Vector2 = input_vector.limit_length(1.0)
+	if movement_controller.apply_action_movement_lock(delta):
+		return
+	var normalized_input: Vector2 = _sanitize_network_input(input_vector)
 	var move_speed: float = base_move_speed * _get_current_speed_multiplier()
 	velocity = normalized_input * move_speed
 	move_and_slide()
-	if normalized_input == Vector2.ZERO:
+	if _is_local_control_enabled() and weapon_controller != null and weapon_controller.has_method("sync_aim_state_for_movement"):
+		weapon_controller.sync_aim_state_for_movement()
+	if _is_local_control_enabled() and weapon_controller != null and weapon_controller.is_in_aim_mode() and weapon_controller.has_weapon_equipped():
+		_update_aim_movement_animation(normalized_input)
+	elif normalized_input == Vector2.ZERO:
 		idle()
 	else:
 		update_move_animation(normalized_input)
@@ -2415,18 +2686,20 @@ func _refresh_non_blocking_collision_exceptions() -> void:
 			add_collision_exception_with(enemy_node as PhysicsBody2D)
 
 
-@rpc("any_peer", "unreliable")
+@rpc("any_peer", "reliable")
 func rpc_sync_vitals(state_peer_id: int, server_health: float, server_is_dead: bool) -> void:
 	if not _is_networked_game():
 		return
 	if state_peer_id != peer_id:
 		return
-	if NetworkManager == null:
+	if NetworkManager == null or NetworkManager.is_server():
 		return
 	if not NetworkManager.is_server():
 		var sender_id: int = multiplayer.get_remote_sender_id()
 		if sender_id != 1:
 			return
+	if is_dead:
+		return
 	health = clamp(server_health, 0.0, max_health)
 	stats_changed.emit()
 	if server_is_dead and not is_dead:
@@ -2451,6 +2724,7 @@ func _push_local_equipment_state_to_server() -> void:
 		return
 	var payload: Dictionary = {
 		"aws": InventoryManager.get_active_weapon_slot(),
+		"inventory": InventoryManager.get_network_inventory_snapshot(),
 		"ar": _get_equipped_definition_path(ItemData.ItemType.AR_Weapon),
 		"pi": _get_equipped_definition_path(ItemData.ItemType.Pistols),
 		"me": _get_equipped_definition_path(ItemData.ItemType.MeleeWeapon),
@@ -2471,16 +2745,111 @@ func rpc_submit_equipment_state(payload: Dictionary) -> void:
 	var sender_id: int = multiplayer.get_remote_sender_id()
 	if sender_id != peer_id:
 		return
-	_net_reported_active_weapon_slot = int(payload.get("aws", ItemData.ItemType.AR_Weapon))
+	var raw_inventory: Variant = payload.get("inventory", {})
+	if not (raw_inventory is Dictionary):
+		return
+	# The first accepted snapshot bootstraps the peer. After that, gameplay actions
+	# mutate the server-owned copy. Later snapshots may only rearrange the exact
+	# same runtime items; changed counts, durability, ammo or attachments are rejected.
+	if InventoryManager.has_network_peer_inventory(peer_id):
+		InventoryManager.reconcile_network_peer_inventory_layout(peer_id, raw_inventory as Dictionary)
+		InventoryManager.set_network_peer_active_weapon_slot(peer_id, int(payload.get("aws", -1)))
+		_net_reported_active_weapon_slot = InventoryManager.get_network_peer_active_weapon_slot(peer_id)
+		return
+	if not InventoryManager.apply_network_peer_inventory_snapshot(peer_id, raw_inventory as Dictionary):
+		return
+	_net_reported_active_weapon_slot = InventoryManager.get_network_peer_active_weapon_slot(peer_id)
 	_net_reported_equipped_paths = {
-		ItemData.ItemType.AR_Weapon: String(payload.get("ar", "")),
-		ItemData.ItemType.Pistols: String(payload.get("pi", "")),
-		ItemData.ItemType.MeleeWeapon: String(payload.get("me", "")),
-		ItemData.ItemType.T_shirts: String(payload.get("ts", "")),
-		ItemData.ItemType.Jacket: String(payload.get("ja", "")),
-		ItemData.ItemType.HeavyArmour: String(payload.get("ha", "")),
-		ItemData.ItemType.Trousers: String(payload.get("tr", "")),
-		ItemData.ItemType.Bag: String(payload.get("ba", "")),
-		ItemData.ItemType.Cap: String(payload.get("ca", ""))
+		ItemData.ItemType.AR_Weapon: _get_network_peer_equipped_definition_path(ItemData.ItemType.AR_Weapon),
+		ItemData.ItemType.Pistols: _get_network_peer_equipped_definition_path(ItemData.ItemType.Pistols),
+		ItemData.ItemType.MeleeWeapon: _get_network_peer_equipped_definition_path(ItemData.ItemType.MeleeWeapon),
+		ItemData.ItemType.T_shirts: _get_network_peer_equipped_definition_path(ItemData.ItemType.T_shirts),
+		ItemData.ItemType.Jacket: _get_network_peer_equipped_definition_path(ItemData.ItemType.Jacket),
+		ItemData.ItemType.HeavyArmour: _get_network_peer_equipped_definition_path(ItemData.ItemType.HeavyArmour),
+		ItemData.ItemType.Trousers: _get_network_peer_equipped_definition_path(ItemData.ItemType.Trousers),
+		ItemData.ItemType.Bag: _get_network_peer_equipped_definition_path(ItemData.ItemType.Bag),
+		ItemData.ItemType.Cap: _get_network_peer_equipped_definition_path(ItemData.ItemType.Cap)
 	}
 	_net_reported_equipment_initialized = true
+
+
+func _get_network_peer_equipped_definition_path(slot_type: int) -> String:
+	var item: ItemData = InventoryManager.get_network_peer_equipped(peer_id, slot_type)
+	if item == null:
+		return ""
+	var definition: ItemData = item.get_definition() if item.has_method("get_definition") else item
+	return definition.resource_path if definition != null else ""
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_sync_player_equipment(payload: Dictionary) -> void:
+	if not _is_networked_game() or NetworkManager.is_server() or multiplayer.get_remote_sender_id() != 1: return
+	if int(payload.get("pid", -1)) != peer_id: return
+	_apply_network_equipment_payload(payload)
+
+
+func _apply_network_equipment_payload(payload: Dictionary) -> void:
+	_net_remote_active_weapon_slot = int(payload.get("aws", _net_remote_active_weapon_slot))
+	if not _is_local_network_player():
+		var equipment_payload: Variant = payload.get("eq", {})
+		if equipment_payload is Dictionary and not (equipment_payload as Dictionary).is_empty():
+			var eq := equipment_payload as Dictionary
+			_net_remote_equipped_paths = {
+				ItemData.ItemType.AR_Weapon: String(eq.get("ar", "")),
+				ItemData.ItemType.Pistols: String(eq.get("pi", "")),
+				ItemData.ItemType.MeleeWeapon: String(eq.get("me", "")),
+				ItemData.ItemType.T_shirts: String(eq.get("ts", "")),
+				ItemData.ItemType.Jacket: String(eq.get("ja", "")),
+				ItemData.ItemType.HeavyArmour: String(eq.get("ha", "")),
+				ItemData.ItemType.Trousers: String(eq.get("tr", "")),
+				ItemData.ItemType.Bag: String(eq.get("ba", "")),
+				ItemData.ItemType.Cap: String(eq.get("ca", ""))
+			}
+			if _lan_smoke_net_debug:
+				print("[LAN_SMOKE_EQ] peer=%d remote_peer=%d aws=%d ar=%s pi=%s me=%s" % [
+					NetworkManager.get_local_peer_id() if NetworkManager != null else 0,
+					peer_id,
+					_net_remote_active_weapon_slot,
+					String(eq.get("ar", "")),
+					String(eq.get("pi", "")),
+					String(eq.get("me", ""))
+				])
+			_refresh_equipment_visuals()
+
+
+var _net_action_revision := 0
+
+func _sync_timed_action_state() -> void:
+	if not _is_networked_game() or not _is_local_network_player(): return
+	_net_action_revision += 1
+	var animation := current_action_animation if action_in_progress else ""
+	if NetworkManager.is_server():
+		_broadcast_timed_action_state(animation, action_blocks_movement)
+	else:
+		rpc_id(1, "rpc_submit_timed_action", _net_action_revision, animation, action_blocks_movement)
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_submit_timed_action(revision: int, animation: String, blocks: bool) -> void:
+	if not NetworkManager.is_server() or multiplayer.get_remote_sender_id() != peer_id: return
+	if revision <= _net_action_revision or animation.length() > 64 or is_dead: return
+	if not animation.is_empty() and _find_equipment_animation_case_insensitive(anim.sprite_frames, animation).is_empty(): return
+	_receive_timed_action_state(revision, animation, blocks)
+	_broadcast_timed_action_state(animation, blocks)
+
+func _broadcast_timed_action_state(animation: String, blocks: bool) -> void:
+	for target in _get_ready_client_peers():
+		rpc_id(target, "rpc_timed_action_state", _net_action_revision, animation, blocks)
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_timed_action_state(revision: int, animation: String, blocks: bool) -> void:
+	if NetworkManager.is_server() or multiplayer.get_remote_sender_id() != 1: return
+	_receive_timed_action_state(revision, animation, blocks)
+
+func _receive_timed_action_state(revision: int, animation: String, blocks: bool) -> void:
+	if _is_local_network_player() or revision < _net_action_revision or is_dead: return
+	if revision == _net_action_revision and current_action_animation == animation: return
+	_net_action_revision = revision
+	current_action_animation = animation
+	action_in_progress = not animation.is_empty()
+	action_blocks_movement = blocks
+	_force_refresh_animation()

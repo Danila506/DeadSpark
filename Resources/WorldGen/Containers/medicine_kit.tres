@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EnvironmentEntry" format=3 uid="uid://ydyyitgdf0mt"]
+
+[ext_resource type="Script" uid="uid://ccxhw813rxe58" path="res://World/Generation/environment_entry.gd" id="1"]
+[ext_resource type="PackedScene" path="res://World/medical_kit_pickup.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+entry_id = "medicine_kit"
+category = "pickups"
+target_path = NodePath("../../Y-Sort_Objects")
+scene = ExtResource("2")
+density = 0.04
+max_instances_per_chunk = 1
+candidate_budget_per_chunk = 32
+occupancy_flags = 128
+max_instances_per_world = 6
+near_structure_radius_cells = 8.0

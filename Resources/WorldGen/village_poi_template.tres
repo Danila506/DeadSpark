@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="PoiTemplate" format=3]
+
+[ext_resource type="Script" path="res://World/Generation/poi_template.gd" id="1"]
+[ext_resource type="PackedScene" path="res://Villages/Village.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+template_id = "village_v1"
+poi_type = "village"
+tags = ["village", "roadside"]
+scene = ExtResource("2")
+authored_bounds = Rect2(0, 0, 840, 840)
+connector_id = "village_road_connector_v1"
+connector_local_position = Vector2(420, 840)
+connector_facing = Vector2(0, 1)
+allowed_rotations = [0.0]
+required_clearance_cells = 1
+content_profile_id = "village_content_v1"

@@ -10,5 +10,6 @@ item_name = "Дрова"
 world_icon = ExtResource("3_world")
 inventory_icon = ExtResource("1_h16ii")
 inventory_icon_scale = 0.8
+item_weight = 0.6
 max_stack_size = 20
 show_stack_count_in_inventory = true

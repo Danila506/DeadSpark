@@ -5,6 +5,22 @@
 [ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="2_cjuqj"]
 [ext_resource type="Texture2D" uid="uid://ckdihtypodk1u" path="res://Assets/itemAssets/on_world_icon/Clothes/bagWrd.png" id="3_2f3hc"]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_down"]
+atlas = ExtResource("0_bag_anim")
+region = Rect2(96, 288, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_left"]
+atlas = ExtResource("0_bag_anim")
+region = Rect2(128, 288, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_right"]
+atlas = ExtResource("0_bag_anim")
+region = Rect2(160, 288, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aim_up"]
+atlas = ExtResource("0_bag_anim")
+region = Rect2(64, 288, 32, 32)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_ev65a"]
 atlas = ExtResource("0_bag_anim")
 region = Rect2(64, 96, 32, 32)
@@ -101,6 +117,38 @@ region = Rect2(128, 352, 32, 32)
 animations = [{
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_down")
+}],
+"loop": true,
+"name": &"Aim_down",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_left")
+}],
+"loop": true,
+"name": &"Aim_left",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_right")
+}],
+"loop": true,
+"name": &"Aim_right",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aim_up")
+}],
+"loop": true,
+"name": &"Aim_up",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_ev65a")
 }, {
 "duration": 1.0,
@@ -114,7 +162,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Down",
-"speed": 5.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -163,7 +211,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Left",
-"speed": 5.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -180,7 +228,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Right",
-"speed": 5.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -197,7 +245,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Up",
-"speed": 5.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -226,7 +274,8 @@ can_be_stored_in_clothing = false
 item_name = "Сумка"
 world_icon = ExtResource("3_2f3hc")
 inventory_icon = ExtResource("1_1oh1e")
+item_weight = 0.9
 item_type = 6
 equipped_frames = SubResource("SpriteFrames_bag")
-extra_storage_slots = 3
+extra_storage_slots = 5
 can_store_items = true

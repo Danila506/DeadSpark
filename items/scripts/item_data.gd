@@ -71,6 +71,8 @@ enum AttachmentSlot {
 @export_range(0.0, 100.0, 0.01) var weapon_endurance_loss_percent_per_shot: float = 1.0
 @export_range(0.0, 100.0, 0.01) var weapon_endurance_loss_percent_per_melee_hit: float = 1.0
 @export_range(0.0, 100.0, 0.01) var clothing_endurance_loss_percent_per_damage: float = 1.0
+@export_range(0.0, 50.0, 0.1) var clothing_warmth: float = 0.0
+@export_range(0.0, 100.0, 0.1) var clothing_armor: float = 0.0
 @export_range(0.0, 10.0, 0.01) var clothing_endurance_multiplier_generic: float = 1.0
 @export_range(0.0, 10.0, 0.01) var clothing_endurance_multiplier_bullet: float = 1.0
 @export_range(0.0, 10.0, 0.01) var clothing_endurance_multiplier_bite: float = 1.0
@@ -99,6 +101,14 @@ var runtime_storage_items: Array[ItemData] = []
 @export var can_be_held_in_left_hand: bool = false
 @export var can_skin_animals: bool = false
 @export_range(0.0, 1.0, 0.01) var food_poison_chance: float = 0.0
+@export var enables_thermal_vision: bool = false
+@export var accepts_thermal_battery: bool = false
+@export var thermal_battery_required: bool = false
+@export_range(0.0, 86400.0, 0.1) var thermal_battery_drain_per_second: float = 1.0
+@export var thermal_vision_equipped_frames: SpriteFrames
+@export var is_battery_item: bool = false
+@export_range(0.0, 86400.0, 0.1) var battery_charge_seconds: float = 0.0
+@export_range(0.0, 86400.0, 0.1) var battery_max_charge_seconds: float = 0.0
 
 @export var is_scope_attachment: bool = false:
 	set(value):
@@ -142,6 +152,7 @@ var runtime_storage_items: Array[ItemData] = []
 @export var scope_inventory_offset: Vector2 = Vector2.ZERO
 @export var handle_inventory_offset: Vector2 = Vector2.ZERO
 @export var silencer_inventory_offset: Vector2 = Vector2.ZERO
+@export var attached_inventory_icon_offset: Vector2 = Vector2.ZERO
 @export var scope_inventory_rotation_degrees: float = 0.0
 
 # ===== Боевые параметры оружия =====
@@ -442,6 +453,7 @@ func _scope_receiver_property_names() -> Array[String]:
 		"scope_inventory_offset",
 		"handle_inventory_offset",
 		"silencer_inventory_offset",
+		"attached_inventory_icon_offset",
 		"scope_inventory_rotation_degrees"
 	]
 
@@ -484,6 +496,8 @@ func _weapon_durability_property_names() -> Array[String]:
 func _clothing_durability_property_names() -> Array[String]:
 	return [
 		"clothing_endurance_loss_percent_per_damage",
+		"clothing_warmth",
+		"clothing_armor",
 		"clothing_endurance_multiplier_generic",
 		"clothing_endurance_multiplier_bullet",
 		"clothing_endurance_multiplier_bite",

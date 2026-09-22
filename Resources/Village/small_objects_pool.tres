@@ -1,0 +1,63 @@
+[gd_resource type="Resource" script_class="VillageObjectPool" format=3 uid="uid://c7dv82nutpiwk"]
+
+[ext_resource type="Script" uid="uid://dtpfrjypb8e7i" path="res://Villages/Scripts/village_object_pool.gd" id="1"]
+[ext_resource type="Script" uid="uid://bymmpay55q4lq" path="res://Villages/Scripts/village_object_entry.gd" id="2"]
+[ext_resource type="PackedScene" uid="uid://dyb5c5e1upjyd" path="res://World/Assets/Village/Wheel1.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://c12a7nm0nt16l" path="res://World/Assets/Village/Wheel2.tscn" id="4"]
+[ext_resource type="PackedScene" uid="uid://dy6l5m6r6qifi" path="res://World/Assets/Village/Scrap1.tscn" id="5"]
+[ext_resource type="PackedScene" uid="uid://blu34trx4jbra" path="res://World/Assets/Village/Scrap2.tscn" id="6"]
+[ext_resource type="PackedScene" uid="uid://cb441135wute2" path="res://World/Assets/Village/Scrap3.tscn" id="7"]
+[ext_resource type="PackedScene" uid="uid://qk7i52qkph1r" path="res://World/Assets/Village/Battery.tscn" id="8"]
+[ext_resource type="PackedScene" uid="uid://b74kfc6k3gyah" path="res://World/Assets/Village/Meloch1.tscn" id="9"]
+[ext_resource type="PackedScene" uid="uid://b0leuw8h4jow0" path="res://World/Assets/Village/Meloch2.tscn" id="10"]
+[ext_resource type="PackedScene" uid="uid://6t4i6bprxnaa" path="res://World/Assets/Village/Bin.tscn" id="bin_scene"]
+
+[sub_resource type="Resource" id="a"]
+script = ExtResource("2")
+scene = ExtResource("3")
+entry_id = "wheel_1"
+
+[sub_resource type="Resource" id="b"]
+script = ExtResource("2")
+scene = ExtResource("4")
+entry_id = "wheel_2"
+
+[sub_resource type="Resource" id="c"]
+script = ExtResource("2")
+scene = ExtResource("5")
+entry_id = "scrap_1"
+
+[sub_resource type="Resource" id="d"]
+script = ExtResource("2")
+scene = ExtResource("6")
+entry_id = "scrap_2"
+
+[sub_resource type="Resource" id="e"]
+script = ExtResource("2")
+scene = ExtResource("7")
+entry_id = "scrap_3"
+
+[sub_resource type="Resource" id="f"]
+script = ExtResource("2")
+scene = ExtResource("8")
+entry_id = "battery"
+
+[sub_resource type="Resource" id="g"]
+script = ExtResource("2")
+scene = ExtResource("9")
+entry_id = "meloch_1"
+
+[sub_resource type="Resource" id="h"]
+script = ExtResource("2")
+scene = ExtResource("10")
+entry_id = "meloch_2"
+
+[sub_resource type="Resource" id="bin"]
+script = ExtResource("2")
+scene = ExtResource("bin_scene")
+entry_id = "bin"
+
+[resource]
+script = ExtResource("1")
+entries = Array[ExtResource("2")]([SubResource("a"), SubResource("b"), SubResource("c"), SubResource("d"), SubResource("e"), SubResource("f"), SubResource("g"), SubResource("h"), SubResource("bin")])
+pool_id = "small_objects_pool"

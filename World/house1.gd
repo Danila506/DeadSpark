@@ -1,4 +1,6 @@
 extends Node2D
+const BuildingLoot = preload("res://World/Generation/building_loot_provider.gd")
+const LootPersistence = preload("res://World/Generation/loot_container_persistence.gd")
 
 const INSIDE_HOUSE_GROUP: StringName = &"inside_house"
 const INSIDE_HOUSE_ANCHOR_META: StringName = &"inside_house_anchor"
@@ -62,6 +64,11 @@ const WorldGenerationBlockerUtils = preload("res://World/world_generation_blocke
 	preload("res://Resources/Clothes/altyn_bt.tres")
 ]
 @export var persistent_id: String = ""
+@export var world_generated_mode := false
+@export var building_generated_object_id := ""
+@export var local_loot_container_id := "wardrobe_main"
+@export var loot_profile: LootProfile = preload("res://Resources/WorldGen/Loot/house1_wardrobe_loot_profile.tres")
+@export var loot_slot_ids: Array[String] = ["slot_00", "slot_01", "slot_02", "slot_03", "slot_04"]
 
 var player_in_house: bool = false
 var player_in_shadow_zone: bool = false
@@ -71,10 +78,14 @@ var door_opened: bool = false
 var wardrobe_opened: bool = false
 var wardrobe_loot_slots: Array[ItemData] = []
 var wardrobe_loot_initialized: bool = false
+var applied_loot_manifest: LootContainerManifest
+var _loot_persistence_state := LootPersistence.STATE_UNOPENED
+var _removed_loot_slot_ids: Array[String] = []
+var legacy_random_path_used := false
 
 
 func _ready() -> void:
-	randomize()
+	if not world_generated_mode: randomize()
 	add_to_group("primary_interactable")
 	_configure_visual_layers()
 	house_area.body_entered.connect(_on_house_body_entered)
@@ -92,8 +103,9 @@ func _ready() -> void:
 	_refresh_world_generation_blocker()
 	call_deferred("_eject_current_overlapping_enemies")
 	call_deferred("_spawn_world_pickups_at_markers_if_needed")
-	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
-		GameSaveManager.register_persistent_node(self)
+	var game_save_manager := _get_game_save_manager()
+	if game_save_manager != null and game_save_manager.has_method("register_persistent_node"):
+		game_save_manager.register_persistent_node(self)
 
 
 func _refresh_world_generation_blocker() -> void:
@@ -119,6 +131,7 @@ func handle_primary_interaction(interactor: Node) -> bool:
 	if player_near_wardrobe and not wardrobe_opened:
 		wardrobe_opened = true
 		_ensure_wardrobe_loot()
+		mark_loot_opened()
 		_set_wardrobe_loot_panel_state(true)
 		_update_wardrobe_visual()
 		return true
@@ -263,7 +276,7 @@ func _on_door_area_body_exited(body: Node) -> void:
 
 
 func _on_wardrobe_area_body_entered(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not LootContainerProviderContract.is_local_interactor(body):
 		return
 
 	player_near_wardrobe = true
@@ -272,7 +285,7 @@ func _on_wardrobe_area_body_entered(body: Node) -> void:
 
 
 func _on_wardrobe_area_body_exited(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not LootContainerProviderContract.is_local_interactor(body):
 		return
 
 	player_near_wardrobe = false
@@ -354,13 +367,24 @@ func _set_wardrobe_loot_panel_state(active: bool) -> void:
 		return
 
 	if active and inventory_root.has_method("open_loot_slots"):
-		inventory_root.call("open_loot_slots", wardrobe_loot_slots)
-	elif inventory_root.has_method("set_loot_context_active"):
-		inventory_root.call("set_loot_context_active", false)
+		inventory_root.call("open_loot_slots", wardrobe_loot_slots, self)
+	elif inventory_root.has_method("close_loot_for"):
+		inventory_root.call("close_loot_for", self)
 
 
 func _ensure_wardrobe_loot() -> void:
+	if multiplayer.multiplayer_peer != null and not NetworkManager.is_server():
+		return
 	if wardrobe_loot_initialized:
+		return
+	if world_generated_mode:
+		push_error("House1: world-generated wardrobe requires LootContainerManifest")
+		return
+	legacy_random_path_used = true
+
+	if loot_profile != null:
+		wardrobe_loot_slots = LootPopulationPass.roll_standalone_items(loot_profile, wardrobe_slot_count)
+		wardrobe_loot_initialized = true
 		return
 
 	wardrobe_loot_initialized = true
@@ -396,6 +420,47 @@ func _ensure_wardrobe_loot() -> void:
 		var template_item: ItemData = pool[randi_range(0, pool.size() - 1)]
 		if template_item != null:
 			wardrobe_loot_slots[slot_index] = template_item.create_instance(1)
+
+func get_loot_container_id() -> String:
+	return BuildingLoot.derived_id(building_generated_object_id, local_loot_container_id) if world_generated_mode else ""
+func get_loot_profile() -> LootProfile: return loot_profile
+func get_existing_loot_manifest() -> LootContainerManifest: return applied_loot_manifest
+func has_materialized_loot() -> bool: return wardrobe_loot_initialized
+func get_loot_slot_bindings() -> Dictionary:
+	var ids := loot_slot_ids.duplicate(); ids.sort(); var result := {}
+	for index in range(ids.size()): result[ids[index]] = index
+	return result
+func apply_loot_manifest(manifest: LootContainerManifest) -> Dictionary:
+	if not world_generated_mode or building_generated_object_id.is_empty() or local_loot_container_id.is_empty() or loot_profile == null: return {"valid":false,"errors":["INVALID_WORLD_GENERATED_PROVIDER"]}
+	if applied_loot_manifest != null:
+		return {"valid":applied_loot_manifest.manifest_hash() == manifest.manifest_hash(),"errors":[] if applied_loot_manifest.manifest_hash() == manifest.manifest_hash() else ["CONFLICTING_MANIFEST"]}
+	var result: Dictionary = BuildingLoot.materialize(self, manifest, wardrobe_slot_count, wardrobe_loot_slots)
+	if result.valid: applied_loot_manifest = manifest; wardrobe_loot_initialized = true
+	return result
+
+func get_loot_persistence_key() -> String: return LootPersistence.get_persistence_key(get_loot_container_id())
+func get_loot_persistence_state() -> String: return _loot_persistence_state
+func set_loot_persistence_state(state: String) -> void: _loot_persistence_state = state
+func get_removed_loot_slot_ids() -> Array[String]: return _removed_loot_slot_ids.duplicate()
+func serialize_loot_state() -> Dictionary: return LootPersistence.serialize_provider_state(self)
+func restore_loot_state(data: Dictionary) -> Dictionary: return LootPersistence.restore_provider_state(self, data)
+func mark_loot_opened() -> Dictionary: return LootPersistence.mark_opened(self)
+func record_loot_slot_removed(slot_id: String) -> Dictionary: return LootPersistence.mark_slot_removed(self, slot_id)
+func record_persisted_loot_slot_removal(slot_id: String) -> Dictionary:
+	var bindings := get_loot_slot_bindings()
+	if applied_loot_manifest == null or not bindings.has(slot_id) or not _manifest_has_slot(slot_id): return {"valid":false,"errors":["UNKNOWN_SLOT"]}
+	if not _removed_loot_slot_ids.has(slot_id): _removed_loot_slot_ids.append(slot_id); _removed_loot_slot_ids.sort()
+	wardrobe_loot_slots[int(bindings[slot_id])] = null; _loot_persistence_state = LootPersistence.STATE_PARTIALLY_EMPTIED
+	return {"valid":true,"errors":[]}
+func restore_persisted_loot_state(manifest: LootContainerManifest, state: String, removed: Array[String]) -> Dictionary:
+	var result := BuildingLoot.restore_persisted_slots(self, applied_loot_manifest, manifest, wardrobe_slot_count, removed)
+	if not result.valid: return result
+	wardrobe_loot_slots = result.slots; applied_loot_manifest = manifest; wardrobe_loot_initialized = true; _removed_loot_slot_ids = removed.duplicate(); _loot_persistence_state = state; wardrobe_opened = false
+	_set_wardrobe_loot_panel_state(false); _update_wardrobe_visual(); return {"valid":true,"errors":[]}
+func _manifest_has_slot(slot_id: String) -> bool:
+	for record in applied_loot_manifest.slots:
+		if record.slot_id == slot_id: return true
+	return false
 
 
 func _spawn_world_pickups_at_markers_if_needed() -> void:
@@ -489,11 +554,12 @@ func apply_save_data(save_data: Dictionary) -> void:
 
 func _serialize_item_array(items: Array) -> Array:
 	var out: Array = []
+	var game_save_manager := _get_game_save_manager()
 	for item in items:
 		if item == null:
 			out.append(null)
-		elif GameSaveManager != null and GameSaveManager.has_method("serialize_item"):
-			out.append(GameSaveManager.serialize_item(item))
+		elif game_save_manager != null and game_save_manager.has_method("serialize_item"):
+			out.append(game_save_manager.serialize_item(item))
 		else:
 			out.append({})
 	return out
@@ -501,13 +567,23 @@ func _serialize_item_array(items: Array) -> Array:
 
 func _deserialize_item_array(raw_items: Variant) -> Array[ItemData]:
 	var out: Array[ItemData] = []
+	var game_save_manager := _get_game_save_manager()
 	if not (raw_items is Array):
 		return out
 	for raw_item in raw_items:
 		if raw_item == null:
 			out.append(null)
-		elif GameSaveManager != null and GameSaveManager.has_method("deserialize_item"):
-			out.append(GameSaveManager.deserialize_item(raw_item))
+		elif game_save_manager != null and game_save_manager.has_method("deserialize_item"):
+			out.append(game_save_manager.deserialize_item(raw_item))
 		else:
 			out.append(null)
 	return out
+
+
+func _get_game_save_manager() -> Node:
+	return get_node_or_null("/root/GameSaveManager")
+
+
+func get_network_loot_items() -> Array[ItemData]:
+	_ensure_wardrobe_loot()
+	return wardrobe_loot_slots

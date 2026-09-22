@@ -1,0 +1,137 @@
+[gd_scene format=3 uid="uid://kyejnamtg2fs"]
+
+[ext_resource type="Script" uid="uid://dfklpn7xdqkm8" path="res://Villages/Scripts/village_spawn_group.gd" id="1_y6qmp"]
+[ext_resource type="Script" path="res://Villages/Scripts/village_generator.gd" id="13_generator"]
+[ext_resource type="Resource" path="res://Resources/Village/houses_profile.tres" id="3_houses"]
+[ext_resource type="Resource" path="res://Resources/Village/remains_profile.tres" id="4_remains"]
+[ext_resource type="Resource" path="res://Resources/Village/small_objects_profile.tres" id="5_small"]
+
+[node name="Village" type="Node2D" unique_id=1197139688]
+script = ExtResource("13_generator")
+spawn_parent_path = NodePath("GeneratedContent")
+
+[node name="RoadConnector" type="Marker2D" parent="."]
+position = Vector2(420, 840)
+metadata/stable_id = "village_road_connector_v1"
+
+[node name="PoiBounds" type="Node2D" parent="."]
+metadata/stable_id = "village_bounds_v1"
+
+[node name="StaticContent" type="Node2D" parent="."]
+
+[node name="GeneratedContent" type="Node2D" parent="."]
+
+[node name="Houses" type="Node2D" parent="." unique_id=1579684163]
+script = ExtResource("1_y6qmp")
+spawn_profile = ExtResource("3_houses")
+group_id = "houses"
+
+[node name="1" type="Marker2D" parent="Houses" unique_id=1905790194]
+position = Vector2(254, 147)
+metadata/stable_id = "m_house_01"
+
+[node name="2" type="Marker2D" parent="Houses" unique_id=1115444482]
+position = Vector2(471, 144)
+metadata/stable_id = "m_house_02"
+
+[node name="3" type="Marker2D" parent="Houses" unique_id=2122375246]
+position = Vector2(681, 222)
+metadata/stable_id = "m_house_03"
+
+[node name="4" type="Marker2D" parent="Houses" unique_id=576081457]
+position = Vector2(313, 385)
+metadata/stable_id = "m_house_04"
+
+[node name="5" type="Marker2D" parent="Houses" unique_id=1766137453]
+position = Vector2(640, 467)
+metadata/stable_id = "m_house_05"
+
+[node name="6" type="Marker2D" parent="Houses" unique_id=75485294]
+position = Vector2(314, 578)
+metadata/stable_id = "m_house_06"
+
+[node name="Remains" type="Node2D" parent="." unique_id=545226716]
+script = ExtResource("1_y6qmp")
+spawn_profile = ExtResource("4_remains")
+group_id = "remains"
+
+[node name="1" type="Marker2D" parent="Remains" unique_id=749428361]
+position = Vector2(95, 539)
+metadata/stable_id = "m_ruin_01"
+
+[node name="2" type="Marker2D" parent="Remains" unique_id=1943013468]
+position = Vector2(559, 765)
+metadata/stable_id = "m_ruin_02"
+
+[node name="3" type="Marker2D" parent="Remains" unique_id=381175148]
+position = Vector2(662, 643)
+metadata/stable_id = "m_ruin_03"
+
+[node name="SmallObjects" type="Node2D" parent="." unique_id=865884656]
+script = ExtResource("1_y6qmp")
+spawn_profile = ExtResource("5_small")
+group_id = "small_objects"
+
+[node name="1" type="Marker2D" parent="SmallObjects" unique_id=740691069]
+position = Vector2(176, 159)
+metadata/stable_id = "m_small_01"
+
+[node name="2" type="Marker2D" parent="SmallObjects" unique_id=2139510938]
+position = Vector2(377, 145)
+metadata/stable_id = "m_small_02"
+
+[node name="3" type="Marker2D" parent="SmallObjects" unique_id=468320400]
+position = Vector2(578, 244)
+metadata/stable_id = "m_small_03"
+
+[node name="4" type="Marker2D" parent="SmallObjects" unique_id=1145187572]
+position = Vector2(600, 307)
+metadata/stable_id = "m_small_04"
+
+[node name="5" type="Marker2D" parent="SmallObjects" unique_id=424345081]
+position = Vector2(777, 237)
+metadata/stable_id = "m_small_05"
+
+[node name="6" type="Marker2D" parent="SmallObjects" unique_id=1830670461]
+position = Vector2(684, 480)
+metadata/stable_id = "m_small_06"
+
+[node name="7" type="Marker2D" parent="SmallObjects" unique_id=2053740929]
+position = Vector2(598, 574)
+metadata/stable_id = "m_small_07"
+
+[node name="8" type="Marker2D" parent="SmallObjects" unique_id=762791979]
+position = Vector2(462, 524)
+metadata/stable_id = "m_small_08"
+
+[node name="9" type="Marker2D" parent="SmallObjects" unique_id=438421475]
+position = Vector2(421, 450)
+metadata/stable_id = "m_small_09"
+
+[node name="10" type="Marker2D" parent="SmallObjects" unique_id=1798444958]
+position = Vector2(644, 673)
+metadata/stable_id = "m_small_10"
+
+[node name="11" type="Marker2D" parent="SmallObjects" unique_id=379074321]
+position = Vector2(431, 691)
+metadata/stable_id = "m_small_11"
+
+[node name="12" type="Marker2D" parent="SmallObjects" unique_id=58359252]
+position = Vector2(251, 595)
+metadata/stable_id = "m_small_12"
+
+[node name="13" type="Marker2D" parent="SmallObjects" unique_id=110382417]
+position = Vector2(255, 397)
+metadata/stable_id = "m_small_13"
+
+[node name="14" type="Marker2D" parent="SmallObjects" unique_id=1195272110]
+position = Vector2(170, 356)
+metadata/stable_id = "m_small_14"
+
+[node name="15" type="Marker2D" parent="SmallObjects" unique_id=285335367]
+position = Vector2(131, 484)
+metadata/stable_id = "m_small_15"
+
+[node name="16" type="Marker2D" parent="SmallObjects" unique_id=1500546662]
+position = Vector2(723, 519)
+metadata/stable_id = "m_small_16"

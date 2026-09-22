@@ -1,0 +1,1266 @@
+{
+	"id": "block_d_fixed_seed_environment_matrix_v1",
+	"matrix_digest": "a6d125fca382396543a615637afcd9a6a07f1f73aa76644313d5423c7b8d0255",
+	"seeds": [
+		{
+			"chunk_counts": [
+				{
+					"chunk": "-1,-1",
+					"count": 41
+				},
+				{
+					"chunk": "-1,-2",
+					"count": 46
+				},
+				{
+					"chunk": "-1,-3",
+					"count": 34
+				},
+				{
+					"chunk": "-1,0",
+					"count": 43
+				},
+				{
+					"chunk": "-1,1",
+					"count": 49
+				},
+				{
+					"chunk": "-1,2",
+					"count": 41
+				},
+				{
+					"chunk": "-2,-1",
+					"count": 34
+				},
+				{
+					"chunk": "-2,-2",
+					"count": 43
+				},
+				{
+					"chunk": "-2,-3",
+					"count": 48
+				},
+				{
+					"chunk": "-2,0",
+					"count": 39
+				},
+				{
+					"chunk": "-2,1",
+					"count": 45
+				},
+				{
+					"chunk": "-2,2",
+					"count": 23
+				},
+				{
+					"chunk": "-3,-1",
+					"count": 37
+				},
+				{
+					"chunk": "-3,-2",
+					"count": 47
+				},
+				{
+					"chunk": "-3,-3",
+					"count": 52
+				},
+				{
+					"chunk": "-3,0",
+					"count": 23
+				},
+				{
+					"chunk": "-3,1",
+					"count": 38
+				},
+				{
+					"chunk": "-3,2",
+					"count": 49
+				},
+				{
+					"chunk": "0,-1",
+					"count": 40
+				},
+				{
+					"chunk": "0,-2",
+					"count": 48
+				},
+				{
+					"chunk": "0,-3",
+					"count": 38
+				},
+				{
+					"chunk": "0,0",
+					"count": 42
+				},
+				{
+					"chunk": "0,1",
+					"count": 31
+				},
+				{
+					"chunk": "0,2",
+					"count": 46
+				},
+				{
+					"chunk": "1,-1",
+					"count": 46
+				},
+				{
+					"chunk": "1,-2",
+					"count": 44
+				},
+				{
+					"chunk": "1,-3",
+					"count": 50
+				},
+				{
+					"chunk": "1,0",
+					"count": 41
+				},
+				{
+					"chunk": "1,1",
+					"count": 43
+				},
+				{
+					"chunk": "1,2",
+					"count": 48
+				},
+				{
+					"chunk": "2,-1",
+					"count": 33
+				},
+				{
+					"chunk": "2,-2",
+					"count": 37
+				},
+				{
+					"chunk": "2,-3",
+					"count": 39
+				},
+				{
+					"chunk": "2,0",
+					"count": 37
+				},
+				{
+					"chunk": "2,1",
+					"count": 30
+				},
+				{
+					"chunk": "2,2",
+					"count": 43
+				}
+			],
+			"compatibility_hash": "a5dff0d554c8601c270c68b7ad860aa8af6c4dccb9dc945d5b06d62f7ddeedc0",
+			"environment_content_hash": "80276fd93ca18dcd41d292ac3889dfe0ce0ebf0326e18e135d1c05afb015b177",
+			"environment_manifest_hash": "bfd2d791d7b32134cf7392b3d1fdbc955d53c202857b5eaefce4dc97c6346d18",
+			"environment_occupancy_claim_count": 1468,
+			"generated_object_id_digest": "db2af706ab741e966747e99e1344677a26d6ed7676c1ebd444911ee19e301d1e",
+			"global_manifest_hash": "98549ed0ca092cdb91aa93e2f142ef748ca454b7f6d3da70da5f8fa22d8d8398",
+			"global_output_hash": "367e9c17e492f206c6396b881b0c6c380c2df255548066c724671421931164e1",
+			"placements_by_category": {
+				"berry_bushes": 30,
+				"biom1_static_tiles": 169,
+				"biom2_static_tiles": 107,
+				"bushes": 45,
+				"containers": 12,
+				"deadwood": 43,
+				"puddles": 28,
+				"stones": 38,
+				"structures": 15,
+				"trees": 889,
+				"xz_static_tiles": 92
+			},
+			"poi_hash": "6c141bce754e6491ca95295dccdb4191514f56edc523996fbc4ba6f8bd5fb626",
+			"rejection_counts": [
+				{
+					"count": 7842,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 9,
+					"reason": "max_instances_per_chunk"
+				},
+				{
+					"count": 3569,
+					"reason": "max_instances_per_world"
+				},
+				{
+					"count": 2386,
+					"reason": "min_instances_per_chunk_satisfied"
+				},
+				{
+					"count": 687,
+					"reason": "no_nearby_structure"
+				},
+				{
+					"count": 242,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 1707,
+					"reason": "poi"
+				},
+				{
+					"count": 346,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "75916414acdf7aef1502e082bcc72bd976b5b24f8b7aca5a4177e4d5e48d49f7",
+			"road_raster_hash": "0c17ddbedde7fdf8c6e98690b73cba62dc100d15231ee2a4f4dc59827ed2dcb8",
+			"scene_placement_count": 1100,
+			"seed": 1337,
+			"tilemap_placement_count": 368,
+			"total_placements": 1468,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		},
+		{
+			"chunk_counts": [
+				{
+					"chunk": "-1,-1",
+					"count": 39
+				},
+				{
+					"chunk": "-1,-2",
+					"count": 39
+				},
+				{
+					"chunk": "-1,-3",
+					"count": 42
+				},
+				{
+					"chunk": "-1,0",
+					"count": 45
+				},
+				{
+					"chunk": "-1,1",
+					"count": 40
+				},
+				{
+					"chunk": "-1,2",
+					"count": 32
+				},
+				{
+					"chunk": "-2,-1",
+					"count": 51
+				},
+				{
+					"chunk": "-2,-2",
+					"count": 40
+				},
+				{
+					"chunk": "-2,-3",
+					"count": 30
+				},
+				{
+					"chunk": "-2,0",
+					"count": 50
+				},
+				{
+					"chunk": "-2,1",
+					"count": 23
+				},
+				{
+					"chunk": "-2,2",
+					"count": 48
+				},
+				{
+					"chunk": "-3,-1",
+					"count": 55
+				},
+				{
+					"chunk": "-3,-2",
+					"count": 47
+				},
+				{
+					"chunk": "-3,-3",
+					"count": 52
+				},
+				{
+					"chunk": "-3,0",
+					"count": 31
+				},
+				{
+					"chunk": "-3,1",
+					"count": 37
+				},
+				{
+					"chunk": "-3,2",
+					"count": 50
+				},
+				{
+					"chunk": "0,-1",
+					"count": 44
+				},
+				{
+					"chunk": "0,-2",
+					"count": 46
+				},
+				{
+					"chunk": "0,-3",
+					"count": 49
+				},
+				{
+					"chunk": "0,0",
+					"count": 37
+				},
+				{
+					"chunk": "0,1",
+					"count": 41
+				},
+				{
+					"chunk": "0,2",
+					"count": 43
+				},
+				{
+					"chunk": "1,-1",
+					"count": 27
+				},
+				{
+					"chunk": "1,-2",
+					"count": 29
+				},
+				{
+					"chunk": "1,-3",
+					"count": 26
+				},
+				{
+					"chunk": "1,0",
+					"count": 49
+				},
+				{
+					"chunk": "1,1",
+					"count": 42
+				},
+				{
+					"chunk": "1,2",
+					"count": 39
+				},
+				{
+					"chunk": "2,-1",
+					"count": 32
+				},
+				{
+					"chunk": "2,-2",
+					"count": 40
+				},
+				{
+					"chunk": "2,-3",
+					"count": 43
+				},
+				{
+					"chunk": "2,0",
+					"count": 37
+				},
+				{
+					"chunk": "2,1",
+					"count": 44
+				},
+				{
+					"chunk": "2,2",
+					"count": 46
+				}
+			],
+			"compatibility_hash": "a5dff0d554c8601c270c68b7ad860aa8af6c4dccb9dc945d5b06d62f7ddeedc0",
+			"environment_content_hash": "909df414ac8085f21be183c90d74277d2a5645d7df525a274cc971ed45d1fb00",
+			"environment_manifest_hash": "6a0eb80ded14d7b673d9136b87a9cd91094c90758bbfae7a2cc8b4e858dd675b",
+			"environment_occupancy_claim_count": 1465,
+			"generated_object_id_digest": "42c208307277e86ab4214233c479d17d1f14f9966553010c8ba4a0fa99f45271",
+			"global_manifest_hash": "3810a1aa71725f868461eeaacef497c4f6adaed38eddc20db4fedd7c099c5bdf",
+			"global_output_hash": "e3a573dd7edd51a1ddf184179efae290a13c1160a210121a52c9ee776ab0d8d5",
+			"placements_by_category": {
+				"berry_bushes": 38,
+				"biom1_static_tiles": 161,
+				"biom2_static_tiles": 120,
+				"bushes": 45,
+				"containers": 12,
+				"deadwood": 46,
+				"puddles": 24,
+				"stones": 32,
+				"structures": 15,
+				"trees": 853,
+				"xz_static_tiles": 119
+			},
+			"poi_hash": "5e08cb67e3652521d1934b0f34aa4d19f2e2ae1ea3bbb27217eb7b8860eb4c4a",
+			"rejection_counts": [
+				{
+					"count": 7851,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 8,
+					"reason": "max_instances_per_chunk"
+				},
+				{
+					"count": 3412,
+					"reason": "max_instances_per_world"
+				},
+				{
+					"count": 2392,
+					"reason": "min_instances_per_chunk_satisfied"
+				},
+				{
+					"count": 641,
+					"reason": "no_nearby_structure"
+				},
+				{
+					"count": 193,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 1704,
+					"reason": "poi"
+				},
+				{
+					"count": 224,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "c0d2d1c49646b378b718f363be32cd7f5ebd5b4e7fe475e790ea59f043b1150a",
+			"road_raster_hash": "29e53d122dad2febef3553dfa7c5d5bdb3eb1665f5892fc92e53cd8d763acaca",
+			"scene_placement_count": 1065,
+			"seed": 7331,
+			"tilemap_placement_count": 400,
+			"total_placements": 1465,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		},
+		{
+			"chunk_counts": [
+				{
+					"chunk": "-1,-1",
+					"count": 30
+				},
+				{
+					"chunk": "-1,-2",
+					"count": 32
+				},
+				{
+					"chunk": "-1,-3",
+					"count": 47
+				},
+				{
+					"chunk": "-1,0",
+					"count": 48
+				},
+				{
+					"chunk": "-1,1",
+					"count": 46
+				},
+				{
+					"chunk": "-1,2",
+					"count": 40
+				},
+				{
+					"chunk": "-2,-1",
+					"count": 41
+				},
+				{
+					"chunk": "-2,-2",
+					"count": 45
+				},
+				{
+					"chunk": "-2,-3",
+					"count": 42
+				},
+				{
+					"chunk": "-2,0",
+					"count": 49
+				},
+				{
+					"chunk": "-2,1",
+					"count": 45
+				},
+				{
+					"chunk": "-2,2",
+					"count": 48
+				},
+				{
+					"chunk": "-3,-1",
+					"count": 35
+				},
+				{
+					"chunk": "-3,-2",
+					"count": 49
+				},
+				{
+					"chunk": "-3,-3",
+					"count": 48
+				},
+				{
+					"chunk": "-3,0",
+					"count": 40
+				},
+				{
+					"chunk": "-3,1",
+					"count": 48
+				},
+				{
+					"chunk": "-3,2",
+					"count": 49
+				},
+				{
+					"chunk": "0,-1",
+					"count": 39
+				},
+				{
+					"chunk": "0,-2",
+					"count": 36
+				},
+				{
+					"chunk": "0,-3",
+					"count": 48
+				},
+				{
+					"chunk": "0,0",
+					"count": 46
+				},
+				{
+					"chunk": "0,1",
+					"count": 27
+				},
+				{
+					"chunk": "0,2",
+					"count": 41
+				},
+				{
+					"chunk": "1,-1",
+					"count": 44
+				},
+				{
+					"chunk": "1,-2",
+					"count": 37
+				},
+				{
+					"chunk": "1,-3",
+					"count": 24
+				},
+				{
+					"chunk": "1,0",
+					"count": 43
+				},
+				{
+					"chunk": "1,1",
+					"count": 30
+				},
+				{
+					"chunk": "1,2",
+					"count": 38
+				},
+				{
+					"chunk": "2,-1",
+					"count": 47
+				},
+				{
+					"chunk": "2,-2",
+					"count": 44
+				},
+				{
+					"chunk": "2,-3",
+					"count": 39
+				},
+				{
+					"chunk": "2,0",
+					"count": 22
+				},
+				{
+					"chunk": "2,1",
+					"count": 47
+				},
+				{
+					"chunk": "2,2",
+					"count": 46
+				}
+			],
+			"compatibility_hash": "a5dff0d554c8601c270c68b7ad860aa8af6c4dccb9dc945d5b06d62f7ddeedc0",
+			"environment_content_hash": "2927d806659bd826dca7364819277a97c47b75e4a44a25ff919e3f658396df1a",
+			"environment_manifest_hash": "e590493d17b819f103ce87da447bbb9ea886c335466222473e2941609ad0e2ca",
+			"environment_occupancy_claim_count": 1480,
+			"generated_object_id_digest": "db9ec446ef63044195c0e4e5ae89b215cc05f2019eb6ce2fb3f7a62d6672d1cc",
+			"global_manifest_hash": "fc7f9a1037eb1d812924652a94aa419355d56d3aa6d3b5b0e7fdff9331657eae",
+			"global_output_hash": "4f6205c4aca11b126bec86c9ac860ca5daf571d8f16cd4bd5b20571e20cab82d",
+			"placements_by_category": {
+				"berry_bushes": 35,
+				"biom1_static_tiles": 156,
+				"biom2_static_tiles": 110,
+				"bushes": 43,
+				"containers": 12,
+				"deadwood": 52,
+				"puddles": 34,
+				"stones": 34,
+				"structures": 15,
+				"trees": 879,
+				"xz_static_tiles": 110
+			},
+			"poi_hash": "5e08cb67e3652521d1934b0f34aa4d19f2e2ae1ea3bbb27217eb7b8860eb4c4a",
+			"rejection_counts": [
+				{
+					"count": 8054,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 7,
+					"reason": "max_instances_per_chunk"
+				},
+				{
+					"count": 3416,
+					"reason": "max_instances_per_world"
+				},
+				{
+					"count": 2367,
+					"reason": "min_instances_per_chunk_satisfied"
+				},
+				{
+					"count": 647,
+					"reason": "no_nearby_structure"
+				},
+				{
+					"count": 220,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 1651,
+					"reason": "poi"
+				},
+				{
+					"count": 224,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "c1fba5461fe7fccbed29350c3608a19029512d0fa4de52eba4892ad1348ba45d",
+			"road_raster_hash": "4f82c5b3107abfe085fd58047c5f149786fbaa65db8f6ff596ed485df01b15a1",
+			"scene_placement_count": 1104,
+			"seed": 15885,
+			"tilemap_placement_count": 376,
+			"total_placements": 1480,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		},
+		{
+			"chunk_counts": [
+				{
+					"chunk": "-1,-1",
+					"count": 43
+				},
+				{
+					"chunk": "-1,-2",
+					"count": 42
+				},
+				{
+					"chunk": "-1,-3",
+					"count": 50
+				},
+				{
+					"chunk": "-1,0",
+					"count": 44
+				},
+				{
+					"chunk": "-1,1",
+					"count": 27
+				},
+				{
+					"chunk": "-1,2",
+					"count": 26
+				},
+				{
+					"chunk": "-2,-1",
+					"count": 46
+				},
+				{
+					"chunk": "-2,-2",
+					"count": 26
+				},
+				{
+					"chunk": "-2,-3",
+					"count": 33
+				},
+				{
+					"chunk": "-2,0",
+					"count": 43
+				},
+				{
+					"chunk": "-2,1",
+					"count": 28
+				},
+				{
+					"chunk": "-2,2",
+					"count": 30
+				},
+				{
+					"chunk": "-3,-1",
+					"count": 43
+				},
+				{
+					"chunk": "-3,-2",
+					"count": 45
+				},
+				{
+					"chunk": "-3,-3",
+					"count": 44
+				},
+				{
+					"chunk": "-3,0",
+					"count": 52
+				},
+				{
+					"chunk": "-3,1",
+					"count": 43
+				},
+				{
+					"chunk": "-3,2",
+					"count": 52
+				},
+				{
+					"chunk": "0,-1",
+					"count": 46
+				},
+				{
+					"chunk": "0,-2",
+					"count": 54
+				},
+				{
+					"chunk": "0,-3",
+					"count": 48
+				},
+				{
+					"chunk": "0,0",
+					"count": 40
+				},
+				{
+					"chunk": "0,1",
+					"count": 42
+				},
+				{
+					"chunk": "0,2",
+					"count": 48
+				},
+				{
+					"chunk": "1,-1",
+					"count": 51
+				},
+				{
+					"chunk": "1,-2",
+					"count": 46
+				},
+				{
+					"chunk": "1,-3",
+					"count": 43
+				},
+				{
+					"chunk": "1,0",
+					"count": 36
+				},
+				{
+					"chunk": "1,1",
+					"count": 43
+				},
+				{
+					"chunk": "1,2",
+					"count": 26
+				},
+				{
+					"chunk": "2,-1",
+					"count": 38
+				},
+				{
+					"chunk": "2,-2",
+					"count": 41
+				},
+				{
+					"chunk": "2,-3",
+					"count": 54
+				},
+				{
+					"chunk": "2,0",
+					"count": 47
+				},
+				{
+					"chunk": "2,1",
+					"count": 47
+				},
+				{
+					"chunk": "2,2",
+					"count": 39
+				}
+			],
+			"compatibility_hash": "a5dff0d554c8601c270c68b7ad860aa8af6c4dccb9dc945d5b06d62f7ddeedc0",
+			"environment_content_hash": "7e220231c6c8a47612a459300b85b638a7f6aa96e3b2b2e62d1ad41405e52b5f",
+			"environment_manifest_hash": "0ee8d521d1784373f2df00da820102e9af35361d464767c8bd4f739f01ccfcd1",
+			"environment_occupancy_claim_count": 1506,
+			"generated_object_id_digest": "a4c0a3dd9ec721295238e41471148811fb80289e5342dc7489a097f40d7c9486",
+			"global_manifest_hash": "eaa7bd6fb603768eef97b655a5c0214864652b450f39eafd97016406feb3d7ce",
+			"global_output_hash": "0f30ae8e6ebdac7d6ccb0bd9893a6d6e39934c56a5ca7e6a34f23705cfba843e",
+			"placements_by_category": {
+				"berry_bushes": 26,
+				"biom1_static_tiles": 177,
+				"biom2_static_tiles": 113,
+				"bushes": 41,
+				"containers": 12,
+				"deadwood": 48,
+				"puddles": 33,
+				"stones": 34,
+				"structures": 15,
+				"trees": 882,
+				"xz_static_tiles": 125
+			},
+			"poi_hash": "c0231aecbce19dda2442120f13d073638fc9941b70f46af10c6dbfa9a727b988",
+			"rejection_counts": [
+				{
+					"count": 8079,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 8,
+					"reason": "max_instances_per_chunk"
+				},
+				{
+					"count": 2586,
+					"reason": "max_instances_per_world"
+				},
+				{
+					"count": 2397,
+					"reason": "min_instances_per_chunk_satisfied"
+				},
+				{
+					"count": 602,
+					"reason": "no_nearby_structure"
+				},
+				{
+					"count": 211,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 1560,
+					"reason": "poi"
+				},
+				{
+					"count": 179,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "0f30b309c61fdc9663ecea9340536f6f4b630e9ad1226df4b130b6640a61a920",
+			"road_raster_hash": "3b9365e673ce83655f3f6965f70f717ee4bc0a0c6add5234c7312a9fe2389c2c",
+			"scene_placement_count": 1091,
+			"seed": 1001,
+			"tilemap_placement_count": 415,
+			"total_placements": 1506,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		},
+		{
+			"chunk_counts": [
+				{
+					"chunk": "-1,-1",
+					"count": 37
+				},
+				{
+					"chunk": "-1,-2",
+					"count": 37
+				},
+				{
+					"chunk": "-1,-3",
+					"count": 29
+				},
+				{
+					"chunk": "-1,0",
+					"count": 39
+				},
+				{
+					"chunk": "-1,1",
+					"count": 36
+				},
+				{
+					"chunk": "-1,2",
+					"count": 49
+				},
+				{
+					"chunk": "-2,-1",
+					"count": 17
+				},
+				{
+					"chunk": "-2,-2",
+					"count": 42
+				},
+				{
+					"chunk": "-2,-3",
+					"count": 39
+				},
+				{
+					"chunk": "-2,0",
+					"count": 34
+				},
+				{
+					"chunk": "-2,1",
+					"count": 48
+				},
+				{
+					"chunk": "-2,2",
+					"count": 41
+				},
+				{
+					"chunk": "-3,-1",
+					"count": 39
+				},
+				{
+					"chunk": "-3,-2",
+					"count": 47
+				},
+				{
+					"chunk": "-3,-3",
+					"count": 42
+				},
+				{
+					"chunk": "-3,0",
+					"count": 24
+				},
+				{
+					"chunk": "-3,1",
+					"count": 46
+				},
+				{
+					"chunk": "-3,2",
+					"count": 46
+				},
+				{
+					"chunk": "0,-1",
+					"count": 46
+				},
+				{
+					"chunk": "0,-2",
+					"count": 37
+				},
+				{
+					"chunk": "0,-3",
+					"count": 42
+				},
+				{
+					"chunk": "0,0",
+					"count": 58
+				},
+				{
+					"chunk": "0,1",
+					"count": 52
+				},
+				{
+					"chunk": "0,2",
+					"count": 53
+				},
+				{
+					"chunk": "1,-1",
+					"count": 49
+				},
+				{
+					"chunk": "1,-2",
+					"count": 38
+				},
+				{
+					"chunk": "1,-3",
+					"count": 21
+				},
+				{
+					"chunk": "1,0",
+					"count": 49
+				},
+				{
+					"chunk": "1,1",
+					"count": 40
+				},
+				{
+					"chunk": "1,2",
+					"count": 44
+				},
+				{
+					"chunk": "2,-1",
+					"count": 45
+				},
+				{
+					"chunk": "2,-2",
+					"count": 42
+				},
+				{
+					"chunk": "2,-3",
+					"count": 53
+				},
+				{
+					"chunk": "2,0",
+					"count": 26
+				},
+				{
+					"chunk": "2,1",
+					"count": 37
+				},
+				{
+					"chunk": "2,2",
+					"count": 43
+				}
+			],
+			"compatibility_hash": "a5dff0d554c8601c270c68b7ad860aa8af6c4dccb9dc945d5b06d62f7ddeedc0",
+			"environment_content_hash": "715c8bd739138897f008d349ff13193b968887a56f79e66b1f370e3706b60bc9",
+			"environment_manifest_hash": "dfffb4aa734cefce856f7fc075cca1c120e4bd89d6a9f7a26d0b425ef8506842",
+			"environment_occupancy_claim_count": 1467,
+			"generated_object_id_digest": "37f192bfff1083203189a1cc737c99901be79d1313c324aad7e1c84cb5188ed5",
+			"global_manifest_hash": "d5818969311345a1eb7b84ee3ec7cfe995bca8602630ede103f524fbb08d510a",
+			"global_output_hash": "4005f2a98ab2d3dfbb52919b94914f6c8bfdd4f6f613dae66b2d3ea4c52b2c35",
+			"placements_by_category": {
+				"berry_bushes": 23,
+				"biom1_static_tiles": 164,
+				"biom2_static_tiles": 120,
+				"bushes": 32,
+				"containers": 12,
+				"deadwood": 50,
+				"puddles": 27,
+				"stones": 36,
+				"structures": 15,
+				"trees": 864,
+				"xz_static_tiles": 124
+			},
+			"poi_hash": "b968d2d1487e58a162956c3f1b1d91fb5f402a665e444fc0910ec056562c94af",
+			"rejection_counts": [
+				{
+					"count": 7774,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 13,
+					"reason": "max_instances_per_chunk"
+				},
+				{
+					"count": 2729,
+					"reason": "max_instances_per_world"
+				},
+				{
+					"count": 2428,
+					"reason": "min_instances_per_chunk_satisfied"
+				},
+				{
+					"count": 717,
+					"reason": "no_nearby_structure"
+				},
+				{
+					"count": 220,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 1706,
+					"reason": "poi"
+				},
+				{
+					"count": 296,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "ffa98f68dcb9accb4b56d3d8a4a6fec70c1e4ab3521f09ae95a2071c91bdc03f",
+			"road_raster_hash": "3fc95e61f6b96c2bc3ca41b05840cb18753932160ee9c88c620e78e2a0be11d0",
+			"scene_placement_count": 1059,
+			"seed": 2026,
+			"tilemap_placement_count": 408,
+			"total_placements": 1467,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		},
+		{
+			"chunk_counts": [
+				{
+					"chunk": "-1,-1",
+					"count": 43
+				},
+				{
+					"chunk": "-1,-2",
+					"count": 49
+				},
+				{
+					"chunk": "-1,-3",
+					"count": 52
+				},
+				{
+					"chunk": "-1,0",
+					"count": 40
+				},
+				{
+					"chunk": "-1,1",
+					"count": 44
+				},
+				{
+					"chunk": "-1,2",
+					"count": 50
+				},
+				{
+					"chunk": "-2,-1",
+					"count": 44
+				},
+				{
+					"chunk": "-2,-2",
+					"count": 32
+				},
+				{
+					"chunk": "-2,-3",
+					"count": 48
+				},
+				{
+					"chunk": "-2,0",
+					"count": 38
+				},
+				{
+					"chunk": "-2,1",
+					"count": 38
+				},
+				{
+					"chunk": "-2,2",
+					"count": 43
+				},
+				{
+					"chunk": "-3,-1",
+					"count": 8
+				},
+				{
+					"chunk": "-3,-2",
+					"count": 36
+				},
+				{
+					"chunk": "-3,-3",
+					"count": 39
+				},
+				{
+					"chunk": "-3,0",
+					"count": 43
+				},
+				{
+					"chunk": "-3,1",
+					"count": 54
+				},
+				{
+					"chunk": "-3,2",
+					"count": 48
+				},
+				{
+					"chunk": "0,-1",
+					"count": 29
+				},
+				{
+					"chunk": "0,-2",
+					"count": 40
+				},
+				{
+					"chunk": "0,-3",
+					"count": 35
+				},
+				{
+					"chunk": "0,0",
+					"count": 54
+				},
+				{
+					"chunk": "0,1",
+					"count": 32
+				},
+				{
+					"chunk": "0,2",
+					"count": 41
+				},
+				{
+					"chunk": "1,-1",
+					"count": 32
+				},
+				{
+					"chunk": "1,-2",
+					"count": 46
+				},
+				{
+					"chunk": "1,-3",
+					"count": 46
+				},
+				{
+					"chunk": "1,0",
+					"count": 48
+				},
+				{
+					"chunk": "1,1",
+					"count": 45
+				},
+				{
+					"chunk": "1,2",
+					"count": 32
+				},
+				{
+					"chunk": "2,-1",
+					"count": 36
+				},
+				{
+					"chunk": "2,-2",
+					"count": 43
+				},
+				{
+					"chunk": "2,-3",
+					"count": 53
+				},
+				{
+					"chunk": "2,0",
+					"count": 46
+				},
+				{
+					"chunk": "2,1",
+					"count": 47
+				},
+				{
+					"chunk": "2,2",
+					"count": 28
+				}
+			],
+			"compatibility_hash": "a5dff0d554c8601c270c68b7ad860aa8af6c4dccb9dc945d5b06d62f7ddeedc0",
+			"environment_content_hash": "9319bdc578eb0cf965122d080deca362ca0e91339a207988fa72f16302992dbb",
+			"environment_manifest_hash": "52437ca57b558799560995b7b8e8e2deddafa3d018aeff7319f903a569d971f5",
+			"environment_occupancy_claim_count": 1482,
+			"generated_object_id_digest": "efbdbae480344abb3e9212371ad1eb56d1a6c0e728e8b8bfcafae22d6c682d9f",
+			"global_manifest_hash": "0b2011483c5fbd9733e3caadede458f1d33919fbc45ed6e6af6f11ea9462e3cd",
+			"global_output_hash": "eda5c5bcc07f4d0e141b9cc51150e49c88b1f8c884aefa5687cb30d2823a822b",
+			"placements_by_category": {
+				"berry_bushes": 36,
+				"biom1_static_tiles": 179,
+				"biom2_static_tiles": 111,
+				"bushes": 35,
+				"containers": 12,
+				"deadwood": 55,
+				"puddles": 31,
+				"stones": 25,
+				"structures": 15,
+				"trees": 860,
+				"xz_static_tiles": 123
+			},
+			"poi_hash": "fbcdce53d53b56929791061a6fa9879c30a08d382961ce05517573bf69d88b0a",
+			"rejection_counts": [
+				{
+					"count": 7937,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 9,
+					"reason": "max_instances_per_chunk"
+				},
+				{
+					"count": 3246,
+					"reason": "max_instances_per_world"
+				},
+				{
+					"count": 2390,
+					"reason": "min_instances_per_chunk_satisfied"
+				},
+				{
+					"count": 683,
+					"reason": "no_nearby_structure"
+				},
+				{
+					"count": 238,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 1659,
+					"reason": "poi"
+				},
+				{
+					"count": 249,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "0b71f6a7620ea1d264166f976c723ddcc8b4feff86c5206cd6f3312e5f1b0cc6",
+			"road_raster_hash": "db288e0800b50253cd2c56181fdd9dac94aaa082f9c285d30a4172b47e6541fa",
+			"scene_placement_count": 1069,
+			"seed": 99999,
+			"tilemap_placement_count": 413,
+			"total_placements": 1482,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		}
+	]
+}

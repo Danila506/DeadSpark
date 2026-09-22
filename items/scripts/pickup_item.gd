@@ -31,7 +31,7 @@ func _ready() -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not LootContainerProviderContract.is_local_interactor(body):
 		return
 
 	player_in_range = true
@@ -40,7 +40,7 @@ func _on_body_entered(body: Node) -> void:
 
 
 func _on_body_exited(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not LootContainerProviderContract.is_local_interactor(body):
 		return
 
 	player_in_range = false
@@ -52,6 +52,10 @@ func remove_from_world() -> void:
 	if _removed_from_world:
 		return
 	_removed_from_world = true
+	# Host-side inventory paths must remove replicas too. Guard recursive despawn.
+	if NetworkManager.is_server() and not _network_pickup_locked:
+		_network_pickup_locked = true
+		_request_global_despawn()
 	NearbyItemsManager.remove_item(self)
 	queue_free()
 	
@@ -135,7 +139,7 @@ func _authorize_pickup_for_peer(requester_peer_id: int) -> void:
 	rpc("rpc_finalize_pickup_authorization", requester_peer_id, granted)
 
 
-@rpc("any_peer", "call_local", "reliable")
+@rpc("authority", "call_local", "reliable")
 func rpc_finalize_pickup_authorization(requester_peer_id: int, granted: bool) -> void:
 	if granted:
 		_remove_pickups_with_same_runtime_id()

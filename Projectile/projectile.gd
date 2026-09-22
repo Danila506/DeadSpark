@@ -8,6 +8,7 @@ const DamageZones = preload("res://Enemies/AI/damage_zones.gd")
 @export var collision_mask_override: int = 1
 @export var collision_layer_override: int = 2
 @export var pass_through_tilemap_layers: bool = false
+@export var pass_through_hit_radius: float = 10.0
 
 var _direction: Vector2 = Vector2.RIGHT
 var _start_position: Vector2 = Vector2.ZERO
@@ -15,12 +16,12 @@ var _max_distance: float = 420.0
 var _shooter: Node = null
 var _lifetime_left: float = 0.0
 var _released: bool = false
+var _damaged_targets: Dictionary = {}
 
 
 func _ready() -> void:
-	body_entered.connect(_on_body_entered)
-	area_entered.connect(_on_area_entered)
 	_lifetime_left = lifetime_sec
+	_disable_physics_collision()
 
 
 func _physics_process(delta: float) -> void:
@@ -34,10 +35,7 @@ func _physics_process(delta: float) -> void:
 
 	var from_pos: Vector2 = global_position
 	var to_pos: Vector2 = from_pos + _direction * speed * delta
-	var hit: Dictionary = _raycast_to_position(from_pos, to_pos)
-	if not hit.is_empty():
-		if _handle_raycast_hit(hit):
-			return
+	_apply_pass_through_damage(from_pos, to_pos)
 	global_position = to_pos
 
 	if _max_distance > 0.0 and _start_position.distance_to(global_position) >= _max_distance:
@@ -67,12 +65,10 @@ func initialize(
 		damage = new_damage
 	collision_layer_override = layer
 	collision_mask_override = mask
-	collision_layer = layer
-	collision_mask = mask
 	rotation = _direction.angle()
 	_released = false
-	monitoring = true
-	monitorable = true
+	_damaged_targets.clear()
+	_disable_physics_collision()
 	visible = true
 	set_physics_process(true)
 
@@ -86,13 +82,14 @@ func setup(direction: Vector2, new_damage: float, new_speed: float) -> void:
 	_lifetime_left = lifetime_sec
 	rotation = _direction.angle()
 	_released = false
-	monitoring = true
-	monitorable = true
+	_damaged_targets.clear()
+	_disable_physics_collision()
 	visible = true
 	set_physics_process(true)
 
 
 func _on_body_entered(body: Node) -> void:
+	return
 	if _released:
 		return
 	if body == _shooter:
@@ -108,6 +105,7 @@ func _on_body_entered(body: Node) -> void:
 
 
 func _on_area_entered(area: Area2D) -> void:
+	return
 	if _released:
 		return
 	if area == null:
@@ -258,6 +256,65 @@ func _node_should_not_block_bullets(node: Node) -> bool:
 	)
 
 
+func _disable_physics_collision() -> void:
+	collision_layer = 0
+	collision_mask = 0
+	monitoring = false
+	monitorable = false
+
+
+func _apply_pass_through_damage(from_pos: Vector2, to_pos: Vector2) -> void:
+	for target in _collect_pass_through_targets():
+		if target == null or not is_instance_valid(target):
+			continue
+		if target == _shooter:
+			continue
+		if _damaged_targets.has(target.get_instance_id()):
+			continue
+		if _is_friendly_target(target):
+			continue
+		if _should_ignore_collision(target):
+			continue
+		if not (target is Node2D):
+			continue
+
+		var target_position: Vector2 = (target as Node2D).global_position
+		if _distance_to_segment(target_position, from_pos, to_pos) > pass_through_hit_radius:
+			continue
+
+		_damaged_targets[target.get_instance_id()] = true
+		var hit_context: Dictionary = _build_hit_context_for_body_hit()
+		hit_context["hit_position"] = target_position
+		_apply_damage_to_target(target, hit_context)
+
+
+func _collect_pass_through_targets() -> Array[Node]:
+	var result: Array[Node] = []
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return result
+
+	if _shooter != null and _shooter.is_in_group("bandit"):
+		for node in tree.get_nodes_in_group("player"):
+			if node is Node:
+				result.append(node as Node)
+		return result
+
+	for node in tree.get_nodes_in_group("enemy"):
+		if node is Node:
+			result.append(node as Node)
+	return result
+
+
+func _distance_to_segment(point: Vector2, segment_start: Vector2, segment_end: Vector2) -> float:
+	var segment: Vector2 = segment_end - segment_start
+	var length_sq: float = segment.length_squared()
+	if length_sq <= 0.0001:
+		return point.distance_to(segment_start)
+	var t: float = clampf((point - segment_start).dot(segment) / length_sq, 0.0, 1.0)
+	return point.distance_to(segment_start + segment * t)
+
+
 func _raycast_to_position(from_pos: Vector2, to_pos: Vector2) -> Dictionary:
 	var world := get_world_2d()
 	if world == null:
@@ -266,7 +323,7 @@ func _raycast_to_position(from_pos: Vector2, to_pos: Vector2) -> Dictionary:
 	query.collide_with_bodies = true
 	query.collide_with_areas = true
 	var exclude: Array[RID] = [get_rid()]
-	if _shooter is CollisionObject2D:
+	if is_instance_valid(_shooter) and _shooter is CollisionObject2D:
 		exclude.append((_shooter as CollisionObject2D).get_rid())
 	query.exclude = exclude
 	return world.direct_space_state.intersect_ray(query)
@@ -328,8 +385,8 @@ func _tilemap_hit_is_solid(tilemap_layer: TileMapLayer, hit: Dictionary) -> bool
 func reset_for_pool_reuse() -> void:
 	_released = false
 	_lifetime_left = lifetime_sec
-	monitoring = true
-	monitorable = true
+	_damaged_targets.clear()
+	_disable_physics_collision()
 	visible = true
 	set_physics_process(true)
 
@@ -337,8 +394,8 @@ func reset_for_pool_reuse() -> void:
 func prepare_for_pool() -> void:
 	_released = true
 	_shooter = null
-	monitoring = false
-	monitorable = false
+	_damaged_targets.clear()
+	_disable_physics_collision()
 	visible = false
 	set_physics_process(false)
 

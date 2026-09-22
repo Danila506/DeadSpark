@@ -18,5 +18,6 @@ item_name = "Набор для шитья"
 world_icon = SubResource("AtlasTexture_world")
 inventory_icon = SubResource("AtlasTexture_inv")
 inventory_icon_scale = 0.8
+item_weight = 0.25
 max_stack_size = 8
 show_stack_count_in_inventory = true

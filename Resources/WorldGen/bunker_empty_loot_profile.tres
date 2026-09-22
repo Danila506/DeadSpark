@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="LootProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://World/Generation/loot_profile.gd" id="1_loot_profile"]
+
+[resource]
+script = ExtResource("1_loot_profile")
+profile_id = "bunker_empty"
+allow_empty = true
+explicit_empty = true

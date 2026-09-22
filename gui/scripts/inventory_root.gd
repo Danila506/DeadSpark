@@ -2,6 +2,8 @@ extends Control
 
 const SLOT_SCENE = preload("res://gui/slots/InventorySlot.tscn")
 const LOOT_PROVIDER_SLOT_TYPE: int = 999
+const THERMAL_BATTERY_PROVIDER_SLOT_TYPE: int = 998
+const WEAPON_ATTACHMENT_PROVIDER_SLOT_TYPE: int = 997
 const LOOT_CONTEXT_WARDROBE: StringName = &"wardrobe"
 const LOOT_CONTEXT_BANDIT: StringName = &"bandit"
 const WOOD_ITEM: ItemData = preload("res://Resources/Misc/wood.tres")
@@ -37,11 +39,28 @@ const SEWING_KIT_ITEM: ItemData = preload("res://Resources/Misc/sewing_kit.tres"
 const GLUE_ITEM: ItemData = preload("res://Resources/Misc/glue.tres")
 const WEAPON_CLEANING_KIT_ITEM: ItemData = preload("res://Resources/Misc/weapon_cleaning_kit.tres")
 const GEIGER_COUNTER_ITEM: ItemData = preload("res://Resources/Misc/geiger_counter.tres")
+const METAL_SCRAP_ITEM: ItemData = preload("res://Resources/Misc/metal_scrap.tres")
+const METAL_RODS_ITEM: ItemData = preload("res://Resources/Misc/metal_rods.tres")
+const MECHANICAL_PARTS_ITEM: ItemData = preload("res://Resources/Misc/mechanical_parts.tres")
+const GUNPOWDER_ITEM: ItemData = preload("res://Resources/Misc/gunpowder.tres")
+const BOOK_ITEM: ItemData = preload("res://Resources/Misc/book.tres")
+const SACK_ITEM: ItemData = preload("res://Resources/Misc/sack.tres")
+const BOW_ITEM: ItemData = preload("res://Resources/Misc/bow.tres")
+const WEAPON_CLEANING_KIT_1_ITEM: ItemData = preload("res://Resources/Misc/weapon_cleaning_kit_1.tres")
+const WEAPON_CLEANING_KIT_2_ITEM: ItemData = preload("res://Resources/Misc/weapon_cleaning_kit_2.tres")
+const WEAPON_CLEANING_KIT_3_ITEM: ItemData = preload("res://Resources/Misc/weapon_cleaning_kit_3.tres")
+const TOOLKIT_1_ITEM: ItemData = preload("res://Resources/Misc/toolkit_1.tres")
+const TOOLKIT_2_ITEM: ItemData = preload("res://Resources/Misc/toolkit_2.tres")
+const TOOLKIT_3_ITEM: ItemData = preload("res://Resources/Misc/toolkit_3.tres")
 const TWO_CRAFT_TEXTURE: Texture2D = preload("res://gui/Craft/twoCraft.png")
 const THREE_CRAFT_TEXTURE: Texture2D = preload("res://gui/Craft/threeCraft.png")
 const TWO_CRAFT_OUTLINE_TEXTURE: Texture2D = preload("res://gui/Craft/twoCraftOutline.png")
 const THREE_CRAFT_OUTLINE_TEXTURE: Texture2D = preload("res://gui/Craft/threeCraftoutline.png")
 const CRAFT_BUTTON_WIDTH: float = 28.0
+const CRAFT_RESULT_SLOT_POSITION: Vector2 = Vector2(230.0, 9.0)
+const CRAFT_PREVIEW_SLOT_SIZE: Vector2 = Vector2(60.0, 60.0)
+const CRAFT_INGREDIENT_ICON_SIZE: Vector2 = Vector2(42.0, 42.0)
+const CRAFT_RESULT_ICON_SIZE: Vector2 = Vector2(38.0, 38.0)
 const CRAFT_CATEGORY_ALL: StringName = &"all"
 const CRAFT_CATEGORY_MEDICAL: StringName = &"medical"
 const CRAFT_CATEGORY_FOOD: StringName = &"food"
@@ -51,13 +70,42 @@ const NETWORK_PICKUP_TIMEOUT_SEC: float = 1.5
 const NETWORK_INVENTORY_ACTION_TIMEOUT_SEC: float = 1.5
 const NETWORK_INVENTORY_ACTION_MIN_INTERVAL_MS: int = 60
 const NETWORK_INVENTORY_ACTION_CRAFT_MIN_INTERVAL_MS: int = 150
+const NETWORK_INVENTORY_ACTION_FINISH_GRACE_MS: int = 2500
+const CLOTHING_STORAGE_SLOT_SIZE: Vector2 = Vector2(60, 60)
+const CLOTHING_EQUIPMENT_ICON_SIZE: Vector2 = Vector2(52, 52)
+const CLOTHING_EQUIPMENT_ICON_PADDING: Vector2 = Vector2(4, 4)
+const CLOTHING_STORAGE_MAX_VISIBLE_SLOTS: int = 5
+const CLOTHING_STORAGE_COLUMNS: int = 3
+const CLOTHING_STORAGE_ROWS: int = 2
+const CLOTHING_STORAGE_CELL_SEPARATION: int = 1
+const CLOTHING_STORAGE_Z_INDEX: int = 10
+const LOOT_SLOT_SIZE: Vector2 = Vector2(62, 62)
+const LOOT_SLOT_ICON_SIZE: Vector2 = Vector2(110, 110)
+const ITEM_ACTION_MENU_SCALE: Vector2 = Vector2(2.0, 2.0)
+const ITEM_ACTION_BUTTON_SIZE: Vector2 = Vector2(72.0, 19.0)
+const ITEM_INFO_BUTTON_SIZE: Vector2 = Vector2(22.0, 18.0)
+const ITEM_ACTION_MENU_OFFSET: Vector2 = Vector2(0.0, 8.0)
+const ITEM_DIALOG_OFFSET: Vector2 = Vector2(22.0, -18.0)
+const ITEM_DIALOG_BODY_SIZE: Vector2 = Vector2(193.0, 206.0)
+const ITEM_DIALOG_WEAPON_BODY_SIZE: Vector2 = Vector2(193.0, 146.0)
+const ITEM_DIALOG_MODULES_POSITION: Vector2 = Vector2(13.0, 190.0)
+const ITEM_DIALOG_MODULE_CELL_WIDTH: float = 60.0
+const ITEM_DIALOG_MODULE_CELL_SIZE: Vector2 = Vector2(30.0, 30.0)
+const ITEM_DIALOG_MODULE_ICON_SIZE: Vector2 = Vector2(22.0, 22.0)
+const ITEM_DIALOG_MODULE_LABEL_HEIGHT: float = 11.0
+const ITEM_DIALOG_THERMAL_BATTERY_POSITION: Vector2 = Vector2(13.0, 176.0)
+const ITEM_DIALOG_THERMAL_BATTERY_SLOT_POSITION: Vector2 = Vector2(0.0, 16.0)
+const ITEM_DIALOG_THERMAL_BATTERY_SLOT_SIZE: Vector2 = Vector2(30.0, 30.0)
+const ITEM_DIALOG_THERMAL_BATTERY_ICON_SIZE: Vector2 = Vector2(22.0, 22.0)
 const NETWORK_ALLOWED_INVENTORY_ACTIONS: Array[StringName] = [
 	&"craft",
 	&"consume_food",
 	&"consume_food_finish",
 	&"use_medical",
 	&"finish_use_medical",
-	&"equip_ammo"
+	&"equip_ammo",
+	&"move_item",
+	&"drop_item"
 ]
 
 @export var pickup_item_scene: PackedScene
@@ -75,12 +123,15 @@ const NETWORK_ALLOWED_INVENTORY_ACTIONS: Array[StringName] = [
 @onready var nav_inv: Control = $InventoryContent/NavInv
 @onready var nav_map: Control = $InventoryContent/NavMap
 @onready var nav_craft: Control = $InventoryContent/NavCraft
+@onready var nearby_panel: Control = $InventoryContent/NavInv/NearbyPanel
 @onready var inventory_grid: GridContainer = $InventoryContent/NavInv/NearbyPanel/InventoryGrid
 @onready var drag_anchor: Control = $InventoryContent/Anchor
 @onready var wardrobe_loot_panel: Control = $InventoryContent/Lut/Lut
 @onready var wardrobe_loot_grid: GridContainer = $InventoryContent/Lut/Lut/CenterContainer/LutContainer
+@onready var wardrobe_loot_panel_texture: CanvasItem = get_node_or_null("InventoryContent/Lut/Lut/BoxLutPanel") as CanvasItem
 @onready var bandit_loot_panel: Control = $InventoryContent/Lut/BanditLut
 @onready var bandit_loot_grid: GridContainer = $InventoryContent/Lut/BanditLut/CenterContainer/GridContainer
+@onready var bandit_loot_panel_texture: CanvasItem = get_node_or_null("InventoryContent/Lut/BanditLut/BanditLutPanel") as CanvasItem
 
 @onready var inv_btn: Control = $InventoryContent/NavBtns/InvBtn
 @onready var map_btn: Control = $InventoryContent/NavBtns/MapBtn
@@ -98,6 +149,18 @@ const NETWORK_ALLOWED_INVENTORY_ACTIONS: Array[StringName] = [
 @onready var trousers_storage_grid: GridContainer = $InventoryContent/NavInv/Trousers/TrousersStoragePanel/TrousersStorageGrid
 @onready var bag_storage_panel: Control = $InventoryContent/NavInv/Bag/BagStoragePanel
 @onready var bag_storage_grid: GridContainer = $InventoryContent/NavInv/Bag/BagStoragePanel/BagStorageGrid
+@onready var item_action_control: Control = get_node_or_null("InventoryContent/NavInv/ActionControl") as Control
+@onready var item_dialog_box: TextureRect = get_node_or_null("InventoryContent/NavInv/ActionControl/DialogBox") as TextureRect
+@onready var item_dialog_anchor: TextureRect = get_node_or_null("InventoryContent/NavInv/ActionControl/DialogBox/Anchor") as TextureRect
+@onready var item_dialog_exit_button: TextureButton = get_node_or_null("InventoryContent/NavInv/ActionControl/DialogBox/ExitDialogBox") as TextureButton
+@onready var item_one_button_menu: Control = get_node_or_null("InventoryContent/NavInv/ActionControl/OneButton") as Control
+@onready var item_action_button: TextureButton = get_node_or_null("InventoryContent/NavInv/ActionControl/OneButton/Action") as TextureButton
+@onready var item_info_button: TextureButton = get_node_or_null("InventoryContent/NavInv/ActionControl/OneButton/Info") as TextureButton
+@onready var item_two_button_menu: Control = get_node_or_null("InventoryContent/NavInv/ActionControl/TwoButton") as Control
+@onready var item_two_action_button: TextureButton = get_node_or_null("InventoryContent/NavInv/ActionControl/TwoButton/Action") as TextureButton
+@onready var item_two_action2_button: TextureButton = get_node_or_null("InventoryContent/NavInv/ActionControl/TwoButton/Action2") as TextureButton
+@onready var item_two_info_button: TextureButton = get_node_or_null("InventoryContent/NavInv/ActionControl/TwoButton/Info") as TextureButton
+@onready var item_three_button_menu: Control = get_node_or_null("InventoryContent/NavInv/ActionControl/ThreeButton") as Control
 
 var is_inventory_open: bool = false
 var drag_in_progress_data: Dictionary = {}
@@ -106,6 +169,7 @@ var inventory_drag_offset: Vector2 = Vector2.ZERO
 var loot_context_active: bool = false
 var active_loot_context: StringName = LOOT_CONTEXT_WARDROBE
 var active_bandit_loot_source_id: int = 0
+var active_container_source_id: int = 0
 var loot_slots: Array[InventorySlot] = []
 var loot_provider: ItemData = null
 
@@ -119,6 +183,7 @@ var use_medical_button: Button = null
 var use_medical_slot: InventorySlot = null
 var till_farm_row_button: Button = null
 var till_farm_row_slot: InventorySlot = null
+var _pending_consumable: Dictionary = {}
 var pending_medical_item: ItemData = null
 var pending_medical_mode: int = -1
 var pending_medical_slot_type: int = -1
@@ -130,6 +195,28 @@ var install_scope_slot: InventorySlot = null
 var remove_scope_button: Button = null
 var remove_scope_slot: InventorySlot = null
 var remove_attachment_dropdown: OptionButton = null
+var item_context_slot: InventorySlot = null
+var item_action_label: Label = null
+var item_info_label: Label = null
+var item_two_action_label: Label = null
+var item_two_action2_label: Label = null
+var item_two_info_label: Label = null
+var item_dialog_title_label: Label = null
+var item_dialog_body_label: Label = null
+var item_dialog_modules_root: HBoxContainer = null
+var item_dialog_module_slots: Dictionary = {}
+var item_dialog_thermal_battery_root: Control = null
+var item_dialog_thermal_battery_slot: InventorySlot = null
+var item_dialog_thermal_battery_label: Label = null
+var item_dialog_thermal_battery_charge_label: Label = null
+var item_dialog_thermal_battery_provider: ItemData = null
+var item_dialog_anchor_home_position: Vector2 = Vector2.ZERO
+var item_dialog_anchor_home_flip_h: bool = false
+var item_dialog_anchor_dragging: bool = false
+var item_dialog_anchor_drag_offset: Vector2 = Vector2.ZERO
+var item_context_menu_screen_position: Vector2 = Vector2.INF
+var _attachment_catalog: Array[ItemData] = []
+var _attachment_catalog_ready: bool = false
 var craft_recipes: Array[Dictionary] = []
 var craft_row_buttons: Array[Button] = []
 var craft_row_recipe_indices: Array[int] = []
@@ -161,6 +248,7 @@ var _network_inventory_action_next_request_id: int = 1
 var _network_inventory_action_pending: Dictionary = {}
 var _network_inventory_action_bypass: bool = false
 var _network_server_last_inventory_action_ms_by_peer: Dictionary = {}
+var _network_server_pending_consumable_by_peer: Dictionary = {}
 var _dev_console_panel: PanelContainer = null
 var _dev_console_output: RichTextLabel = null
 var _dev_console_input: LineEdit = null
@@ -179,7 +267,10 @@ var _dev_console_aliases: Dictionary = {
 	"s": "spawn",
 	"ls": "list_items",
 	"f": "find_item",
-	"h": "help"
+	"h": "help",
+	"st": "status",
+	"vp": "village_place",
+	"vr": "village_regen"
 }
 
 
@@ -197,7 +288,7 @@ func _ready() -> void:
 	_setup_storage_panel(jacket_storage_panel, jacket_storage_grid)
 	_setup_storage_panel(heavy_armour_storage_panel, heavy_armour_storage_grid, 3)
 	_setup_storage_panel(trousers_storage_panel, trousers_storage_grid)
-	_setup_storage_panel(bag_storage_panel, bag_storage_grid)
+	_setup_storage_panel(bag_storage_panel, bag_storage_grid, 2)
 	storage_slots_by_type[ItemData.ItemType.Jacket] = []
 	storage_slots_by_type[ItemData.ItemType.HeavyArmour] = []
 	storage_slots_by_type[ItemData.ItemType.Trousers] = []
@@ -207,6 +298,7 @@ func _ready() -> void:
 	_ensure_till_farm_row_button()
 	_ensure_equip_ammo_button()
 	_ensure_scope_buttons()
+	_ensure_item_action_ui()
 
 	_setup_nav_buttons_z()
 	_setup_nav_pages()
@@ -328,7 +420,7 @@ func _process(delta: float) -> void:
 	if mobile_touch_time_left > 0.0:
 		return
 	mobile_touch_long_press_triggered = true
-	_handle_slot_primary_press(mobile_touch_slot)
+	_handle_slot_primary_press(mobile_touch_slot, mobile_touch_start_position)
 
 
 func _notification(what: int) -> void:
@@ -348,7 +440,7 @@ func _notification(what: int) -> void:
 
 		var drag_successful: bool = get_viewport().gui_is_drag_successful()
 
-		if not drag_successful:
+		if not drag_successful and is_inventory_open and not _is_mouse_over_inventory():
 			_drop_dragged_item_to_world(drag_in_progress_data)
 
 		drag_in_progress_data.clear()
@@ -368,6 +460,7 @@ func toggle_inventory() -> void:
 
 
 func open_inventory() -> void:
+	if not _pending_consumable.is_empty(): return
 	is_inventory_open = true
 	inventory_content.visible = true
 	_apply_mobile_inventory_layout()
@@ -378,13 +471,17 @@ func open_inventory() -> void:
 
 
 func close_inventory() -> void:
+	_network_loot_open_pending = false
 	is_inventory_open = false
 	inventory_content.visible = false
 	inventory_drag_active = false
+	_hide_action_buttons()
+	_hide_item_dialog()
 
 
 func set_loot_context_active(active: bool, context: StringName = &"") -> void:
 	loot_context_active = active
+	nearby_panel.visible = not loot_context_active
 	if not context.is_empty():
 		active_loot_context = context
 	var show_on_inventory_page: bool = nav_inv == null or nav_inv.visible
@@ -392,16 +489,31 @@ func set_loot_context_active(active: bool, context: StringName = &"") -> void:
 	var show_bandit_loot: bool = loot_context_active and is_inventory_open and show_on_inventory_page and active_loot_context == LOOT_CONTEXT_BANDIT
 	if wardrobe_loot_panel != null:
 		wardrobe_loot_panel.visible = show_wardrobe_loot
+	if wardrobe_loot_panel_texture != null:
+		wardrobe_loot_panel_texture.visible = show_wardrobe_loot
 	if bandit_loot_panel != null:
 		bandit_loot_panel.visible = show_bandit_loot
+	if bandit_loot_panel_texture != null:
+		bandit_loot_panel_texture.visible = show_bandit_loot
 
 
-func open_loot_slots(slot_items: Array[ItemData]) -> void:
+func open_loot_slots(slot_items: Array[ItemData], source: Node = null) -> void:
+	active_container_source_id = source.get_instance_id() if source != null else 0
+	if source != null and _shared_world() != null:
+		active_loot_context = LOOT_CONTEXT_WARDROBE
+		_network_loot_open_pending = true
+		_shared_world().open_container(source)
+		return
 	_open_loot_slots(slot_items, LOOT_CONTEXT_WARDROBE)
 
 
 func open_bandit_loot_slots(slot_items: Array[ItemData], source: Node = null) -> void:
 	active_bandit_loot_source_id = 0 if source == null else int(source.get_instance_id())
+	if source != null and _shared_world() != null:
+		active_loot_context = LOOT_CONTEXT_BANDIT
+		_network_loot_open_pending = true
+		_shared_world().open_container(source)
+		return
 	_open_loot_slots(slot_items, LOOT_CONTEXT_BANDIT)
 
 
@@ -411,6 +523,7 @@ func _open_loot_slots(slot_items: Array[ItemData], context: StringName) -> void:
 	if context != LOOT_CONTEXT_BANDIT:
 		active_bandit_loot_source_id = 0
 
+	active_loot_context = context
 	loot_provider.runtime_storage_items = slot_items
 	_rebuild_loot_slots(loot_provider.runtime_storage_items.size())
 
@@ -420,6 +533,15 @@ func _open_loot_slots(slot_items: Array[ItemData], context: StringName) -> void:
 		open_inventory()
 	set_loot_context_active(true, context)
 	refresh_ui()
+
+
+func close_loot_for(source: Node) -> void:
+	if source == null or active_loot_context != LOOT_CONTEXT_WARDROBE:
+		return
+	if source.get_instance_id() != active_container_source_id:
+		return
+	active_container_source_id = 0
+	set_loot_context_active(false)
 
 
 func close_bandit_loot_for(source: Node = null) -> void:
@@ -583,7 +705,8 @@ func _get_or_create_nearby_slot(slot_index: int) -> InventorySlot:
 func _setup_nearby_slot(slot: InventorySlot) -> void:
 	slot.slot_mode = InventorySlot.SlotMode.NEARBY
 	slot.custom_minimum_size = Vector2(235, 92)
-	slot.icon_size = Vector2(68, 68)
+	slot.icon_size = Vector2(60, 60)
+	slot.fixed_icon_visual_size = Vector2(60, 60)
 	slot.icon_rotation_degrees = 0.0
 	slot.icon_h_align = InventorySlot.IconHAlign.LEFT
 	slot.icon_v_align = InventorySlot.IconVAlign.CENTER
@@ -595,13 +718,15 @@ func _setup_nearby_slot(slot: InventorySlot) -> void:
 	slot.show_background_in_container = true
 
 
-func _setup_storage_panel(panel: Control, grid: GridContainer, columns: int = 2) -> void:
+func _setup_storage_panel(panel: Control, grid: GridContainer, columns: int = CLOTHING_STORAGE_COLUMNS) -> void:
 	grid.columns = max(columns, 1)
-	grid.add_theme_constant_override("h_separation", 4)
-	grid.add_theme_constant_override("v_separation", 8)
+	grid.add_theme_constant_override("h_separation", CLOTHING_STORAGE_CELL_SEPARATION)
+	grid.add_theme_constant_override("v_separation", CLOTHING_STORAGE_CELL_SEPARATION)
 	panel.visible = false
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.z_index = CLOTHING_STORAGE_Z_INDEX
 	grid.mouse_filter = Control.MOUSE_FILTER_PASS
+	grid.z_index = CLOTHING_STORAGE_Z_INDEX
 
 
 func _setup_container_slot(slot: InventorySlot, index: int) -> void:
@@ -613,7 +738,7 @@ func _setup_container_slot(slot: InventorySlot, index: int) -> void:
 		ItemData.StorageCategory.MISC
 	]
 
-	slot.custom_minimum_size = Vector2(60, 60)
+	slot.custom_minimum_size = CLOTHING_STORAGE_SLOT_SIZE
 	slot.icon_size = Vector2(64, 64)
 	slot.icon_rotation_degrees = 0.0
 	slot.icon_h_align = InventorySlot.IconHAlign.CENTER
@@ -622,26 +747,25 @@ func _setup_container_slot(slot: InventorySlot, index: int) -> void:
 	slot.show_endurance = false
 	slot.stretch_icon_to_slot = false
 	slot.icon_padding = 0.0
+	slot.z_index = CLOTHING_STORAGE_Z_INDEX
 
 
 func _setup_craft_recipes() -> void:
 	craft_recipes = [
-		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": WOOD_ITEM, "count": 1}, {"item": BANDAGE_ITEM, "count": 1}], "result": {"item": IMPROVISED_SPLINT_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": WOOD_ITEM, "count": 2}, {"item": STONE_ITEM, "count": 1}, {"item": BANDAGE_ITEM, "count": 1}], "result": {"item": MEDICAL_SPLINT_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": BANDAGE_ITEM, "count": 1}, {"item": HEMOSTAT_ITEM, "count": 1}], "result": {"item": HEALTH_BOX_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": SALINE_ITEM, "count": 1}, {"item": BANDAGE_ITEM, "count": 1}], "result": {"item": BLOOD_BAG_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_FOOD, "ingredients": [{"item": APPLE_ITEM, "count": 1}, {"item": MALINA_ITEM, "count": 1}], "result": {"item": RESTORER_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_FOOD, "ingredients": [{"item": TOMATE_ITEM, "count": 1}, {"item": PEPPER_ITEM, "count": 1}], "result": {"item": ANTIDOTE_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": WOOD_ITEM, "count": 2}, {"item": STONE_ITEM, "count": 2}], "result": {"item": AXE_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": AXE_ITEM, "count": 1}, {"item": WOOD_ITEM, "count": 1}], "result": {"item": CLEAVER_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": POTASSIUM_IODIDE_ITEM, "count": 1}, {"item": SALINE_ITEM, "count": 1}], "result": {"item": RESTORER_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": WOOD_ITEM, "count": 1}, {"item": MATCHES_ITEM, "count": 1}], "result": {"item": GAS_BURNER_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": GAS_CYLINDER_ITEM, "count": 1}, {"item": GAS_BURNER_ITEM, "count": 1}], "result": {"item": LIGHTER_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": BURLAP_FABRIC_ITEM, "count": 1}, {"item": GLUE_ITEM, "count": 1}], "result": {"item": ROPE_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": BURLAP_FABRIC_ITEM, "count": 1}, {"item": ROPE_ITEM, "count": 1}], "result": {"item": SEWING_KIT_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": BATTERIES_ITEM, "count": 1}, {"item": ELECTRICAL_TAPE_ITEM, "count": 1}], "result": {"item": GEIGER_COUNTER_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": GLUE_ITEM, "count": 1}, {"item": BURLAP_FABRIC_ITEM, "count": 1}, {"item": ELECTRICAL_TAPE_ITEM, "count": 1}], "result": {"item": WEAPON_CLEANING_KIT_ITEM, "count": 1}},
-		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": CIGARETTES_PACK_ITEM, "count": 1}, {"item": MATCHES_ITEM, "count": 1}], "result": {"item": LIGHTER_ITEM, "count": 1}}
+		{"category": CRAFT_CATEGORY_BUILD, "ingredients": [{"item": BURLAP_FABRIC_ITEM, "count": 1}, {"item": ROPE_ITEM, "count": 1}], "result": {"item": SACK_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_BUILD, "ingredients": [{"item": GAS_CYLINDER_ITEM, "count": 1}, {"item": MECHANICAL_PARTS_ITEM, "count": 3}, {"item": TOOLKIT_1_ITEM, "count": 1}], "result": {"item": GAS_BURNER_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_BUILD, "ingredients": [{"item": METAL_RODS_ITEM, "count": 2}, {"item": ROPE_ITEM, "count": 1}], "result": {"item": BOW_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_BUILD, "ingredients": [{"item": BURLAP_FABRIC_ITEM, "count": 1}, {"item": ELECTRICAL_TAPE_ITEM, "count": 1}], "result": {"item": ROPE_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_BUILD, "ingredients": [{"item": METAL_SCRAP_ITEM, "count": 1}, {"item": METAL_SCRAP_ITEM, "count": 4}], "result": {"item": ROPE_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_BUILD, "ingredients": [{"item": GAS_BURNER_ITEM, "count": 1}, {"item": MECHANICAL_PARTS_ITEM, "count": 5}, {"item": MATCHES_ITEM, "count": 1}], "result": {"item": TOOLKIT_2_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_BUILD, "ingredients": [{"item": GAS_BURNER_ITEM, "count": 1}, {"item": TOOLKIT_2_ITEM, "count": 1}, {"item": BOOK_ITEM, "count": 1}], "result": {"item": TOOLKIT_3_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": METAL_SCRAP_ITEM, "count": 1}, {"item": TOOLKIT_1_ITEM, "count": 1}], "result": {"item": WEAPON_CLEANING_KIT_1_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": METAL_SCRAP_ITEM, "count": 1}, {"item": TOOLKIT_2_ITEM, "count": 1}], "result": {"item": WEAPON_CLEANING_KIT_2_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": METAL_SCRAP_ITEM, "count": 1}, {"item": TOOLKIT_3_ITEM, "count": 1}], "result": {"item": WEAPON_CLEANING_KIT_3_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": TOOLKIT_1_ITEM, "count": 5}, {"item": WEAPON_CLEANING_KIT_3_ITEM, "count": 1}], "result": {"item": GUNPOWDER_ITEM, "count": 6}},
+		{"category": CRAFT_CATEGORY_MEDICAL, "ingredients": [{"item": GUNPOWDER_ITEM, "count": 6}, {"item": WEAPON_CLEANING_KIT_3_ITEM, "count": 1}], "result": {"item": TOOLKIT_1_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": METAL_SCRAP_ITEM, "count": 1}, {"item": METAL_RODS_ITEM, "count": 1}], "result": {"item": MEDICAL_SPLINT_ITEM, "count": 1}},
+		{"category": CRAFT_CATEGORY_TOOLS, "ingredients": [{"item": SALINE_ITEM, "count": 1}, {"item": BLOOD_BAG_ITEM, "count": 1}, {"item": BANDAGE_ITEM, "count": 1}], "result": {"item": HEALTH_BOX_ITEM, "count": 1}}
 	]
 
 
@@ -828,7 +952,7 @@ func _create_craft_recipe_row(recipe: Dictionary, recipe_index: int) -> void:
 		_add_craft_preview_slot(row, slot_positions[i], ingredient.get("item", null), int(ingredient.get("count", 1)))
 
 	var result: Dictionary = recipe.get("result", {})
-	_add_craft_preview_slot(row, Vector2(223, 9), result.get("item", null), int(result.get("count", 1)))
+	_add_craft_preview_slot(row, CRAFT_RESULT_SLOT_POSITION, result.get("item", null), int(result.get("count", 1)), true)
 
 	var button := Button.new()
 	button.name = "CraftRecipeButton_%d" % recipe_index
@@ -1082,13 +1206,13 @@ func _get_craft_slot_positions(ingredient_count: int) -> Array[Vector2]:
 	return [Vector2(38, 9), Vector2(100, 9)]
 
 
-func _add_craft_preview_slot(parent: Control, position: Vector2, item: ItemData, count: int) -> void:
+func _add_craft_preview_slot(parent: Control, position: Vector2, item: ItemData, count: int, is_result: bool = false) -> void:
 	var slot: InventorySlot = SLOT_SCENE.instantiate()
 	slot.slot_mode = InventorySlot.SlotMode.CONTAINER
 	slot.position = position
 	slot.custom_minimum_size = Vector2(30, 30)
-	slot.size = Vector2(60, 60)
-	slot.icon_size = Vector2(42, 42)
+	slot.size = CRAFT_PREVIEW_SLOT_SIZE
+	slot.icon_size = CRAFT_RESULT_ICON_SIZE if is_result else CRAFT_INGREDIENT_ICON_SIZE
 	slot.icon_rotation_degrees = 0.0
 	slot.show_name = false
 	slot.show_endurance = false
@@ -1145,9 +1269,9 @@ func _on_craft_recipe_pressed(recipe_index: int) -> void:
 
 
 func _on_craft_recipe_server_approved(recipe_index: int) -> void:
-	_network_inventory_action_bypass = true
-	_on_craft_recipe_pressed(recipe_index)
-	_network_inventory_action_bypass = false
+	if recipe_index == selected_craft_recipe_index:
+		_refresh_craft_detail_panel()
+	refresh_ui()
 
 
 func _refresh_craft_ui() -> void:
@@ -1345,8 +1469,9 @@ func _get_crafting_item_key(item: ItemData) -> String:
 
 
 func _on_slot_drop_requested(target_slot: InventorySlot, data: Dictionary) -> void:
+	if not _network_inventory_action_bypass and _queue_shared_loot_edit(target_slot, data, false): return
 	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
-		_notify_local_pickup_status("Действие инвентаря только через сервер", Color(1.0, 0.55, 0.4, 1.0))
+		_request_server_inventory_action("move_item", _drag_payload(data), Callable(self, "_approved_inventory_move").bind(target_slot, data, false))
 		return
 	if not data.has("item"):
 		return
@@ -1356,11 +1481,22 @@ func _on_slot_drop_requested(target_slot: InventorySlot, data: Dictionary) -> vo
 	var dragged_item: ItemData = data.get("item", null)
 	var source_mode: int = data.get("source_mode", -1)
 	var raw_source_slot = data.get("source_slot", null)
+	var source_container_index: int = int(data.get("container_index", -1))
+	var should_restore_item_dialog: bool = item_dialog_box != null and item_dialog_box.visible and _is_weapon_attachment_storage_index(source_container_index)
+	var dialog_context_slot: InventorySlot = item_context_slot
 
 	if dragged_item == null:
 		return
 
 	if target_slot == null or not is_instance_valid(target_slot):
+		return
+
+	if target_slot.slot_mode == InventorySlot.SlotMode.CONTAINER and _is_weapon_attachment_storage_index(target_slot.container_index):
+		_handle_drop_to_weapon_attachment_slot(target_slot, data, dragged_item)
+		refresh_ui()
+		if dialog_context_slot != null and is_instance_valid(dialog_context_slot):
+			item_context_slot = dialog_context_slot
+			_show_item_dialog()
 		return
 
 	match target_slot.slot_mode:
@@ -1371,6 +1507,9 @@ func _on_slot_drop_requested(target_slot: InventorySlot, data: Dictionary) -> vo
 			_handle_drop_to_clothing_container(target_slot, data, dragged_item, source_mode)
 
 	refresh_ui()
+	if should_restore_item_dialog and dialog_context_slot != null and is_instance_valid(dialog_context_slot):
+		item_context_slot = dialog_context_slot
+		_show_item_dialog()
 
 
 func _handle_drop_to_equipment(
@@ -1433,7 +1572,6 @@ func _handle_drop_to_equipment(
 				return
 
 			var source_provider: ItemData = source_binding.get("provider", null)
-			var source_slot_index: int = int(source_binding.get("slot_index", -1))
 			var source_item: ItemData = _get_bound_storage_item(source_binding)
 			if source_item == null:
 				return
@@ -1441,7 +1579,7 @@ func _handle_drop_to_equipment(
 			var existing_item: ItemData = InventoryManager.get_equipped(target_slot.slot_type)
 			var moved_to_existing: int = _stack_items(existing_item, source_item)
 			if source_item.stack_count <= 0:
-				source_provider.runtime_storage_items[source_slot_index] = null
+				_clear_bound_storage_item(source_binding)
 				return
 			if moved_to_existing > 0:
 				return
@@ -1450,8 +1588,46 @@ func _handle_drop_to_equipment(
 			if old_equipped != null:
 				_spawn_world_item(old_equipped)
 
-			source_provider.runtime_storage_items[source_slot_index] = null
+			_clear_bound_storage_item(source_binding)
 			InventoryManager.set_equipped(target_slot.slot_type, source_item)
+
+
+func _handle_drop_to_weapon_attachment_slot(target_slot: InventorySlot, data: Dictionary, dragged_item: ItemData) -> void:
+	var target_binding: Dictionary = _decode_storage_binding(target_slot.container_index)
+	if target_binding.is_empty() or not _is_storage_binding_valid(target_binding):
+		return
+
+	var weapon_item: ItemData = target_binding.get("provider", null)
+	var target_attachment_slot: int = int(target_binding.get("slot_index", -1))
+	if weapon_item == null:
+		return
+	if not _is_weapon_dialog_module_slot_supported(weapon_item, target_attachment_slot):
+		return
+	if not (dragged_item.is_scope_attachment or dragged_item.is_weapon_attachment):
+		return
+	if _get_attachment_slot_for_item(dragged_item) != target_attachment_slot:
+		return
+	if not _is_attachment_compatible_with_weapon(dragged_item, weapon_item):
+		return
+
+	var source_mode: int = int(data.get("source_mode", -1))
+	var source_index: int = int(data.get("container_index", -1))
+	if source_mode == InventorySlot.SlotMode.CONTAINER and source_index == target_slot.container_index:
+		return
+
+	var old_attachment: ItemData = InventoryManager.detach_attached_attachment(weapon_item, target_attachment_slot)
+	_remove_dragged_item_from_source(data)
+	if not InventoryManager.set_attached_attachment(weapon_item, dragged_item):
+		if old_attachment != null:
+			InventoryManager.set_attached_attachment(weapon_item, old_attachment)
+		return
+
+	if old_attachment != null:
+		var source_binding: Dictionary = _decode_storage_binding(source_index)
+		if source_mode == InventorySlot.SlotMode.CONTAINER and not source_binding.is_empty() and _is_storage_binding_valid(source_binding) and _get_bound_storage_item(source_binding) == null:
+			_set_bound_storage_item(source_binding, old_attachment)
+		elif not _try_store_item_in_first_free_container(old_attachment):
+			_spawn_world_item(old_attachment)
 
 
 func _handle_drop_to_clothing_container(
@@ -1505,20 +1681,22 @@ func _handle_drop_to_clothing_container(
 			if not _is_storage_binding_valid(source_binding):
 				return
 
-			var source_provider: ItemData = source_binding.get("provider", null)
-			var source_slot_index: int = int(source_binding.get("slot_index", -1))
 			var source_item: ItemData = _get_bound_storage_item(source_binding)
 			if source_item == null:
 				return
 
 			var moved_between_slots: int = _stack_items(target_item, source_item)
 			if source_item.stack_count <= 0:
-				source_provider.runtime_storage_items[source_slot_index] = null
+				_clear_bound_storage_item(source_binding)
 				return
 			if moved_between_slots > 0:
 				return
-			source_provider.runtime_storage_items[source_slot_index] = target_item
-			target_provider.runtime_storage_items[target_index] = source_item
+			if _is_thermal_battery_storage_index(source_index) and target_item != null:
+				return
+			if _is_weapon_attachment_storage_index(source_index) and target_item != null:
+				return
+			_set_bound_storage_item(source_binding, target_item)
+			_set_bound_storage_item(target_binding, source_item)
 
 		InventorySlot.SlotMode.EQUIPMENT:
 			var source_slot: InventorySlot = data.get("source_slot", null)
@@ -1651,8 +1829,9 @@ func _clear_clothing_storage_ui_only() -> void:
 
 
 func _drop_dragged_item_to_world(data: Dictionary) -> void:
+	if not _network_inventory_action_bypass and _queue_shared_loot_edit(null, data, true): return
 	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
-		_notify_local_pickup_status("Сброс предмета только через сервер", Color(1.0, 0.55, 0.4, 1.0))
+		_request_server_inventory_action("drop_item", _drag_payload(data), Callable(self, "_approved_inventory_move").bind(null, data, true))
 		return
 	if not data.has("item"):
 		return
@@ -1698,13 +1877,11 @@ func _drop_dragged_item_to_world(data: Dictionary) -> void:
 			if not _is_storage_binding_valid(source_binding):
 				return
 
-			var source_provider: ItemData = source_binding.get("provider", null)
-			var source_slot_index: int = int(source_binding.get("slot_index", -1))
 			var stored_item: ItemData = _get_bound_storage_item(source_binding)
 			if stored_item == null:
 				return
 
-			source_provider.runtime_storage_items[source_slot_index] = null
+			_clear_bound_storage_item(source_binding)
 			_spawn_world_item(stored_item)
 
 
@@ -1767,11 +1944,14 @@ func _get_runtime_item_id(item: ItemData) -> String:
 
 
 func _spawn_world_item(item: ItemData) -> bool:
+	if _shared_world() != null:
+		var local_actor := _get_local_inventory_player()
+		return local_actor != null and _shared_world().spawn_drop(item, local_actor, _get_drop_offset_for_player(local_actor))
 	if pickup_item_scene == null:
 		push_warning("pickup_item_scene не назначена в inventory_root")
 		return false
 
-	var player: Node = get_tree().get_first_node_in_group("player")
+	var player: Node = _get_local_inventory_player()
 	if player == null:
 		push_warning("Игрок не найден в группе 'player'")
 		return false
@@ -1806,7 +1986,7 @@ func _clone_item_data(item: ItemData) -> ItemData:
 
 
 func _get_closest_nearby_item() -> Node:
-	var player_node: Node2D = get_tree().get_first_node_in_group("player") as Node2D
+	var player_node: Node2D = _get_local_inventory_player() as Node2D
 	if player_node == null:
 		return null
 
@@ -1827,6 +2007,8 @@ func _get_closest_nearby_item() -> Node:
 
 
 func _pickup_world_item(world_item: Node) -> bool:
+	if multiplayer.multiplayer_peer != null:
+		return _request_network_pickup(world_item)
 	if world_item == null or not is_instance_valid(world_item):
 		return false
 
@@ -1944,7 +2126,7 @@ func _network_pickup_timeout_impl(world_item_id: int) -> void:
 
 
 func _notify_local_pickup_status(text: String, color: Color) -> void:
-	var player_node: Node = get_tree().get_first_node_in_group("player")
+	var player_node: Node = _get_local_inventory_player()
 	if player_node == null:
 		return
 	if player_node.has_method("_enqueue_status_hint"):
@@ -1966,9 +2148,7 @@ func _on_consume_food_server_approved() -> void:
 
 
 func _on_finish_consume_food_server_approved() -> void:
-	_network_inventory_action_bypass = true
-	_finish_consume_selected_food()
-	_network_inventory_action_bypass = false
+	_on_network_consumable_finished()
 
 
 func _on_use_medical_server_approved() -> void:
@@ -1978,15 +2158,17 @@ func _on_use_medical_server_approved() -> void:
 
 
 func _on_finish_use_medical_server_approved() -> void:
-	_network_inventory_action_bypass = true
-	_finish_use_selected_medical()
-	_network_inventory_action_bypass = false
+	_on_network_consumable_finished()
+
+
+func _on_network_consumable_finished() -> void:
+	_pending_consumable.clear()
+	refresh_ui()
 
 
 func _on_equip_ammo_server_approved() -> void:
-	_network_inventory_action_bypass = true
-	_equip_selected_ammo()
-	_network_inventory_action_bypass = false
+	_hide_action_buttons()
+	refresh_ui()
 
 
 func _request_server_inventory_action(action_name: String, payload: Dictionary, on_approved: Callable) -> void:
@@ -2034,7 +2216,7 @@ func _network_inventory_action_timeout_impl(request_id: int, action_name: String
 
 
 @rpc("any_peer", "reliable")
-func rpc_request_inventory_action(action_name: String, _payload: Dictionary, request_id: int, requester_peer_id: int) -> void:
+func rpc_request_inventory_action(action_name: String, payload: Dictionary, request_id: int, requester_peer_id: int) -> void:
 	if NetworkManager == null or not NetworkManager.is_server():
 		return
 	if request_id <= 0:
@@ -2042,8 +2224,152 @@ func rpc_request_inventory_action(action_name: String, _payload: Dictionary, req
 	var sender_id: int = multiplayer.get_remote_sender_id()
 	if sender_id != requester_peer_id:
 		return
-	var approved: bool = _is_server_inventory_action_authorized(sender_id, action_name, _payload)
-	rpc_id(sender_id, "rpc_inventory_action_result", request_id, action_name, approved)
+	var result: Dictionary = _execute_server_inventory_action(sender_id, StringName(action_name), payload)
+	var approved: bool = bool(result.get("approved", false))
+	var inventory_snapshot: Dictionary = InventoryManager.get_network_peer_inventory_snapshot(sender_id) if bool(result.get("state_changed", false)) else {}
+	var vitals_snapshot: Dictionary = _build_server_player_vitals_snapshot(sender_id) if bool(result.get("vitals_changed", false)) else {}
+	rpc_id(sender_id, "rpc_inventory_action_result", request_id, action_name, approved, inventory_snapshot, vitals_snapshot)
+
+
+func _execute_server_inventory_action(sender_id: int, action_key: StringName, payload: Dictionary) -> Dictionary:
+	if not _is_server_inventory_action_authorized(sender_id, String(action_key), payload):
+		return {"approved": false}
+	if action_key == &"craft":
+		var recipe_index: int = int(payload.get("recipe_index", -1))
+		var recipe: Dictionary = craft_recipes[recipe_index]
+		var result: Dictionary = recipe.get("result", {})
+		var result_item: ItemData = result.get("item", null) as ItemData
+		var result_count: int = int(result.get("count", 1))
+		var crafted: bool = InventoryManager.craft_network_peer_item(sender_id, recipe.get("ingredients", []), result_item, result_count)
+		return {"approved": crafted, "state_changed": crafted}
+	if action_key == &"consume_food" or action_key == &"use_medical":
+		return _begin_server_consumable_action(sender_id, action_key, payload)
+	if action_key == &"consume_food_finish" or action_key == &"finish_use_medical":
+		return _finish_server_consumable_action(sender_id, action_key, payload)
+	if action_key == &"equip_ammo":
+		var equipped_ammo: bool = InventoryManager.equip_network_peer_ammo_at(
+			sender_id,
+			int(payload.get("slot_mode", -1)),
+			int(payload.get("slot_type", -1)),
+			int(payload.get("container_index", -1))
+		)
+		return {"approved": equipped_ammo, "state_changed": equipped_ammo}
+	if action_key == &"drop_item":
+		var slot_mode: int = int(payload.get("slot_mode", -1))
+		var slot_type: int = int(payload.get("slot_type", -1))
+		var container_index: int = int(payload.get("container_index", -1))
+		var dropped_item: ItemData = InventoryManager.take_network_peer_item_at(
+			sender_id,
+			slot_mode,
+			slot_type,
+			container_index
+		)
+		var shared_world: Node = _shared_world()
+		if dropped_item == null:
+			return {"approved": false}
+		if shared_world != null and shared_world.has_method("spawn_peer_inventory_drop") and bool(shared_world.call("spawn_peer_inventory_drop", sender_id, dropped_item)):
+			return {"approved": true, "state_changed": true}
+		InventoryManager.set_network_peer_item_at(sender_id, slot_mode, slot_type, container_index, dropped_item)
+		return {"approved": false, "state_changed": true}
+	return {"approved": true}
+
+
+func _begin_server_consumable_action(sender_id: int, action_key: StringName, payload: Dictionary) -> Dictionary:
+	var expected_category: int = ItemData.StorageCategory.FOOD if action_key == &"consume_food" else ItemData.StorageCategory.MEDICAL
+	var item: ItemData = InventoryManager.get_network_peer_item_at(
+		sender_id,
+		int(payload.get("slot_mode", -1)),
+		int(payload.get("slot_type", -1)),
+		int(payload.get("container_index", -1))
+	)
+	var actor: Node = _get_server_inventory_player(sender_id)
+	if item == null or item.storage_category != expected_category or item.stack_count <= 0 or actor == null or bool(actor.get("is_dead")):
+		return {"approved": false}
+	var duration_sec: float = 0.8 if expected_category == ItemData.StorageCategory.FOOD else maxf(item.medical_use_time_sec, 0.1)
+	var now_ms: int = Time.get_ticks_msec()
+	_network_server_pending_consumable_by_peer[sender_id] = {
+		"finish_action": &"consume_food_finish" if expected_category == ItemData.StorageCategory.FOOD else &"finish_use_medical",
+		"payload": payload.duplicate(true),
+		"category": expected_category,
+		"ready_at_ms": now_ms + int(duration_sec * 1000.0),
+		"expires_at_ms": now_ms + int(duration_sec * 1000.0) + NETWORK_INVENTORY_ACTION_FINISH_GRACE_MS
+	}
+	return {"approved": true}
+
+
+func _finish_server_consumable_action(sender_id: int, action_key: StringName, payload: Dictionary) -> Dictionary:
+	var pending: Dictionary = _network_server_pending_consumable_by_peer.get(sender_id, {})
+	if pending.is_empty() or pending.get("finish_action", &"") != action_key:
+		return {"approved": false, "state_changed": true}
+	var now_ms: int = Time.get_ticks_msec()
+	if now_ms < int(pending.get("ready_at_ms", 0)) or now_ms > int(pending.get("expires_at_ms", 0)):
+		if now_ms > int(pending.get("expires_at_ms", 0)):
+			_network_server_pending_consumable_by_peer.erase(sender_id)
+		return {"approved": false, "state_changed": true}
+	var source_payload: Dictionary = pending.get("payload", {})
+	if not _server_slot_payloads_match(source_payload, payload):
+		return {"approved": false, "state_changed": true}
+	var category: int = int(pending.get("category", ItemData.StorageCategory.NONE))
+	var source_item: ItemData = InventoryManager.get_network_peer_item_at(
+		sender_id,
+		int(source_payload.get("slot_mode", -1)),
+		int(source_payload.get("slot_type", -1)),
+		int(source_payload.get("container_index", -1))
+	)
+	if source_item == null or source_item.storage_category != category:
+		return {"approved": false, "state_changed": true}
+	var actor: Node = _get_server_inventory_player(sender_id)
+	if actor == null:
+		return {"approved": false, "state_changed": true}
+	if category == ItemData.StorageCategory.MEDICAL and not bool(actor.call("apply_medical_item_effect", source_item)):
+		_network_server_pending_consumable_by_peer.erase(sender_id)
+		return {"approved": false, "state_changed": true, "vitals_changed": true}
+	var consumed: ItemData = InventoryManager.consume_network_peer_item_at(
+		sender_id,
+		int(source_payload.get("slot_mode", -1)),
+		int(source_payload.get("slot_type", -1)),
+		int(source_payload.get("container_index", -1)),
+		category
+	)
+	if consumed == null:
+		return {"approved": false, "state_changed": true}
+	if category == ItemData.StorageCategory.FOOD:
+		actor.call("add_food", consumed.food_restore_amount)
+		actor.call("add_water", consumed.water_restore_amount)
+		if consumed.food_poison_chance > 0.0:
+			actor.call("try_apply_food_poison", consumed.food_poison_chance)
+	_network_server_pending_consumable_by_peer.erase(sender_id)
+	return {"approved": true, "state_changed": true, "vitals_changed": true}
+
+
+func _server_slot_payloads_match(left: Dictionary, right: Dictionary) -> bool:
+	return int(left.get("slot_mode", -1)) == int(right.get("slot_mode", -2)) \
+		and int(left.get("slot_type", -1)) == int(right.get("slot_type", -2)) \
+		and int(left.get("container_index", -1)) == int(right.get("container_index", -2))
+
+
+func _get_server_inventory_player(peer: int) -> Node:
+	for actor in get_tree().get_nodes_in_group("player"):
+		if int(actor.get("peer_id")) == peer:
+			return actor
+	return null
+
+
+func _build_server_player_vitals_snapshot(peer: int) -> Dictionary:
+	var actor: Node = _get_server_inventory_player(peer)
+	if actor == null:
+		return {}
+	return {
+		"health": float(actor.get("health")),
+		"water": float(actor.get("water")),
+		"food": float(actor.get("food")),
+		"stamina": float(actor.get("stamina")),
+		"radiation": float(actor.get("radiation")),
+		"is_bleeding": bool(actor.get("is_bleeding")),
+		"is_fractured": bool(actor.get("is_fractured")),
+		"is_diseased": bool(actor.get("is_diseased")),
+		"disease_time_left": float(actor.get("disease_time_left"))
+	}
 
 
 func _is_server_inventory_action_authorized(sender_id: int, action_name: String, payload: Dictionary) -> bool:
@@ -2051,6 +2377,8 @@ func _is_server_inventory_action_authorized(sender_id: int, action_name: String,
 	if not (action_key in NETWORK_ALLOWED_INVENTORY_ACTIONS):
 		return false
 	if not _is_server_inventory_action_rate_limited(sender_id, action_key):
+		return false
+	if not InventoryManager.has_network_peer_inventory(sender_id):
 		return false
 	if action_key == &"craft":
 		var recipe_index: int = int(payload.get("recipe_index", -1))
@@ -2089,7 +2417,7 @@ func _is_server_inventory_slot_payload_valid(payload: Dictionary) -> bool:
 
 
 @rpc("any_peer", "reliable")
-func rpc_inventory_action_result(request_id: int, action_name: String, approved: bool) -> void:
+func rpc_inventory_action_result(request_id: int, action_name: String, approved: bool, inventory_snapshot: Dictionary = {}, vitals_snapshot: Dictionary = {}) -> void:
 	if NetworkManager != null and not NetworkManager.is_server():
 		var sender_id: int = multiplayer.get_remote_sender_id()
 		if sender_id != 1:
@@ -2098,7 +2426,16 @@ func rpc_inventory_action_result(request_id: int, action_name: String, approved:
 		return
 	var pending: Dictionary = _network_inventory_action_pending[request_id]
 	_network_inventory_action_pending.erase(request_id)
+	if not inventory_snapshot.is_empty():
+		InventoryManager.apply_network_authoritative_local_snapshot(inventory_snapshot)
+		refresh_ui()
+	if not vitals_snapshot.is_empty():
+		var actor: Node = _get_local_inventory_player()
+		if actor != null and actor.has_method("apply_network_authoritative_inventory_action_vitals"):
+			actor.call("apply_network_authoritative_inventory_action_vitals", vitals_snapshot)
 	if not approved:
+		if action_name == "consume_food_finish" or action_name == "finish_use_medical":
+			_pending_consumable.clear()
 		_notify_local_pickup_status("%s отклонено" % action_name, Color(1.0, 0.55, 0.4, 1.0))
 		return
 	var callback: Callable = pending.get("callback", Callable())
@@ -2204,7 +2541,7 @@ func _try_store_crafted_item(item: ItemData) -> bool:
 
 
 func _can_spawn_world_item() -> bool:
-	return pickup_item_scene != null and get_tree().get_first_node_in_group("player") != null
+	return pickup_item_scene != null and _get_local_inventory_player() != null
 
 
 func _can_place_item_in_empty_equipment(item: ItemData) -> bool:
@@ -2374,29 +2711,1157 @@ func _get_drop_offset_for_player(player: Node) -> Vector2:
 
 func _setup_equipment_slot_visuals() -> void:
 	for slot in equipment_slots:
-		if slot.slot_type == ItemData.ItemType.Jacket or slot.slot_type == ItemData.ItemType.HeavyArmour:
+		if slot.slot_type in [ItemData.ItemType.AR_Weapon, ItemData.ItemType.Pistols, ItemData.ItemType.MeleeWeapon]:
 			slot.stretch_icon_to_slot = false
-			slot.icon_size = Vector2(52, 52)
 			slot.icon_h_align = InventorySlot.IconHAlign.CENTER
+			slot.icon_v_align = InventorySlot.IconVAlign.CENTER
+			slot.icon_rotation_degrees = 0.0
+			slot.icon_padding = 0.0
+			slot.icon_offset = Vector2.ZERO
+			slot._apply_visual_mode()
+			continue
+
+		var storage_panel: Control = _get_storage_panel_for_equipment_slot(slot.slot_type)
+		if storage_panel != null:
+			slot.stretch_icon_to_slot = false
+			slot.icon_size = CLOTHING_EQUIPMENT_ICON_SIZE
+			slot.icon_h_align = InventorySlot.IconHAlign.LEFT
 			slot.icon_v_align = InventorySlot.IconVAlign.TOP
 			slot.icon_rotation_degrees = 0.0
 			slot.icon_padding = 0.0
-			slot.icon_offset = Vector2(0, -16) if slot.slot_type == ItemData.ItemType.HeavyArmour else Vector2.ZERO
+			slot.icon_offset = CLOTHING_EQUIPMENT_ICON_PADDING
 			slot._apply_visual_mode()
-		elif slot.slot_type == ItemData.ItemType.Trousers:
-			slot.stretch_icon_to_slot = false
-			slot.icon_size = Vector2(52, 52)
-			slot.icon_h_align = InventorySlot.IconHAlign.CENTER
-			slot.icon_v_align = InventorySlot.IconVAlign.TOP
-			slot.icon_rotation_degrees = 0.0
-			slot.icon_padding = 0.0
-			slot._apply_visual_mode()
-		elif slot.slot_type == ItemData.ItemType.Bag:
-			slot.stretch_icon_to_slot = false
-			slot.icon_h_align = InventorySlot.IconHAlign.CENTER
-			slot.icon_v_align = InventorySlot.IconVAlign.TOP
-			slot.icon_offset = Vector2(0, 12)
-			slot._apply_visual_mode()
+
+
+func _get_storage_panel_for_equipment_slot(slot_type: int) -> Control:
+	match slot_type:
+		ItemData.ItemType.Jacket:
+			return jacket_storage_panel
+		ItemData.ItemType.HeavyArmour:
+			return heavy_armour_storage_panel
+		ItemData.ItemType.Trousers:
+			return trousers_storage_panel
+		ItemData.ItemType.Bag:
+			return bag_storage_panel
+		_:
+			return null
+
+
+func _get_storage_grid_for_equipment_slot(slot_type: int) -> GridContainer:
+	match slot_type:
+		ItemData.ItemType.Jacket:
+			return jacket_storage_grid
+		ItemData.ItemType.HeavyArmour:
+			return heavy_armour_storage_grid
+		ItemData.ItemType.Trousers:
+			return trousers_storage_grid
+		ItemData.ItemType.Bag:
+			return bag_storage_grid
+		_:
+			return null
+
+
+func _ensure_item_action_ui() -> void:
+	if item_action_control == null:
+		return
+
+	item_action_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item_action_control.z_index = 100
+	item_action_control.visible = true
+
+	if item_one_button_menu != null:
+		item_one_button_menu.scale = ITEM_ACTION_MENU_SCALE
+		item_one_button_menu.visible = false
+		item_one_button_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if item_two_button_menu != null:
+		item_two_button_menu.scale = ITEM_ACTION_MENU_SCALE
+		item_two_button_menu.visible = false
+		item_two_button_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if item_three_button_menu != null:
+		item_three_button_menu.visible = false
+		item_three_button_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	if item_info_button != null:
+		item_info_button.position = Vector2.ZERO
+		item_info_button.size = ITEM_INFO_BUTTON_SIZE
+		item_info_button.mouse_filter = Control.MOUSE_FILTER_STOP
+		item_info_button.tooltip_text = "Информация"
+		if not item_info_button.pressed.is_connected(_show_item_dialog):
+			item_info_button.pressed.connect(_show_item_dialog)
+		item_info_label = _ensure_button_label(item_info_button, "InfoLabel", "i", ITEM_INFO_BUTTON_SIZE)
+
+	if item_action_button != null:
+		item_action_button.position = Vector2(0.0, ITEM_INFO_BUTTON_SIZE.y - 1.0)
+		item_action_button.size = ITEM_ACTION_BUTTON_SIZE
+		item_action_button.mouse_filter = Control.MOUSE_FILTER_STOP
+		if not item_action_button.pressed.is_connected(_perform_item_action):
+			item_action_button.pressed.connect(_perform_item_action)
+		item_action_label = _ensure_button_label(item_action_button, "ActionLabel", "", ITEM_ACTION_BUTTON_SIZE)
+
+	if item_two_info_button != null:
+		item_two_info_button.position = Vector2.ZERO
+		item_two_info_button.size = ITEM_INFO_BUTTON_SIZE
+		item_two_info_button.mouse_filter = Control.MOUSE_FILTER_STOP
+		item_two_info_button.tooltip_text = "Информация"
+		if not item_two_info_button.pressed.is_connected(_show_item_dialog):
+			item_two_info_button.pressed.connect(_show_item_dialog)
+		item_two_info_label = _ensure_button_label(item_two_info_button, "InfoLabel", "i", ITEM_INFO_BUTTON_SIZE)
+
+	if item_two_action_button != null:
+		item_two_action_button.position = Vector2(0.0, ITEM_INFO_BUTTON_SIZE.y - 1.0)
+		item_two_action_button.size = ITEM_ACTION_BUTTON_SIZE
+		item_two_action_button.mouse_filter = Control.MOUSE_FILTER_STOP
+		if not item_two_action_button.pressed.is_connected(_perform_item_action):
+			item_two_action_button.pressed.connect(_perform_item_action)
+		item_two_action_label = _ensure_button_label(item_two_action_button, "ActionLabel", "", ITEM_ACTION_BUTTON_SIZE)
+
+	if item_two_action2_button != null:
+		item_two_action2_button.position = Vector2(0.0, ITEM_INFO_BUTTON_SIZE.y + ITEM_ACTION_BUTTON_SIZE.y - 2.0)
+		item_two_action2_button.size = ITEM_ACTION_BUTTON_SIZE
+		item_two_action2_button.mouse_filter = Control.MOUSE_FILTER_STOP
+		if not item_two_action2_button.pressed.is_connected(_toggle_thermal_vision_from_context_item):
+			item_two_action2_button.pressed.connect(_toggle_thermal_vision_from_context_item)
+		item_two_action2_label = _ensure_button_label(item_two_action2_button, "Action2Label", "Тепло", ITEM_ACTION_BUTTON_SIZE)
+
+	if item_dialog_box != null:
+		item_dialog_box.visible = false
+		item_dialog_box.mouse_filter = Control.MOUSE_FILTER_STOP
+		item_dialog_box.z_index = 101
+		item_dialog_title_label = _ensure_dialog_label("DialogTitle", Vector2(26.0, 10.0), Vector2(186.0, 28.0), 10)
+		item_dialog_body_label = _ensure_dialog_label("DialogBody", Vector2(14.0, 42.0), ITEM_DIALOG_BODY_SIZE, 8)
+		if item_dialog_body_label != null:
+			item_dialog_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			item_dialog_body_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		item_dialog_modules_root = _ensure_item_dialog_modules_root()
+		item_dialog_thermal_battery_root = _ensure_item_dialog_thermal_battery_root()
+
+	if item_dialog_exit_button != null:
+		item_dialog_exit_button.tooltip_text = "Закрыть"
+		if not item_dialog_exit_button.pressed.is_connected(_hide_item_dialog):
+			item_dialog_exit_button.pressed.connect(_hide_item_dialog)
+
+	if item_dialog_anchor != null:
+		item_dialog_anchor_home_position = item_dialog_anchor.position
+		item_dialog_anchor_home_flip_h = item_dialog_anchor.flip_h
+		item_dialog_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
+		item_dialog_anchor.mouse_default_cursor_shape = Control.CURSOR_MOVE
+		item_dialog_anchor.tooltip_text = "Перетащить"
+		if not item_dialog_anchor.gui_input.is_connected(_on_item_dialog_anchor_gui_input):
+			item_dialog_anchor.gui_input.connect(_on_item_dialog_anchor_gui_input)
+
+
+func _ensure_button_label(button: TextureButton, label_name: String, text: String, label_size: Vector2) -> Label:
+	var label: Label = button.get_node_or_null(label_name) as Label
+	if label == null:
+		label = Label.new()
+		label.name = label_name
+		button.add_child(label)
+
+	label.position = Vector2.ZERO
+	label.size = label_size
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_color_override("font_color", Color(0.83, 0.83, 0.78, 1.0))
+	label.add_theme_font_size_override("font_size", 7)
+	return label
+
+
+func _ensure_dialog_label(label_name: String, label_position: Vector2, label_size: Vector2, font_size: int) -> Label:
+	if item_dialog_box == null:
+		return null
+
+	var label: Label = item_dialog_box.get_node_or_null(label_name) as Label
+	if label == null:
+		label = Label.new()
+		label.name = label_name
+		item_dialog_box.add_child(label)
+
+	label.position = label_position
+	label.size = label_size
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_color_override("font_color", Color(0.82, 0.82, 0.76, 1.0))
+	label.add_theme_font_size_override("font_size", font_size)
+	return label
+
+
+func _ensure_item_dialog_modules_root() -> HBoxContainer:
+	if item_dialog_box == null:
+		return null
+
+	var root: HBoxContainer = item_dialog_box.get_node_or_null("WeaponModuleSlots") as HBoxContainer
+	if root == null:
+		root = HBoxContainer.new()
+		root.name = "WeaponModuleSlots"
+		item_dialog_box.add_child(root)
+
+	root.position = ITEM_DIALOG_MODULES_POSITION
+	root.size = Vector2((ITEM_DIALOG_MODULE_CELL_WIDTH * 3.0) + 8.0, ITEM_DIALOG_MODULE_CELL_SIZE.y + ITEM_DIALOG_MODULE_LABEL_HEIGHT + 2.0)
+	root.add_theme_constant_override("separation", 4)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.z_index = 4
+	root.visible = false
+
+	var slot_order: Array[int] = [
+		ItemData.AttachmentSlot.SCOPE,
+		ItemData.AttachmentSlot.HANDLE,
+		ItemData.AttachmentSlot.SILENCER
+	]
+	for slot_type in slot_order:
+		_ensure_item_dialog_module_cell(root, slot_type)
+
+	return root
+
+
+func _ensure_item_dialog_module_cell(root: HBoxContainer, slot_type: int) -> VBoxContainer:
+	var cell_name: String = "ModuleSlot%d" % slot_type
+	var cell: VBoxContainer = root.get_node_or_null(cell_name) as VBoxContainer
+	if cell == null:
+		cell = VBoxContainer.new()
+		cell.name = cell_name
+		root.add_child(cell)
+
+	cell.custom_minimum_size = Vector2(ITEM_DIALOG_MODULE_CELL_WIDTH, ITEM_DIALOG_MODULE_CELL_SIZE.y + ITEM_DIALOG_MODULE_LABEL_HEIGHT + 2.0)
+	cell.size = cell.custom_minimum_size
+	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.alignment = BoxContainer.ALIGNMENT_CENTER
+	cell.add_theme_constant_override("separation", 2)
+
+	var title: Label = cell.get_node_or_null("Title") as Label
+	if title == null:
+		title = Label.new()
+		title.name = "Title"
+		cell.add_child(title)
+	title.custom_minimum_size = Vector2(ITEM_DIALOG_MODULE_CELL_WIDTH, ITEM_DIALOG_MODULE_LABEL_HEIGHT)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.autowrap_mode = TextServer.AUTOWRAP_OFF
+	title.clip_text = true
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title.add_theme_font_size_override("font_size", 6)
+	title.add_theme_color_override("font_color", Color(0.74, 0.72, 0.63, 1.0))
+
+	var module_slot: InventorySlot = cell.get_node_or_null("InventorySlot") as InventorySlot
+	if module_slot == null:
+		module_slot = SLOT_SCENE.instantiate() as InventorySlot
+		module_slot.name = "InventorySlot"
+		cell.add_child(module_slot)
+	module_slot.custom_minimum_size = ITEM_DIALOG_MODULE_CELL_SIZE
+	module_slot.size = ITEM_DIALOG_MODULE_CELL_SIZE
+	module_slot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	module_slot.slot_mode = InventorySlot.SlotMode.CONTAINER
+	module_slot.container_index = _encode_storage_index(WEAPON_ATTACHMENT_PROVIDER_SLOT_TYPE, slot_type)
+	module_slot.accepts_weapon_attachments = true
+	module_slot.weapon_attachment_slot_filter = slot_type
+	module_slot.use_allowed_item_types = false
+	module_slot.allowed_item_types.clear()
+	module_slot.allowed_storage_categories.clear()
+	module_slot.show_name = false
+	module_slot.show_endurance = false
+	module_slot.show_endurance_indicator = false
+	module_slot.icon_size = ITEM_DIALOG_MODULE_ICON_SIZE
+	module_slot.fixed_icon_visual_size = ITEM_DIALOG_MODULE_ICON_SIZE
+	module_slot.stretch_icon_to_slot = false
+	module_slot.icon_padding = 0.0
+	module_slot.icon_offset = Vector2.ZERO
+	module_slot.icon_h_align = InventorySlot.IconHAlign.CENTER
+	module_slot.icon_v_align = InventorySlot.IconVAlign.CENTER
+	module_slot.show_background_in_container = true
+	module_slot.show_background_in_nearby = true
+	module_slot.show_background_in_equipment = true
+	module_slot.z_index = 5
+	if module_slot.is_node_ready():
+		module_slot._apply_visual_mode()
+	if not module_slot.drop_requested.is_connected(_on_slot_drop_requested):
+		module_slot.drop_requested.connect(_on_slot_drop_requested)
+	item_dialog_module_slots[slot_type] = module_slot
+	return cell
+
+
+func _ensure_item_dialog_thermal_battery_root() -> Control:
+	if item_dialog_box == null:
+		return null
+
+	var root: Control = item_dialog_box.get_node_or_null("ThermalBatteryRoot") as Control
+	if root == null:
+		root = Control.new()
+		root.name = "ThermalBatteryRoot"
+		item_dialog_box.add_child(root)
+
+	root.position = ITEM_DIALOG_THERMAL_BATTERY_POSITION
+	root.size = Vector2(190.0, 48.0)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.z_index = 4
+	root.visible = false
+
+	item_dialog_thermal_battery_label = root.get_node_or_null("BatteryLabel") as Label
+	if item_dialog_thermal_battery_label == null:
+		item_dialog_thermal_battery_label = Label.new()
+		item_dialog_thermal_battery_label.name = "BatteryLabel"
+		root.add_child(item_dialog_thermal_battery_label)
+	item_dialog_thermal_battery_label.position = Vector2.ZERO
+	item_dialog_thermal_battery_label.size = Vector2(120.0, 12.0)
+	item_dialog_thermal_battery_label.text = "Батарейка"
+	item_dialog_thermal_battery_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item_dialog_thermal_battery_label.add_theme_font_size_override("font_size", 7)
+	item_dialog_thermal_battery_label.add_theme_color_override("font_color", Color(0.82, 0.82, 0.76, 1.0))
+
+	item_dialog_thermal_battery_charge_label = root.get_node_or_null("BatteryChargeLabel") as Label
+	if item_dialog_thermal_battery_charge_label == null:
+		item_dialog_thermal_battery_charge_label = Label.new()
+		item_dialog_thermal_battery_charge_label.name = "BatteryChargeLabel"
+		root.add_child(item_dialog_thermal_battery_charge_label)
+	item_dialog_thermal_battery_charge_label.position = Vector2(40.0, 18.0)
+	item_dialog_thermal_battery_charge_label.size = Vector2(144.0, 28.0)
+	item_dialog_thermal_battery_charge_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	item_dialog_thermal_battery_charge_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item_dialog_thermal_battery_charge_label.add_theme_font_size_override("font_size", 7)
+	item_dialog_thermal_battery_charge_label.add_theme_color_override("font_color", Color(0.82, 0.82, 0.76, 1.0))
+
+	item_dialog_thermal_battery_slot = root.get_node_or_null("BatterySlot") as InventorySlot
+	if item_dialog_thermal_battery_slot == null:
+		item_dialog_thermal_battery_slot = SLOT_SCENE.instantiate() as InventorySlot
+		item_dialog_thermal_battery_slot.name = "BatterySlot"
+		root.add_child(item_dialog_thermal_battery_slot)
+	item_dialog_thermal_battery_slot.position = ITEM_DIALOG_THERMAL_BATTERY_SLOT_POSITION
+	item_dialog_thermal_battery_slot.size = ITEM_DIALOG_THERMAL_BATTERY_SLOT_SIZE
+	item_dialog_thermal_battery_slot.custom_minimum_size = ITEM_DIALOG_THERMAL_BATTERY_SLOT_SIZE
+	item_dialog_thermal_battery_slot.slot_mode = InventorySlot.SlotMode.CONTAINER
+	item_dialog_thermal_battery_slot.use_allowed_item_types = true
+	item_dialog_thermal_battery_slot.allowed_item_types = [ItemData.ItemType.Misc]
+	item_dialog_thermal_battery_slot.allowed_storage_categories = [ItemData.StorageCategory.MISC]
+	item_dialog_thermal_battery_slot.accepts_battery_items = true
+	item_dialog_thermal_battery_slot.accepts_weapon_attachments = false
+	item_dialog_thermal_battery_slot.show_name = false
+	item_dialog_thermal_battery_slot.show_endurance = false
+	item_dialog_thermal_battery_slot.show_endurance_indicator = false
+	item_dialog_thermal_battery_slot.icon_size = ITEM_DIALOG_THERMAL_BATTERY_ICON_SIZE
+	item_dialog_thermal_battery_slot.fixed_icon_visual_size = ITEM_DIALOG_THERMAL_BATTERY_ICON_SIZE
+	item_dialog_thermal_battery_slot.stretch_icon_to_slot = false
+	item_dialog_thermal_battery_slot.icon_padding = 0.0
+	item_dialog_thermal_battery_slot.icon_offset = Vector2.ZERO
+	item_dialog_thermal_battery_slot.icon_h_align = InventorySlot.IconHAlign.CENTER
+	item_dialog_thermal_battery_slot.icon_v_align = InventorySlot.IconVAlign.CENTER
+	item_dialog_thermal_battery_slot.show_background_in_container = true
+	item_dialog_thermal_battery_slot.show_background_in_nearby = true
+	item_dialog_thermal_battery_slot.show_background_in_equipment = true
+	item_dialog_thermal_battery_slot.z_index = 5
+	item_dialog_thermal_battery_slot.mouse_filter = Control.MOUSE_FILTER_STOP
+	if item_dialog_thermal_battery_slot.is_node_ready():
+		item_dialog_thermal_battery_slot._apply_visual_mode()
+	if not item_dialog_thermal_battery_slot.drop_requested.is_connected(_on_thermal_battery_slot_drop_requested):
+		item_dialog_thermal_battery_slot.drop_requested.connect(_on_thermal_battery_slot_drop_requested)
+
+	return root
+
+
+func _show_item_context_menu(slot: InventorySlot, screen_position: Vector2 = Vector2.INF) -> void:
+	if slot == null or slot.item_data == null:
+		_hide_action_buttons()
+		return
+	if item_one_button_menu == null or item_action_button == null or item_info_button == null:
+		_hide_action_buttons()
+		return
+
+	_hide_consume_button()
+	_hide_use_medical_button()
+	_hide_till_farm_row_button()
+	_hide_equip_ammo_button()
+	_hide_install_scope_button()
+	_hide_remove_scope_button()
+
+	item_context_slot = slot
+	item_context_menu_screen_position = screen_position
+	var action_text: String = _get_item_action_text(slot)
+	if _should_show_thermal_action(slot):
+		_show_two_button_context_menu(slot, action_text)
+		return
+
+	_show_one_button_context_menu(slot, action_text)
+
+
+func _show_one_button_context_menu(slot: InventorySlot, action_text: String) -> void:
+	item_action_button.tooltip_text = action_text
+	if item_action_label != null:
+		item_action_label.text = action_text
+
+	item_one_button_menu.global_position = _get_menu_position_for_slot(slot, item_one_button_menu, 1)
+	item_one_button_menu.visible = true
+
+
+func _show_two_button_context_menu(slot: InventorySlot, action_text: String) -> void:
+	if item_two_button_menu == null or item_two_action_button == null or item_two_action2_button == null or item_two_info_button == null:
+		_show_one_button_context_menu(slot, action_text)
+		return
+
+	item_two_action_button.tooltip_text = action_text
+	if item_two_action_label != null:
+		item_two_action_label.text = action_text
+
+	var thermal_text: String = _get_thermal_action_text()
+	item_two_action2_button.tooltip_text = thermal_text
+	if item_two_action2_label != null:
+		item_two_action2_label.text = "Тепло"
+
+	item_two_button_menu.global_position = _get_menu_position_for_slot(slot, item_two_button_menu, 2)
+	item_two_button_menu.visible = true
+
+
+func _get_menu_position_for_slot(slot: InventorySlot, menu_control: Control = null, action_count: int = 1) -> Vector2:
+	var menu_position: Vector2 = item_context_menu_screen_position
+	if not _is_finite_vector(menu_position):
+		menu_position = slot.global_position + Vector2(min(slot.size.x, 28.0), min(slot.size.y, 28.0))
+	menu_position += ITEM_ACTION_MENU_OFFSET
+	var action_rows: int = max(action_count, 1)
+	var menu_size: Vector2 = Vector2(
+		max(ITEM_ACTION_BUTTON_SIZE.x, ITEM_INFO_BUTTON_SIZE.x),
+		ITEM_INFO_BUTTON_SIZE.y + (ITEM_ACTION_BUTTON_SIZE.y * action_rows)
+	) * ITEM_ACTION_MENU_SCALE
+	if menu_control != null and menu_control.size != Vector2.ZERO:
+		menu_size = menu_control.size * menu_control.scale.abs()
+	var viewport_rect: Rect2 = get_viewport_rect()
+	menu_position.x = clamp(menu_position.x, 0.0, max(viewport_rect.size.x - menu_size.x, 0.0))
+	menu_position.y = clamp(menu_position.y, 0.0, max(viewport_rect.size.y - menu_size.y, 0.0))
+	return menu_position
+
+
+func _show_item_dialog() -> void:
+	if item_context_slot == null or not is_instance_valid(item_context_slot) or item_context_slot.item_data == null:
+		_hide_item_dialog()
+		return
+	if item_dialog_box == null:
+		return
+
+	var item: ItemData = item_context_slot.item_data
+	if item_dialog_title_label != null:
+		item_dialog_title_label.text = _get_item_display_name(item)
+	if item_dialog_body_label != null:
+		item_dialog_body_label.text = _build_item_dialog_text(item_context_slot)
+		item_dialog_body_label.size = ITEM_DIALOG_WEAPON_BODY_SIZE if (_should_show_weapon_module_slots(item) or _should_show_thermal_battery_slot(item)) else ITEM_DIALOG_BODY_SIZE
+	_update_item_dialog_module_slots(item)
+	_update_item_dialog_thermal_battery_slot(item)
+
+	_set_item_dialog_global_position_clamped(_get_dialog_position_for_slot(item_context_slot))
+	_restore_item_dialog_anchor_layout()
+	item_dialog_box.visible = true
+
+
+func _get_dialog_position_for_slot(slot: InventorySlot) -> Vector2:
+	var dialog_size: Vector2 = item_dialog_box.size * item_dialog_box.scale.abs()
+	var dialog_position: Vector2 = slot.global_position + Vector2(slot.size.x, 0.0) + ITEM_DIALOG_OFFSET
+	var viewport_rect: Rect2 = get_viewport_rect()
+
+	if dialog_position.x + dialog_size.x > viewport_rect.size.x:
+		dialog_position.x = slot.global_position.x - dialog_size.x - ITEM_DIALOG_OFFSET.x
+	if dialog_position.y + dialog_size.y > viewport_rect.size.y:
+		dialog_position.y = max(viewport_rect.size.y - dialog_size.y, 0.0)
+
+	dialog_position.x = clamp(dialog_position.x, 0.0, max(viewport_rect.size.x - dialog_size.x, 0.0))
+	dialog_position.y = clamp(dialog_position.y, 0.0, max(viewport_rect.size.y - dialog_size.y, 0.0))
+	return dialog_position
+
+
+func _restore_item_dialog_anchor_layout() -> void:
+	if item_dialog_anchor == null:
+		return
+
+	item_dialog_anchor.position = item_dialog_anchor_home_position
+	item_dialog_anchor.flip_h = item_dialog_anchor_home_flip_h
+
+
+func _set_item_dialog_global_position_clamped(target_position: Vector2) -> void:
+	if item_dialog_box == null:
+		return
+
+	var dialog_size: Vector2 = item_dialog_box.size * item_dialog_box.scale.abs()
+	var viewport_size: Vector2 = get_viewport_rect().size
+	item_dialog_box.global_position = Vector2(
+		clamp(target_position.x, 0.0, max(viewport_size.x - dialog_size.x, 0.0)),
+		clamp(target_position.y, 0.0, max(viewport_size.y - dialog_size.y, 0.0))
+	)
+
+
+func _hide_item_dialog() -> void:
+	item_dialog_anchor_dragging = false
+	if item_dialog_box != null:
+		item_dialog_box.visible = false
+	item_dialog_thermal_battery_provider = null
+	if item_dialog_modules_root != null:
+		item_dialog_modules_root.visible = false
+	_clear_item_dialog_module_slots()
+	if item_dialog_thermal_battery_root != null:
+		item_dialog_thermal_battery_root.visible = false
+
+
+func _hide_item_context_menu() -> void:
+	item_context_slot = null
+	item_context_menu_screen_position = Vector2.INF
+	if item_one_button_menu != null:
+		item_one_button_menu.visible = false
+	if item_two_button_menu != null:
+		item_two_button_menu.visible = false
+	if item_three_button_menu != null:
+		item_three_button_menu.visible = false
+
+
+func _on_item_dialog_anchor_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mouse_event: InputEventMouseButton = event as InputEventMouseButton
+		if mouse_event.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mouse_event.pressed:
+			item_dialog_anchor_dragging = true
+			item_dialog_anchor_drag_offset = item_dialog_box.global_position - mouse_event.global_position
+			get_viewport().set_input_as_handled()
+			return
+		item_dialog_anchor_dragging = false
+		get_viewport().set_input_as_handled()
+		return
+
+	if event is InputEventMouseMotion and item_dialog_anchor_dragging:
+		var motion_event: InputEventMouseMotion = event as InputEventMouseMotion
+		_set_item_dialog_global_position_clamped(motion_event.global_position + item_dialog_anchor_drag_offset)
+		get_viewport().set_input_as_handled()
+		return
+
+	if event is InputEventScreenTouch:
+		var touch_event: InputEventScreenTouch = event as InputEventScreenTouch
+		if touch_event.pressed:
+			item_dialog_anchor_dragging = true
+			item_dialog_anchor_drag_offset = item_dialog_box.global_position - touch_event.position
+		else:
+			item_dialog_anchor_dragging = false
+		get_viewport().set_input_as_handled()
+		return
+
+	if event is InputEventScreenDrag and item_dialog_anchor_dragging:
+		var drag_event: InputEventScreenDrag = event as InputEventScreenDrag
+		_set_item_dialog_global_position_clamped(drag_event.position + item_dialog_anchor_drag_offset)
+		get_viewport().set_input_as_handled()
+
+
+func _get_item_action_text(slot: InventorySlot) -> String:
+	if slot == null or slot.item_data == null:
+		return "Действие"
+
+	var item: ItemData = slot.item_data
+	if slot.slot_mode == InventorySlot.SlotMode.NEARBY:
+		return "Подобрать"
+	if item.storage_category == ItemData.StorageCategory.FOOD:
+		return "Выпить" if item.water_restore_amount > item.food_restore_amount else "Съесть"
+	if item.storage_category == ItemData.StorageCategory.MEDICAL:
+		return "Использовать"
+	if item.is_ammo_item:
+		return "Снарядить"
+	if item.is_scope_attachment or item.is_weapon_attachment:
+		return "Установить"
+	if item.storage_category == ItemData.StorageCategory.WEAPON and not _get_attached_attachment_slots(item).is_empty():
+		return "Снять модуль"
+	if _is_farm_tool_item(item):
+		return "Вспахать"
+	if slot.slot_mode == InventorySlot.SlotMode.CONTAINER and _can_place_item_in_empty_equipment(item):
+		return "Экипировать"
+	if item.can_be_held_in_left_hand and slot.slot_mode == InventorySlot.SlotMode.CONTAINER:
+		return "Взять в руку"
+	return "Осмотреть"
+
+
+func _perform_item_action() -> void:
+	if item_context_slot == null or not is_instance_valid(item_context_slot) or item_context_slot.item_data == null:
+		_hide_action_buttons()
+		return
+
+	var slot: InventorySlot = item_context_slot
+	var item: ItemData = slot.item_data
+
+	if slot.slot_mode == InventorySlot.SlotMode.NEARBY:
+		_pickup_context_world_item(slot)
+		return
+	if item.storage_category == ItemData.StorageCategory.FOOD:
+		consume_slot = slot
+		_consume_selected_food()
+		return
+	if item.storage_category == ItemData.StorageCategory.MEDICAL:
+		use_medical_slot = slot
+		_use_selected_medical()
+		return
+	if item.is_ammo_item:
+		equip_ammo_slot = slot
+		_equip_selected_ammo()
+		return
+	if item.is_scope_attachment or item.is_weapon_attachment:
+		install_scope_slot = slot
+		_install_selected_scope()
+		return
+	if item.storage_category == ItemData.StorageCategory.WEAPON and not _get_attached_attachment_slots(item).is_empty():
+		_remove_first_attachment_from_weapon(slot)
+		return
+	if _is_farm_tool_item(item):
+		till_farm_row_slot = slot
+		_start_till_farm_row_placement()
+		return
+	if slot.slot_mode == InventorySlot.SlotMode.CONTAINER and _try_equip_container_slot_to_empty_equipment(slot):
+		return
+
+	_show_item_dialog()
+
+
+func _should_show_thermal_action(slot: InventorySlot) -> bool:
+	if slot == null or slot.item_data == null:
+		return false
+	return bool(slot.item_data.get("enables_thermal_vision"))
+
+
+func _get_thermal_action_text() -> String:
+	var player_node: Node = _get_local_inventory_player()
+	if player_node != null and player_node.has_method("is_thermal_vision_enabled"):
+		return "Выключить тепловизор" if bool(player_node.call("is_thermal_vision_enabled")) else "Включить тепловизор"
+	return "Переключить тепловизор"
+
+
+func _toggle_thermal_vision_from_context_item() -> void:
+	if item_context_slot == null or not is_instance_valid(item_context_slot) or item_context_slot.item_data == null:
+		_hide_action_buttons()
+		return
+	if not _should_show_thermal_action(item_context_slot):
+		_hide_action_buttons()
+		return
+
+	var player_node: Node = _get_local_inventory_player()
+	if player_node != null and player_node.has_method("toggle_thermal_vision_from_inventory"):
+		player_node.call("toggle_thermal_vision_from_inventory")
+	elif player_node != null and player_node.has_method("_toggle_thermal_vision"):
+		player_node.call("_toggle_thermal_vision")
+
+	_hide_action_buttons()
+	refresh_ui()
+
+
+func _pickup_context_world_item(slot: InventorySlot) -> void:
+	var world_item: Node = slot.world_item
+	if world_item == null or not is_instance_valid(world_item):
+		_hide_action_buttons()
+		return
+
+	if multiplayer != null and multiplayer.multiplayer_peer != null and NetworkManager != null:
+		_request_network_pickup(world_item)
+	else:
+		_pickup_world_item(world_item)
+	_hide_action_buttons()
+
+
+func _remove_first_attachment_from_weapon(slot: InventorySlot) -> void:
+	if slot == null or slot.item_data == null:
+		_hide_action_buttons()
+		return
+
+	var detached_attachment: ItemData = InventoryManager.detach_first_attached_attachment(slot.item_data)
+	if detached_attachment == null:
+		_hide_action_buttons()
+		return
+
+	if not _try_store_item_in_first_free_container(detached_attachment):
+		_spawn_world_item(detached_attachment)
+
+	_hide_action_buttons()
+	refresh_ui()
+
+
+func _build_item_dialog_text(slot: InventorySlot) -> String:
+	var item: ItemData = slot.item_data
+	var lines: Array[String] = []
+
+	if not item.description.strip_edges().is_empty():
+		lines.append(item.description.strip_edges())
+	else:
+		lines.append(_get_fallback_item_description(item))
+
+	lines.append("")
+	lines.append("Тип: %s" % _get_item_type_text(item))
+	lines.append("Вес: %.1f кг" % item.item_weight)
+
+	if item.storage_category == ItemData.StorageCategory.WEAPON:
+		lines.append("Прочность: %d%%" % clamp(item.endurance, 0, 100))
+		if item.bullet_scene != null:
+			lines.append("Урон: %d" % int(round(item.damage)))
+			lines.append("Магазин: %d" % item.magazine_size)
+			lines.append("Патроны: %s" % InventoryManager.get_weapon_display_text(item))
+		var attached_names: Array[String] = _get_attached_attachment_names(item)
+		if not attached_names.is_empty():
+			lines.append("Модули: %s" % ", ".join(attached_names))
+		var compatible_lines: Array[String] = _get_compatible_attachment_dialog_lines(item)
+		if not compatible_lines.is_empty():
+			lines.append("Подходят:")
+			lines.append_array(compatible_lines)
+	elif item.storage_category == ItemData.StorageCategory.CLOTHING:
+		lines.append("Прочность: %d%%" % clamp(item.endurance, 0, 100))
+		lines.append("Тепло: %s" % _format_signed_item_stat(item.clothing_warmth, "°C"))
+		lines.append("Защита: %.0f" % max(item.clothing_armor, 0.0))
+		if item.can_store_items:
+			lines.append("Можно хранить предметы.")
+			lines.append("Карманы: %d" % item.extra_storage_slots)
+		if bool(item.get("accepts_thermal_battery")):
+			lines.append("Тепловизор: нужна батарейка.")
+			lines.append("Батарейка: %s" % _get_thermal_battery_dialog_charge_text(item))
+	elif item.storage_category == ItemData.StorageCategory.FOOD:
+		if not is_zero_approx(item.food_restore_amount):
+			lines.append("Еда: %+d" % int(round(item.food_restore_amount)))
+		if not is_zero_approx(item.water_restore_amount):
+			lines.append("Вода: %+d" % int(round(item.water_restore_amount)))
+	elif item.storage_category == ItemData.StorageCategory.MEDICAL:
+		var effects: Array[String] = _build_medical_effect_lines_for_item(item)
+		lines.append("Эффект: %s" % ("; ".join(effects) if not effects.is_empty() else "нет"))
+		lines.append("Время: %.1f сек" % max(item.medical_use_time_sec, 0.0))
+	elif item.is_ammo_item:
+		lines.append("Боеприпас: %s" % item.ammo_type)
+
+	return "\n".join(lines)
+
+
+func _format_signed_item_stat(value: float, suffix: String = "") -> String:
+	var rounded_value: int = int(round(value))
+	if rounded_value > 0:
+		return "+%d%s" % [rounded_value, suffix]
+	return "%d%s" % [rounded_value, suffix]
+
+
+func _is_finite_vector(value: Vector2) -> bool:
+	return value.is_finite()
+
+
+func _should_show_weapon_module_slots(item: ItemData) -> bool:
+	return item != null and item.storage_category == ItemData.StorageCategory.WEAPON
+
+
+func _should_show_thermal_battery_slot(item: ItemData) -> bool:
+	return item != null and bool(item.get("accepts_thermal_battery"))
+
+
+func _update_item_dialog_module_slots(weapon_item: ItemData) -> void:
+	if item_dialog_modules_root == null:
+		return
+
+	var should_show: bool = _should_show_weapon_module_slots(weapon_item)
+	item_dialog_modules_root.visible = should_show
+	if not should_show:
+		_clear_item_dialog_module_slots()
+		return
+
+	var slot_order: Array[int] = [
+		ItemData.AttachmentSlot.SCOPE,
+		ItemData.AttachmentSlot.HANDLE,
+		ItemData.AttachmentSlot.SILENCER
+	]
+	for slot_type in slot_order:
+		_update_item_dialog_module_cell(slot_type, weapon_item)
+
+
+func _clear_item_dialog_module_slots() -> void:
+	for raw_slot in item_dialog_module_slots.values():
+		var module_slot: InventorySlot = raw_slot as InventorySlot
+		if module_slot == null or not is_instance_valid(module_slot):
+			continue
+		module_slot.weapon_attachment_target = null
+		module_slot.clear_slot()
+		module_slot.slot_mode = InventorySlot.SlotMode.CONTAINER
+
+
+func _update_item_dialog_thermal_battery_slot(provider_item: ItemData) -> void:
+	if item_dialog_thermal_battery_root == null or item_dialog_thermal_battery_slot == null:
+		return
+
+	var should_show: bool = _should_show_thermal_battery_slot(provider_item)
+	item_dialog_thermal_battery_root.visible = should_show
+	if not should_show:
+		item_dialog_thermal_battery_provider = null
+		item_dialog_thermal_battery_slot.clear_slot()
+		return
+
+	item_dialog_thermal_battery_provider = provider_item
+	_ensure_thermal_battery_storage(provider_item)
+	var battery: ItemData = _get_thermal_battery_item(provider_item)
+	if battery != null:
+		item_dialog_thermal_battery_slot.set_container_item(battery, _encode_storage_index(THERMAL_BATTERY_PROVIDER_SLOT_TYPE, 0))
+	else:
+		item_dialog_thermal_battery_slot.clear_slot()
+		item_dialog_thermal_battery_slot.slot_mode = InventorySlot.SlotMode.CONTAINER
+		item_dialog_thermal_battery_slot.container_index = _encode_storage_index(THERMAL_BATTERY_PROVIDER_SLOT_TYPE, 0)
+	if item_dialog_thermal_battery_charge_label != null:
+		item_dialog_thermal_battery_charge_label.text = _get_thermal_battery_dialog_charge_text(provider_item)
+
+
+func _on_thermal_battery_slot_drop_requested(_target_slot: InventorySlot, data: Dictionary) -> void:
+	if _shared_world() != null and int(data.get("source_mode", -1)) == InventorySlot.SlotMode.CONTAINER and _is_loot_index(int(data.get("container_index", -1))):
+		_notify_local_pickup_status("Сначала переложите предмет в свой инвентарь", Color(1.0, 0.8, 0.45))
+		return
+	if item_context_slot == null or not is_instance_valid(item_context_slot) or item_context_slot.item_data == null:
+		return
+
+	var provider_item: ItemData = item_context_slot.item_data
+	if not _should_show_thermal_battery_slot(provider_item):
+		return
+
+	var dragged_item: ItemData = data.get("item", null)
+	if dragged_item == null or not bool(dragged_item.get("is_battery_item")):
+		return
+
+	var battery_to_install: ItemData = _take_one_battery_from_drag_source(data)
+	if battery_to_install == null:
+		return
+
+	_ensure_thermal_battery_storage(provider_item)
+	var old_battery: ItemData = _get_thermal_battery_item(provider_item)
+	provider_item.runtime_storage_items[0] = battery_to_install
+	if old_battery != null:
+		if not _try_store_item_in_first_free_container(old_battery):
+			_spawn_world_item(old_battery)
+
+	_refresh_player_thermal_after_battery_change()
+	var context_slot: InventorySlot = item_context_slot
+	refresh_ui()
+	item_context_slot = context_slot
+	_show_item_dialog()
+
+
+func _take_one_battery_from_drag_source(data: Dictionary) -> ItemData:
+	var dragged_item: ItemData = data.get("item", null)
+	if dragged_item == null or not bool(dragged_item.get("is_battery_item")):
+		return null
+
+	if dragged_item.stack_count > 1:
+		dragged_item.stack_count -= 1
+		var battery_copy: ItemData = dragged_item.create_instance(1, dragged_item.endurance) if dragged_item.has_method("create_instance") else dragged_item.duplicate(true)
+		battery_copy.stack_count = 1
+		battery_copy.battery_charge_seconds = dragged_item.battery_charge_seconds
+		_initialize_battery_charge_if_needed(battery_copy)
+		return battery_copy
+
+	_remove_dragged_item_from_source(data)
+	dragged_item.stack_count = 1
+	_initialize_battery_charge_if_needed(dragged_item)
+	return dragged_item
+
+
+func _remove_dragged_item_from_source(data: Dictionary) -> void:
+	var source_mode: int = int(data.get("source_mode", -1))
+	match source_mode:
+		InventorySlot.SlotMode.NEARBY:
+			var world_item: Node = data.get("world_item", null)
+			if is_instance_valid(world_item):
+				if world_item.has_method("remove_from_world"):
+					world_item.remove_from_world()
+				else:
+					world_item.queue_free()
+		InventorySlot.SlotMode.EQUIPMENT:
+			var source_slot: InventorySlot = data.get("source_slot", null)
+			if source_slot != null:
+				InventoryManager.set_equipped(source_slot.slot_type, null)
+		InventorySlot.SlotMode.CONTAINER:
+			var source_index: int = int(data.get("container_index", -1))
+			var source_binding: Dictionary = _decode_storage_binding(source_index)
+			if not source_binding.is_empty() and _is_storage_binding_valid(source_binding):
+				_clear_bound_storage_item(source_binding)
+
+
+func _initialize_battery_charge_if_needed(battery_item: ItemData) -> void:
+	if battery_item == null:
+		return
+	if battery_item.battery_max_charge_seconds <= 0.0:
+		battery_item.battery_max_charge_seconds = 480.0
+	# Zero is an exhausted battery, not an uninitialized one.
+	battery_item.battery_charge_seconds = clampf(battery_item.battery_charge_seconds, 0.0, battery_item.battery_max_charge_seconds)
+
+
+func _ensure_thermal_battery_storage(provider_item: ItemData) -> void:
+	if provider_item == null:
+		return
+	if provider_item.runtime_storage_items.size() < 1:
+		provider_item.runtime_storage_items.resize(1)
+
+
+func _get_thermal_battery_item(provider_item: ItemData) -> ItemData:
+	if provider_item == null or provider_item.runtime_storage_items.is_empty():
+		return null
+	var battery: ItemData = provider_item.runtime_storage_items[0]
+	if battery == null or not bool(battery.get("is_battery_item")):
+		return null
+	return battery
+
+
+func _get_thermal_battery_dialog_charge_text(provider_item: ItemData) -> String:
+	var battery: ItemData = _get_thermal_battery_item(provider_item)
+	if battery == null:
+		return "нет"
+	var max_charge: float = maxf(battery.battery_max_charge_seconds, 0.01)
+	var charge: float = clampf(battery.battery_charge_seconds, 0.0, max_charge)
+	var percent: int = int(round((charge / max_charge) * 100.0))
+	var game_hours: float = charge / 60.0
+	return "%d%%, %.1f ч." % [percent, game_hours]
+
+
+func _refresh_player_thermal_after_battery_change() -> void:
+	var player_node: Node = _get_local_inventory_player()
+	if player_node == null:
+		return
+	if player_node.has_method("_refresh_thermal_vision_state"):
+		player_node.call("_refresh_thermal_vision_state")
+	if player_node.has_method("_refresh_equipment_visuals"):
+		player_node.call("_refresh_equipment_visuals")
+
+
+func _update_item_dialog_module_cell(slot_type: int, weapon_item: ItemData) -> void:
+	if item_dialog_modules_root == null:
+		return
+
+	var cell: VBoxContainer = item_dialog_modules_root.get_node_or_null("ModuleSlot%d" % slot_type) as VBoxContainer
+	if cell == null:
+		return
+
+	var title: Label = cell.get_node_or_null("Title") as Label
+	var module_slot: InventorySlot = item_dialog_module_slots.get(slot_type, null) as InventorySlot
+	if module_slot == null:
+		module_slot = cell.get_node_or_null("InventorySlot") as InventorySlot
+	var attached_item: ItemData = InventoryManager.get_attached_attachment(weapon_item, slot_type)
+	var slot_supported: bool = _is_weapon_dialog_module_slot_supported(weapon_item, slot_type)
+
+	if title != null:
+		title.text = _attachment_slot_display_name(slot_type)
+
+	if module_slot != null:
+		module_slot.weapon_attachment_target = weapon_item if slot_supported else null
+		module_slot.container_index = _encode_storage_index(WEAPON_ATTACHMENT_PROVIDER_SLOT_TYPE, slot_type)
+		if attached_item != null:
+			module_slot.set_container_item(attached_item, module_slot.container_index)
+		else:
+			module_slot.clear_slot()
+			module_slot.slot_mode = InventorySlot.SlotMode.CONTAINER
+			module_slot.container_index = _encode_storage_index(WEAPON_ATTACHMENT_PROVIDER_SLOT_TYPE, slot_type)
+		module_slot.modulate = Color(1.0, 1.0, 1.0, 1.0) if slot_supported else Color(0.55, 0.55, 0.55, 0.65)
+
+	cell.modulate = Color(1.0, 1.0, 1.0, 1.0) if slot_supported else Color(0.70, 0.70, 0.70, 0.80)
+
+
+func _is_weapon_dialog_module_slot_supported(weapon_item: ItemData, slot_type: int) -> bool:
+	if weapon_item == null:
+		return false
+	if weapon_item.can_receive_weapon_attachments:
+		return true
+	return slot_type == ItemData.AttachmentSlot.SCOPE and weapon_item.can_receive_scope_attachment
+
+
+func _get_compatible_attachment_dialog_lines(weapon_item: ItemData) -> Array[String]:
+	var lines: Array[String] = []
+	if weapon_item == null:
+		return lines
+
+	var slot_order: Array[int] = [
+		ItemData.AttachmentSlot.SCOPE,
+		ItemData.AttachmentSlot.HANDLE,
+		ItemData.AttachmentSlot.SILENCER
+	]
+	for slot_type in slot_order:
+		if not _is_weapon_dialog_module_slot_supported(weapon_item, slot_type):
+			continue
+		var names: Array[String] = _get_compatible_attachment_names_for_slot(weapon_item, slot_type)
+		var value: String = ", ".join(names) if not names.is_empty() else "нет"
+		lines.append("%s: %s" % [_attachment_slot_display_name(slot_type), value])
+
+	return lines
+
+
+func _get_compatible_attachment_names_for_slot(weapon_item: ItemData, slot_type: int) -> Array[String]:
+	_ensure_attachment_catalog()
+	var names: Array[String] = []
+	for attachment_item in _attachment_catalog:
+		if attachment_item == null:
+			continue
+		if _get_attachment_slot_for_item(attachment_item) != slot_type:
+			continue
+		if not _is_attachment_compatible_with_weapon(attachment_item, weapon_item):
+			continue
+		if not names.has(attachment_item.item_name):
+			names.append(attachment_item.item_name)
+	names.sort()
+	return names
+
+
+func _ensure_attachment_catalog() -> void:
+	if _attachment_catalog_ready:
+		return
+
+	_attachment_catalog_ready = true
+	_attachment_catalog.clear()
+	_collect_attachment_catalog_resources("res://Resources")
+
+
+func _collect_attachment_catalog_resources(directory_path: String) -> void:
+	var directory := DirAccess.open(directory_path)
+	if directory == null:
+		return
+
+	directory.list_dir_begin()
+	var entry_name: String = directory.get_next()
+	while not entry_name.is_empty():
+		if entry_name.begins_with("."):
+			entry_name = directory.get_next()
+			continue
+
+		var entry_path: String = directory_path.path_join(entry_name)
+		if directory.current_is_dir():
+			_collect_attachment_catalog_resources(entry_path)
+			entry_name = directory.get_next()
+			continue
+
+		var ext: String = entry_path.get_extension().to_lower()
+		if ext == "tres" or ext == "res":
+			_try_add_attachment_catalog_item(entry_path)
+		elif ext == "remap":
+			var original_path := entry_path.trim_suffix(".remap")
+			var original_ext := original_path.get_extension().to_lower()
+			if original_ext == "tres" or original_ext == "res":
+				_try_add_attachment_catalog_item(original_path)
+
+		entry_name = directory.get_next()
+	directory.list_dir_end()
+
+
+func _try_add_attachment_catalog_item(resource_path: String) -> void:
+	var resource: Resource = load(resource_path)
+	var item: ItemData = resource as ItemData
+	if item == null:
+		return
+	if not (item.is_scope_attachment or item.is_weapon_attachment):
+		return
+	_attachment_catalog.append(item)
+
+
+func _is_attachment_compatible_with_weapon(attachment_item: ItemData, weapon_item: ItemData) -> bool:
+	if attachment_item == null or weapon_item == null:
+		return false
+	if not (attachment_item.is_scope_attachment or attachment_item.is_weapon_attachment):
+		return false
+	if weapon_item.storage_category != ItemData.StorageCategory.WEAPON:
+		return false
+	if not (weapon_item.can_receive_weapon_attachments or weapon_item.can_receive_scope_attachment):
+		return false
+	if not weapon_item.can_receive_weapon_attachments and _get_attachment_slot_for_item(attachment_item) != ItemData.AttachmentSlot.SCOPE:
+		return false
+
+	if not attachment_item.allowed_scope_weapons.is_empty():
+		var allowed_by_resource: bool = false
+		for allowed_weapon in attachment_item.allowed_scope_weapons:
+			if _is_same_dialog_weapon_resource(allowed_weapon as ItemData, weapon_item):
+				allowed_by_resource = true
+				break
+		if not allowed_by_resource:
+			return false
+
+	if not attachment_item.allowed_scope_weapon_types.is_empty() and weapon_item.item_type not in attachment_item.allowed_scope_weapon_types:
+		return false
+
+	if not attachment_item.allowed_scope_weapon_names.is_empty():
+		var weapon_name: String = weapon_item.item_name.strip_edges().to_lower()
+		var allowed_by_name: bool = false
+		for allowed_name in attachment_item.allowed_scope_weapon_names:
+			if weapon_name == String(allowed_name).strip_edges().to_lower():
+				allowed_by_name = true
+				break
+		if not allowed_by_name:
+			return false
+
+	return true
+
+
+func _get_attachment_slot_for_item(attachment_item: ItemData) -> int:
+	if attachment_item == null:
+		return ItemData.AttachmentSlot.SCOPE
+	if attachment_item.is_scope_attachment and not attachment_item.is_weapon_attachment:
+		return ItemData.AttachmentSlot.SCOPE
+	return int(attachment_item.attachment_slot)
+
+
+func _is_same_dialog_weapon_resource(left_weapon: ItemData, right_weapon: ItemData) -> bool:
+	if left_weapon == null or right_weapon == null:
+		return false
+	if left_weapon == right_weapon:
+		return true
+	if not left_weapon.resource_path.is_empty() and not right_weapon.resource_path.is_empty() and left_weapon.resource_path == right_weapon.resource_path:
+		return true
+	return left_weapon.item_name.strip_edges().to_lower() == right_weapon.item_name.strip_edges().to_lower()
+
+
+func _get_attached_attachment_names(weapon_item: ItemData) -> Array[String]:
+	var names: Array[String] = []
+	for slot_type in _get_attached_attachment_slots(weapon_item):
+		var attachment: ItemData = InventoryManager.get_attached_attachment(weapon_item, slot_type)
+		if attachment != null:
+			names.append(attachment.item_name)
+	return names
+
+
+func _build_medical_effect_lines_for_item(item: ItemData) -> Array[String]:
+	var lines: Array[String] = []
+	if not is_zero_approx(item.medical_health_restore):
+		lines.append("здоровье %+d" % int(round(item.medical_health_restore)))
+	if not is_zero_approx(item.medical_radiation_change):
+		lines.append("радиация %+d" % int(round(item.medical_radiation_change)))
+	if item.medical_stop_bleeding:
+		lines.append("останавливает кровотечение")
+	if item.medical_heal_fracture:
+		lines.append("лечит перелом")
+	return lines
+
+
+func _get_item_display_name(item: ItemData) -> String:
+	if item != null and not item.item_name.strip_edges().is_empty():
+		return item.item_name
+	return "Предмет"
+
+
+func _get_item_type_text(item: ItemData) -> String:
+	if item == null:
+		return "Предмет"
+	if item.is_ammo_item:
+		return "Боеприпасы"
+	if item.is_scope_attachment or item.is_weapon_attachment:
+		return "Модуль оружия"
+	match item.storage_category:
+		ItemData.StorageCategory.WEAPON:
+			return "Оружие"
+		ItemData.StorageCategory.CLOTHING:
+			return "Снаряжение"
+		ItemData.StorageCategory.FOOD:
+			return "Еда/напиток"
+		ItemData.StorageCategory.MEDICAL:
+			return "Медицина"
+		ItemData.StorageCategory.MISC:
+			return "Предмет"
+		_:
+			return "Предмет"
+
+
+func _get_fallback_item_description(item: ItemData) -> String:
+	if item == null:
+		return "Нет данных."
+	if item.storage_category == ItemData.StorageCategory.WEAPON:
+		return "Оружие для боя и защиты. Состояние влияет на надежность."
+	if item.storage_category == ItemData.StorageCategory.CLOTHING:
+		if item.item_type == ItemData.ItemType.T_shirts:
+			return "Легкая футболка. Дает немного тепла и ее можно порвать на тряпки."
+		if item.can_store_items:
+			return "Одежда с карманами. В ней можно хранить предметы."
+		return "Элемент снаряжения. Может защищать персонажа или давать место под предметы."
+	if item.storage_category == ItemData.StorageCategory.FOOD:
+		return "Расходуемый предмет для восстановления еды или воды."
+	if item.storage_category == ItemData.StorageCategory.MEDICAL:
+		return "Медицинский предмет для лечения состояния персонажа."
+	if item.is_ammo_item:
+		return "Боеприпасы для подходящего оружия."
+	if item.is_scope_attachment or item.is_weapon_attachment:
+		return "Модуль, который можно установить на совместимое оружие."
+	return "Полезный предмет для выживания, ремонта или крафта."
 
 
 func _ensure_consume_button() -> void:
@@ -2414,13 +3879,14 @@ func _ensure_storage_provider_size(provider: ItemData) -> void:
 	if provider == null:
 		return
 
-	if provider.runtime_storage_items.size() == provider.extra_storage_slots:
+	var storage_slots_count: int = _get_clothing_storage_visible_slots_count(provider)
+	if provider.runtime_storage_items.size() == storage_slots_count:
 		return
 
 	var resized_storage: Array[ItemData] = []
-	resized_storage.resize(provider.extra_storage_slots)
+	resized_storage.resize(storage_slots_count)
 
-	for i in range(min(provider.runtime_storage_items.size(), provider.extra_storage_slots)):
+	for i in range(min(provider.runtime_storage_items.size(), storage_slots_count)):
 		resized_storage[i] = provider.runtime_storage_items[i]
 
 	provider.runtime_storage_items = resized_storage
@@ -2429,6 +3895,8 @@ func _ensure_storage_provider_size(provider: ItemData) -> void:
 func _is_storage_binding_valid(binding: Dictionary) -> bool:
 	var provider: ItemData = binding.get("provider", null)
 	var slot_index: int = int(binding.get("slot_index", -1))
+	if bool(binding.get("weapon_attachment", false)):
+		return provider != null and slot_index in [ItemData.AttachmentSlot.SCOPE, ItemData.AttachmentSlot.HANDLE, ItemData.AttachmentSlot.SILENCER]
 	return provider != null and slot_index >= 0 and slot_index < provider.runtime_storage_items.size()
 
 
@@ -2438,6 +3906,8 @@ func _get_bound_storage_item(binding: Dictionary) -> ItemData:
 
 	var provider: ItemData = binding.get("provider", null)
 	var slot_index: int = int(binding.get("slot_index", -1))
+	if bool(binding.get("weapon_attachment", false)):
+		return InventoryManager.get_attached_attachment(provider, slot_index)
 	return provider.runtime_storage_items[slot_index]
 
 
@@ -2447,11 +3917,37 @@ func _set_bound_storage_item_or_drop_old(binding: Dictionary, new_item: ItemData
 	if not _is_storage_binding_valid(binding):
 		return
 
+	if bool(binding.get("weapon_attachment", false)):
+		var old_attachment: ItemData = InventoryManager.detach_attached_attachment(provider, slot_index)
+		if old_attachment != null:
+			_spawn_world_item(old_attachment)
+		if new_item != null:
+			InventoryManager.set_attached_attachment(provider, new_item)
+		return
+
 	var old_item: ItemData = provider.runtime_storage_items[slot_index]
 	if old_item != null:
 		_spawn_world_item(old_item)
 
 	provider.runtime_storage_items[slot_index] = new_item
+
+
+func _set_bound_storage_item(binding: Dictionary, new_item: ItemData) -> void:
+	var provider: ItemData = binding.get("provider", null)
+	var slot_index: int = int(binding.get("slot_index", -1))
+	if not _is_storage_binding_valid(binding):
+		return
+	if bool(binding.get("weapon_attachment", false)):
+		if new_item == null:
+			InventoryManager.detach_attached_attachment(provider, slot_index)
+		else:
+			InventoryManager.set_attached_attachment(provider, new_item)
+		return
+	provider.runtime_storage_items[slot_index] = new_item
+
+
+func _clear_bound_storage_item(binding: Dictionary) -> void:
+	_set_bound_storage_item(binding, null)
 
 
 func _refresh_storage_provider(slot_type: int, panel: Control, grid: GridContainer) -> void:
@@ -2463,19 +3959,36 @@ func _refresh_storage_provider(slot_type: int, panel: Control, grid: GridContain
 	_ensure_storage_provider_size(provider)
 
 	var slots: Array = storage_slots_by_type.get(slot_type, [])
-	if slots.size() != provider.extra_storage_slots:
-		_rebuild_storage_provider(slot_type, panel, grid, provider.extra_storage_slots)
+	var visible_slots_count: int = _get_clothing_storage_visible_slots_count(provider)
+	if slots.size() != visible_slots_count:
+		_rebuild_storage_provider(slot_type, panel, grid, visible_slots_count)
 
 	panel.visible = true
 
 
 func _rebuild_storage_provider(slot_type: int, panel: Control, grid: GridContainer, slots_count: int) -> void:
-	var existing_slots: Array = storage_slots_by_type.get(slot_type, [])
-	for slot in existing_slots:
-		if is_instance_valid(slot):
-			slot.queue_free()
+	for child in grid.get_children():
+		if is_instance_valid(child):
+			grid.remove_child(child)
+			child.queue_free()
 
 	var new_slots: Array[InventorySlot] = []
+	if slot_type == ItemData.ItemType.Bag:
+		for i in range(slots_count):
+			var slot: InventorySlot = SLOT_SCENE.instantiate()
+			slot.name = "ClothingStorageSlot_%d_%d" % [slot_type, i]
+			_setup_container_slot(slot, _encode_storage_index(slot_type, i))
+			_connect_slot(slot)
+			new_slots.append(slot)
+			grid.add_child(slot)
+
+		storage_slots_by_type[slot_type] = new_slots
+		panel.visible = true
+		return
+
+	var visual_cell_count: int = _get_clothing_storage_visual_cell_count(slots_count, grid.columns)
+	var visual_cell_by_storage_index: Array[int] = _get_clothing_storage_bottom_first_cells(slots_count, grid.columns)
+	var storage_slots_by_visual_cell: Dictionary = {}
 	for i in range(slots_count):
 		var slot: InventorySlot = SLOT_SCENE.instantiate()
 		slot.name = "ClothingStorageSlot_%d_%d" % [slot_type, i]
@@ -2483,11 +3996,59 @@ func _rebuild_storage_provider(slot_type: int, panel: Control, grid: GridContain
 		_setup_container_slot(slot, _encode_storage_index(slot_type, i))
 		_connect_slot(slot)
 
-		grid.add_child(slot)
 		new_slots.append(slot)
+		if i < visual_cell_by_storage_index.size():
+			storage_slots_by_visual_cell[visual_cell_by_storage_index[i]] = slot
+
+	for visual_cell in range(visual_cell_count):
+		if storage_slots_by_visual_cell.has(visual_cell):
+			grid.add_child(storage_slots_by_visual_cell[visual_cell])
+		else:
+			grid.add_child(_create_clothing_storage_spacer("ClothingStorageSpacer_%d_%d" % [slot_type, visual_cell]))
 
 	storage_slots_by_type[slot_type] = new_slots
 	panel.visible = true
+
+
+func _get_clothing_storage_visible_slots_count(provider: ItemData) -> int:
+	if provider == null:
+		return 0
+
+	return min(max(provider.extra_storage_slots, 0), CLOTHING_STORAGE_MAX_VISIBLE_SLOTS)
+
+
+func _get_clothing_storage_visual_cell_count(_slots_count: int, _columns: int) -> int:
+	return CLOTHING_STORAGE_COLUMNS * CLOTHING_STORAGE_ROWS
+
+
+func _get_clothing_storage_bottom_first_cells(slots_count: int, _columns: int) -> Array[int]:
+	var visual_cell_count: int = _get_clothing_storage_visual_cell_count(slots_count, CLOTHING_STORAGE_COLUMNS)
+	var cells: Array[int] = []
+
+	for row in range(CLOTHING_STORAGE_ROWS - 1, -1, -1):
+		var columns_order: Array = range(CLOTHING_STORAGE_COLUMNS)
+		if row < CLOTHING_STORAGE_ROWS - 1:
+			columns_order.reverse()
+		for column in columns_order:
+			var cell_index: int = row * CLOTHING_STORAGE_COLUMNS + column
+			if cell_index >= visual_cell_count:
+				continue
+			if cell_index == 0:
+				continue
+			cells.append(cell_index)
+			if cells.size() >= slots_count:
+				return cells
+
+	return cells
+
+
+func _create_clothing_storage_spacer(spacer_name: String) -> Control:
+	var spacer := Control.new()
+	spacer.name = spacer_name
+	spacer.custom_minimum_size = CLOTHING_STORAGE_SLOT_SIZE
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	spacer.z_index = CLOTHING_STORAGE_Z_INDEX
+	return spacer
 
 
 func _refresh_storage_provider_ui(slot_type: int, panel: Control) -> void:
@@ -2537,10 +4098,6 @@ func _on_slot_gui_input(event: InputEvent, slot: InventorySlot) -> void:
 		_hide_action_buttons()
 		return
 
-	if slot.slot_mode == InventorySlot.SlotMode.NEARBY:
-		_hide_action_buttons()
-		return
-
 	if mouse_event.button_index == MOUSE_BUTTON_RIGHT:
 		_handle_slot_right_click(slot)
 		return
@@ -2548,43 +4105,15 @@ func _on_slot_gui_input(event: InputEvent, slot: InventorySlot) -> void:
 	if mouse_event.button_index != MOUSE_BUTTON_LEFT:
 		return
 
-	_handle_slot_primary_press(slot)
+	_handle_slot_primary_press(slot, mouse_event.global_position)
 
 
-func _handle_slot_primary_press(slot: InventorySlot) -> void:
+func _handle_slot_primary_press(slot: InventorySlot, screen_position: Vector2 = Vector2.INF) -> void:
 	if slot == null or slot.item_data == null:
 		_hide_action_buttons()
 		return
 
-	if slot.slot_mode == InventorySlot.SlotMode.NEARBY:
-		_hide_action_buttons()
-		return
-
-	if _try_show_remove_scope_button_for_weapon(slot):
-		return
-
-	if _is_farm_tool_item(slot.item_data):
-		_show_till_farm_row_button_for_slot(slot)
-		return
-
-	if slot.item_data.is_ammo_item:
-		_show_equip_ammo_button_for_slot(slot)
-		return
-
-	if slot.item_data.storage_category == ItemData.StorageCategory.MEDICAL:
-		_show_use_medical_button_for_slot(slot)
-		return
-
-	if slot.item_data.storage_category != ItemData.StorageCategory.FOOD:
-		_hide_action_buttons()
-		return
-
-	_hide_equip_ammo_button()
-	_hide_use_medical_button()
-	_hide_till_farm_row_button()
-	consume_slot = slot
-	consume_button.position = slot.global_position - inventory_content.global_position + Vector2(0.0, slot.size.y + 6.0)
-	consume_button.visible = true
+	_show_item_context_menu(slot, screen_position)
 
 
 func _start_mobile_slot_touch(slot: InventorySlot, screen_position: Vector2, touch_index: int = -1) -> void:
@@ -2620,7 +4149,7 @@ func _finish_mobile_slot_touch(screen_position: Vector2 = Vector2.ZERO) -> void:
 	if _quick_use_or_equip_slot(slot):
 		get_viewport().set_input_as_handled()
 		return
-	_handle_slot_primary_press(slot)
+	_handle_slot_primary_press(slot, screen_position)
 	get_viewport().set_input_as_handled()
 
 
@@ -2669,7 +4198,8 @@ func _finish_mobile_slot_drag(screen_position: Vector2, drag_data: Dictionary) -
 		_on_slot_drop_requested(target_slot, drag_data)
 		return
 
-	_drop_dragged_item_to_world(drag_data)
+	if is_inventory_open and not _is_screen_position_inside_inventory_content(screen_position):
+		_drop_dragged_item_to_world(drag_data)
 	refresh_ui()
 
 
@@ -2692,6 +4222,13 @@ func _find_inventory_slot_at_screen_position_recursive(node: Node, screen_positi
 				return slot
 
 	return null
+
+
+func _is_mouse_over_inventory() -> bool:
+	var hovered := get_viewport().gui_get_hovered_control()
+	if hovered != null and (hovered == inventory_content or inventory_content.is_ancestor_of(hovered)):
+		return true
+	return _is_screen_position_inside_inventory_content(get_viewport().get_mouse_position())
 
 
 func _is_screen_position_inside_inventory_content(screen_position: Vector2) -> bool:
@@ -2738,6 +4275,12 @@ func _quick_use_or_equip_slot(slot: InventorySlot) -> bool:
 
 
 func _try_equip_container_slot_to_empty_equipment(slot: InventorySlot) -> bool:
+	if _is_shared_loot_slot(slot):
+		for target in equipment_slots:
+			if InventoryManager.get_equipped(target.slot_type) == null and _can_item_fit_equipment_slot(slot.item_data, target):
+				_on_slot_drop_requested(target, {"item": slot.item_data, "source_mode": slot.slot_mode, "container_index": slot.container_index, "source_slot": slot})
+				return true
+		return false
 	if slot == null or slot.item_data == null:
 		return false
 	var binding: Dictionary = _decode_storage_binding(slot.container_index)
@@ -2977,116 +4520,130 @@ func _hide_action_buttons() -> void:
 	_hide_equip_ammo_button()
 	_hide_install_scope_button()
 	_hide_remove_scope_button()
+	_hide_item_context_menu()
 
 
 func _consume_selected_food() -> void:
 	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
 		_request_server_inventory_action("consume_food", _build_slot_payload(consume_slot), Callable(self, "_on_consume_food_server_approved"))
 		return
-	if consume_slot == null or consume_slot.item_data == null:
-		_hide_action_buttons()
-		return
-
-	var player_node: Node = get_tree().get_first_node_in_group("player")
-	if player_node != null and player_node.has_method("start_timed_action"):
-		if player_node.start_timed_action(0.8, Callable(self, "_finish_consume_selected_food"), "Еда"):
-			return
-		return
-
-	_finish_consume_selected_food()
-
-
-func _finish_consume_selected_food() -> void:
-	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
-		_request_server_inventory_action("consume_food_finish", _build_slot_payload(consume_slot), Callable(self, "_on_finish_consume_food_server_approved"))
-		return
-	if consume_slot == null or consume_slot.item_data == null:
-		_hide_action_buttons()
-		return
-
-	var player_node: Node = get_tree().get_first_node_in_group("player")
-	if player_node != null:
-		if player_node.has_method("add_food"):
-			player_node.add_food(consume_slot.item_data.food_restore_amount)
-		if player_node.has_method("add_water"):
-			player_node.add_water(consume_slot.item_data.water_restore_amount)
-		if consume_slot.item_data.food_poison_chance > 0.0 and player_node.has_method("try_apply_food_poison"):
-			player_node.try_apply_food_poison(consume_slot.item_data.food_poison_chance)
-
-	var item: ItemData = consume_slot.item_data
-	item.stack_count -= 1
-
-	if item.stack_count <= 0:
-		if consume_slot.slot_mode == InventorySlot.SlotMode.EQUIPMENT:
-			InventoryManager.set_equipped(consume_slot.slot_type, null)
-		elif consume_slot.slot_mode == InventorySlot.SlotMode.CONTAINER:
-			var binding: Dictionary = _decode_storage_binding(consume_slot.container_index)
-			var provider: ItemData = binding.get("provider", null)
-			var slot_index: int = int(binding.get("slot_index", -1))
-			if provider != null and slot_index >= 0 and slot_index < provider.runtime_storage_items.size():
-				provider.runtime_storage_items[slot_index] = null
-
-	_hide_action_buttons()
-	refresh_ui()
+	_begin_consumable(consume_slot, 0.8)
 
 
 func _use_selected_medical() -> void:
 	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
 		_request_server_inventory_action("use_medical", _build_slot_payload(use_medical_slot), Callable(self, "_on_use_medical_server_approved"))
 		return
-	if use_medical_slot == null or use_medical_slot.item_data == null:
-		_clear_pending_medical_context()
-		_hide_action_buttons()
+	if is_instance_valid(use_medical_slot) and use_medical_slot.item_data != null:
+		_begin_consumable(use_medical_slot, maxf(use_medical_slot.item_data.medical_use_time_sec, 0.1))
+
+
+func _begin_consumable(slot: InventorySlot, duration: float) -> void:
+	if _shared_world() != null and slot != null and slot.slot_mode == InventorySlot.SlotMode.CONTAINER and _is_loot_index(slot.container_index):
+		_notify_local_pickup_status("Сначала переложите предмет в свой инвентарь", Color.WHITE)
 		return
+	if not _pending_consumable.is_empty() or not is_instance_valid(slot) or slot.item_data == null: return
+	var actor := _get_local_inventory_player()
+	if actor == null or not actor.has_method("start_timed_action") or actor.action_in_progress: return
+	var source_mode := slot.slot_mode
+	var source_type := slot.slot_type
+	var source_container_index := slot.container_index
+	var original := slot.item_data
+	if original.stack_count <= 0: return
+	var binding := {}
+	if slot.slot_mode == InventorySlot.SlotMode.CONTAINER:
+		binding = _decode_storage_binding(slot.container_index)
+		if not _is_storage_binding_valid(binding) or _get_bound_storage_item(binding) != original: return
+	elif slot.slot_mode == InventorySlot.SlotMode.EQUIPMENT:
+		if InventoryManager.get_equipped(slot.slot_type) != original: return
+	else: return
+	if not actor.start_timed_action(duration, Callable(self, "_finish_pending_consumable"), "Использование [E — отмена]", true, "Using", Callable(self, "_restore_pending_consumable")): return
+	var reserved: ItemData = original
+	if original.stack_count > 1:
+		reserved = _clone_item_data(original)
+		reserved.stack_count = 1
+		original.stack_count -= 1
+	elif slot.slot_mode == InventorySlot.SlotMode.CONTAINER:
+		_clear_bound_storage_item(binding)
+	else:
+		InventoryManager.network_authoritative_update_in_progress = _is_network_client_inventory_mutation_blocked()
+		InventoryManager.set_equipped(slot.slot_type, null)
+		InventoryManager.network_authoritative_update_in_progress = false
+	_pending_consumable = {"item": reserved, "original": original, "binding": binding, "mode": source_mode, "slot_type": source_type, "container_index": source_container_index, "actor": actor, "finish_requested": false}
+	close_inventory()
+	refresh_ui()
 
-	pending_medical_item = use_medical_slot.item_data
-	pending_medical_mode = use_medical_slot.slot_mode
-	pending_medical_slot_type = use_medical_slot.slot_type
-	pending_medical_container_index = use_medical_slot.container_index
 
-	var use_time_sec: float = max(use_medical_slot.item_data.medical_use_time_sec, 0.1)
-	var player_node: Node = get_tree().get_first_node_in_group("player")
-	if player_node != null and player_node.has_method("start_timed_action"):
-		if player_node.start_timed_action(use_time_sec, Callable(self, "_finish_use_selected_medical"), "Медицина", true, "Using"):
+func _finish_pending_consumable() -> void:
+	if _pending_consumable.is_empty(): return
+	if _is_network_client_inventory_mutation_blocked():
+		if bool(_pending_consumable.get("finish_requested", false)):
 			return
-		_clear_pending_medical_context()
+		_pending_consumable["finish_requested"] = true
+		var item_for_action: ItemData = _pending_consumable.get("item", null) as ItemData
+		var finish_action: String = "consume_food_finish" if item_for_action != null and item_for_action.storage_category == ItemData.StorageCategory.FOOD else "finish_use_medical"
+		var finish_payload: Dictionary = {
+			"slot_mode": int(_pending_consumable.get("mode", -1)),
+			"slot_type": int(_pending_consumable.get("slot_type", -1)),
+			"container_index": int(_pending_consumable.get("container_index", -1))
+		}
+		var callback: Callable = Callable(self, "_on_finish_consume_food_server_approved") if finish_action == "consume_food_finish" else Callable(self, "_on_finish_use_medical_server_approved")
+		_request_server_inventory_action(finish_action, finish_payload, callback)
 		return
+	var item: ItemData = _pending_consumable.item
+	var actor: Node = _pending_consumable.actor
+	if not is_instance_valid(actor):
+		_restore_pending_consumable()
+		return
+	if item.storage_category == ItemData.StorageCategory.FOOD:
+		actor.add_food(item.food_restore_amount)
+		actor.add_water(item.water_restore_amount)
+		if item.food_poison_chance > 0.0: actor.try_apply_food_poison(item.food_poison_chance)
+	else:
+		if not actor.apply_medical_item_effect(item):
+			_restore_pending_consumable()
+			return
+	_pending_consumable.clear()
+	refresh_ui()
 
-	_finish_use_selected_medical()
+
+func _restore_pending_consumable() -> void:
+	if _pending_consumable.is_empty(): return
+	var pending := _pending_consumable
+	_pending_consumable = {}
+	var item: ItemData = pending.item
+	var binding: Dictionary = pending.binding
+	var current: ItemData = null
+	if int(pending.mode) == InventorySlot.SlotMode.CONTAINER:
+		if _is_storage_binding_valid(binding): current = _get_bound_storage_item(binding)
+	else:
+		current = InventoryManager.get_equipped(int(pending.slot_type))
+	if current == pending.original and current != item:
+		current.stack_count += item.stack_count
+	elif current == null and int(pending.mode) == InventorySlot.SlotMode.CONTAINER and _is_storage_binding_valid(binding):
+		_set_bound_storage_item(binding, item)
+	elif current == null and int(pending.mode) == InventorySlot.SlotMode.EQUIPMENT:
+		InventoryManager.network_authoritative_update_in_progress = _is_network_client_inventory_mutation_blocked()
+		InventoryManager.set_equipped(int(pending.slot_type), item)
+		InventoryManager.network_authoritative_update_in_progress = false
+	elif not _try_store_item_in_first_free_container(item):
+		_spawn_world_item(item)
+	refresh_ui()
+
+
+func cancel_pending_consumable() -> void:
+	if _pending_consumable.is_empty(): return
+	var actor: Node = _pending_consumable.actor
+	if is_instance_valid(actor): actor.cancel_timed_action(Callable(self, "_finish_pending_consumable"))
+	_restore_pending_consumable()
+
+
+func _finish_consume_selected_food() -> void:
+	_finish_pending_consumable()
 
 
 func _finish_use_selected_medical() -> void:
-	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
-		_request_server_inventory_action("finish_use_medical", _build_pending_medical_payload(), Callable(self, "_on_finish_use_medical_server_approved"))
-		return
-	if pending_medical_item == null:
-		_clear_pending_medical_context()
-		_hide_action_buttons()
-		return
-
-	var medical_item: ItemData = pending_medical_item
-	var selected_mode: int = pending_medical_mode
-	var selected_slot_type: int = pending_medical_slot_type
-	var selected_container_index: int = pending_medical_container_index
-
-	var player_node: Node = get_tree().get_first_node_in_group("player")
-	var applied: bool = false
-	if player_node != null:
-		if player_node.has_method("apply_medical_item_effect"):
-			applied = bool(player_node.apply_medical_item_effect(medical_item))
-		if medical_item.medical_heal_fracture and player_node.has_method("_set_fractured"):
-			player_node.call("_set_fractured", false)
-			applied = true
-		if medical_item.medical_stop_bleeding and player_node.has_method("_set_bleeding"):
-			player_node.call("_set_bleeding", false)
-			applied = true
-
-	if applied:
-		_consume_medical_item_from_source(medical_item, selected_mode, selected_slot_type, selected_container_index)
-	_clear_pending_medical_context()
-
-	_hide_action_buttons()
-	refresh_ui()
+	_finish_pending_consumable()
 
 
 func _consume_medical_item_from_source(medical_item: ItemData, selected_mode: int, selected_slot_type: int, selected_container_index: int) -> void:
@@ -3134,6 +4691,9 @@ func _clear_pending_medical_context() -> void:
 
 
 func _equip_selected_ammo() -> void:
+	if _is_shared_loot_slot(equip_ammo_slot):
+		_notify_local_pickup_status("Сначала переложите предмет в свой инвентарь", Color(1.0, 0.8, 0.45))
+		return
 	if _is_network_client_inventory_mutation_blocked() and not _network_inventory_action_bypass:
 		_request_server_inventory_action("equip_ammo", _build_slot_payload(equip_ammo_slot), Callable(self, "_on_equip_ammo_server_approved"))
 		return
@@ -3174,6 +4734,9 @@ func _can_install_scope(scope_item: ItemData) -> bool:
 
 
 func _install_selected_scope() -> void:
+	if _is_shared_loot_slot(install_scope_slot):
+		_notify_local_pickup_status("Сначала переложите предмет в свой инвентарь", Color(1.0, 0.8, 0.45))
+		return
 	if install_scope_slot == null or install_scope_slot.item_data == null:
 		_hide_action_buttons()
 		return
@@ -3193,6 +4756,13 @@ func _install_selected_scope() -> void:
 		return
 
 	match selected_slot_mode:
+		InventorySlot.SlotMode.NEARBY:
+			var source_world_item: Node = selected_slot.world_item
+			if is_instance_valid(source_world_item):
+				if source_world_item.has_method("remove_from_world"):
+					source_world_item.remove_from_world()
+				else:
+					source_world_item.queue_free()
 		InventorySlot.SlotMode.EQUIPMENT:
 			InventoryManager.set_equipped(selected_slot_type, null)
 		InventorySlot.SlotMode.CONTAINER:
@@ -3225,6 +4795,9 @@ func _resolve_attachment_target_weapon(attachment_item: ItemData) -> ItemData:
 
 
 func _remove_scope_from_selected_weapon() -> void:
+	if _is_shared_loot_slot(remove_scope_slot):
+		_notify_local_pickup_status("Сначала переложите предмет в свой инвентарь", Color(1.0, 0.8, 0.45))
+		return
 	if remove_scope_slot == null or remove_scope_slot.item_data == null:
 		_hide_action_buttons()
 		return
@@ -3297,10 +4870,20 @@ func _attachment_slot_display_name(slot_type: int) -> String:
 
 
 func _clear_storage_provider(slot_type: int, panel: Control) -> void:
-	var slots: Array = storage_slots_by_type.get(slot_type, [])
-	for slot in slots:
-		if is_instance_valid(slot):
-			slot.queue_free()
+	var grid: GridContainer = _get_storage_grid_for_equipment_slot(slot_type)
+	if grid != null:
+		for child in grid.get_children():
+			if is_instance_valid(child):
+				grid.remove_child(child)
+				child.queue_free()
+	else:
+		var slots: Array = storage_slots_by_type.get(slot_type, [])
+		for slot in slots:
+			if is_instance_valid(slot):
+				var parent: Node = slot.get_parent()
+				if parent != null:
+					parent.remove_child(slot)
+				slot.queue_free()
 
 	storage_slots_by_type[slot_type] = []
 	panel.visible = false
@@ -3310,12 +4893,39 @@ func _encode_storage_index(slot_type: int, slot_index: int) -> int:
 	return slot_type * 100 + slot_index
 
 
+func _is_thermal_battery_storage_index(encoded_index: int) -> bool:
+	return int(encoded_index / 100.0) == THERMAL_BATTERY_PROVIDER_SLOT_TYPE
+
+
+func _is_weapon_attachment_storage_index(encoded_index: int) -> bool:
+	return int(encoded_index / 100.0) == WEAPON_ATTACHMENT_PROVIDER_SLOT_TYPE
+
+
 func _decode_storage_binding(encoded_index: int) -> Dictionary:
 	if encoded_index < 0:
 		return {}
 
 	var slot_type: int = int(encoded_index / 100.0)
 	var slot_index: int = int(encoded_index % 100)
+	if slot_type == WEAPON_ATTACHMENT_PROVIDER_SLOT_TYPE:
+		if item_context_slot == null or not is_instance_valid(item_context_slot) or item_context_slot.item_data == null:
+			return {}
+		var weapon_item: ItemData = item_context_slot.item_data
+		if weapon_item.storage_category != ItemData.StorageCategory.WEAPON:
+			return {}
+		return {
+			"provider": weapon_item,
+			"slot_index": slot_index,
+			"weapon_attachment": true
+		}
+	if slot_type == THERMAL_BATTERY_PROVIDER_SLOT_TYPE:
+		if item_dialog_thermal_battery_provider == null:
+			return {}
+		_ensure_thermal_battery_storage(item_dialog_thermal_battery_provider)
+		return {
+			"provider": item_dialog_thermal_battery_provider,
+			"slot_index": slot_index
+		}
 	if slot_type == LOOT_PROVIDER_SLOT_TYPE:
 		if loot_provider == null:
 			return {}
@@ -3360,6 +4970,7 @@ func _rebuild_loot_slots(slot_count: int) -> void:
 	if active_loot_grid == null:
 		return
 
+	_clear_inactive_loot_grid(active_loot_grid)
 	for child in active_loot_grid.get_children():
 		child.queue_free()
 	loot_slots.clear()
@@ -3372,19 +4983,34 @@ func _rebuild_loot_slots(slot_count: int) -> void:
 		loot_slots.append(slot)
 
 
+func _clear_inactive_loot_grid(active_grid: GridContainer) -> void:
+	for grid in [wardrobe_loot_grid, bandit_loot_grid]:
+		if grid == null or grid == active_grid:
+			continue
+		for child in grid.get_children():
+			child.queue_free()
+
+
 func _setup_loot_slot(slot: InventorySlot, slot_index: int) -> void:
+	slot.clear_slot()
+	_configure_loot_slot(slot, slot_index)
+
+
+func _configure_loot_slot(slot: InventorySlot, slot_index: int) -> void:
 	slot.slot_mode = InventorySlot.SlotMode.CONTAINER
 	slot.container_index = _encode_storage_index(LOOT_PROVIDER_SLOT_TYPE, slot_index)
-	slot.custom_minimum_size = Vector2(62, 62)
-	slot.icon_size = Vector2(110, 110)
+	slot.custom_minimum_size = LOOT_SLOT_SIZE
+	slot.size = LOOT_SLOT_SIZE
+	slot.icon_size = LOOT_SLOT_ICON_SIZE
 	slot.icon_rotation_degrees = 0.0
 	slot.show_name = false
 	slot.show_endurance = false
-	slot.stretch_icon_to_slot = true
+	slot.stretch_icon_to_slot = false
 	slot.icon_padding = 8.0
 	slot.show_background_in_container = true
 	slot.mouse_filter = Control.MOUSE_FILTER_STOP
-	slot.clear_slot()
+	slot.visible = true
+	slot._apply_visual_mode()
 
 
 func _refresh_loot_ui() -> void:
@@ -3401,12 +5027,13 @@ func _refresh_loot_ui() -> void:
 		if i < loot_provider.runtime_storage_items.size():
 			item = loot_provider.runtime_storage_items[i]
 
+		_configure_loot_slot(slot, i)
 		if item == null:
 			slot.clear_slot()
-			slot.slot_mode = InventorySlot.SlotMode.CONTAINER
-			slot.container_index = encoded_index
+			_configure_loot_slot(slot, i)
 		else:
 			slot.set_container_item(item, encoded_index)
+			_configure_loot_slot(slot, i)
 
 
 func _is_mouse_in_inventory_drag_zone() -> bool:
@@ -3518,7 +5145,7 @@ func _ensure_dev_console() -> void:
 	_dev_console_panel.add_child(root_vbox)
 
 	var title_label := Label.new()
-	title_label.text = "Developer Console (`): help | list_items | find_item | give | give_inv | spawn | give_name | history"
+	title_label.text = "Developer Console (`): help | list_items | give | status | god | speed | history"
 	root_vbox.add_child(title_label)
 
 	_dev_console_output = RichTextLabel.new()
@@ -3660,10 +5287,24 @@ func _execute_dev_console_command(command_text: String) -> void:
 			_dev_console_god_cmd(tokens)
 		"speed":
 			_dev_console_speed_cmd(tokens)
+		"status", "stat":
+			_dev_console_status_cmd(tokens)
+		"time", "set_time":
+			_dev_console_time_cmd(tokens)
+		"add_time":
+			_dev_console_add_time_cmd(tokens)
 		"list_houses":
 			_dev_console_list_houses_cmd()
 		"place_house":
 			_dev_console_place_house_cmd(tokens)
+		"village_place":
+			_dev_console_village_place_cmd(tokens)
+		"village_regen", "village_generate":
+			_dev_console_village_regen_cmd(tokens)
+		"village_seed":
+			_dev_console_village_seed_cmd()
+		"village_clear":
+			_dev_console_village_clear_cmd()
 		_:
 			_dev_console_log("Unknown command: %s" % command)
 
@@ -3671,7 +5312,7 @@ func _execute_dev_console_command(command_text: String) -> void:
 func _dev_console_help(tokens: Array[String]) -> void:
 	if tokens.size() <= 1:
 		_dev_console_log("help [command]")
-		_dev_console_log("list_items [filter] [limit], find_item <text> [limit], give/give_inv/spawn <id|path> [count], give_name \"Item Name\" [count], god [on|off], speed <value>, list_houses, place_house <id>, history [limit], aliases, alias <short> <command>, !!")
+		_dev_console_log("list_items [filter] [limit], find_item <text> [limit], give/give_inv/spawn <id|path> [count], give_name \"Item Name\" [count], status <bleeding|fracture|disease|regen|all> <on|off|toggle>, time [HH:MM], set_time <HH:MM>, add_time <minutes>, god [on|off], speed <value>, list_houses, place_house <id>, village_place [seed|random], village_regen [seed|random], village_seed, village_clear, history [limit], aliases, alias <short> <command>, !!")
 		return
 
 	var topic: String = tokens[1].to_lower()
@@ -3694,8 +5335,22 @@ func _dev_console_help(tokens: Array[String]) -> void:
 			_dev_console_log("god [on|off] -> РІРєР»СЋС‡РёС‚СЊ/РІС‹РєР»СЋС‡РёС‚СЊ РЅРµСѓСЏР·РІРёРјРѕСЃС‚СЊ.")
 		"speed":
 			_dev_console_log("speed <value> -> СѓСЃС‚Р°РЅРѕРІРёС‚СЊ Р±Р°Р·РѕРІСѓСЋ СЃРєРѕСЂРѕСЃС‚СЊ РїРµСЂСЃРѕРЅР°Р¶Р°.")
+		"status", "stat":
+			_dev_console_log("status <bleeding|fracture|disease|regen|all> <on|off|toggle> -> включить/выключить HUD-статы для проверки.")
+		"time", "set_time":
+			_dev_console_log("time -> current game time. time HH:MM or set_time HH:MM -> set game clock.")
+		"add_time":
+			_dev_console_log("add_time <minutes> -> shift game clock; negative values are allowed.")
 		"aliases", "alias":
 			_dev_console_log("aliases -> список алиасов. alias <short> <command> -> добавить/изменить.")
+		"village_place":
+			_dev_console_log("village_place [seed|random] -> режим постановки сгенерированной деревни мышью. ЛКМ поставить, ПКМ/Esc отменить.")
+		"village_regen", "village_generate":
+			_dev_console_log("village_regen [seed|random] -> пересобрать последнюю поставленную деревню с указанным или новым seed.")
+		"village_seed":
+			_dev_console_log("village_seed -> показать seed последней поставленной деревни.")
+		"village_clear":
+			_dev_console_log("village_clear -> удалить поставленные через консоль деревни.")
 		"!!":
 			_dev_console_log("!! -> выполнить последнюю команду из истории.")
 		_:
@@ -4084,8 +5739,195 @@ func _dev_console_speed_cmd(tokens: Array[String]) -> void:
 	_dev_console_log("Player speed set to %.2f" % speed_value)
 
 
+func _dev_console_status_cmd(tokens: Array[String]) -> void:
+	if tokens.size() < 2:
+		_dev_console_log("Usage: status <bleeding|fracture|disease|regen|all> [on|off|toggle]")
+		return
+	if _is_network_client_inventory_mutation_blocked():
+		_dev_console_log("Command is available only on server or in single-player")
+		return
+
+	var player_node := _get_dev_console_player()
+	if player_node == null:
+		_dev_console_log("Player not found in group 'player'")
+		return
+
+	var status_name: String = tokens[1].strip_edges().to_lower()
+	var mode: String = tokens[2].strip_edges().to_lower() if tokens.size() >= 3 else "toggle"
+	if not (mode in ["on", "1", "true", "off", "0", "false", "toggle"]):
+		_dev_console_log("Usage: status <bleeding|fracture|disease|regen|all> [on|off|toggle]")
+		return
+
+	if status_name == "all":
+		var enabled: bool = true if mode == "toggle" else _resolve_dev_status_target_enabled(true, mode)
+		for single_status in ["bleeding", "fracture", "disease", "regen"]:
+			_apply_dev_status(player_node, single_status, enabled)
+		_dev_console_log("Statuses all: %s" % ("ON" if enabled else "OFF"))
+		return
+
+	if not (status_name in ["bleeding", "bleed", "fracture", "fractured", "disease", "diseased", "regen", "regeneration"]):
+		_dev_console_log("Unknown status: %s" % status_name)
+		return
+
+	var current_enabled: bool = _is_dev_status_enabled(player_node, status_name)
+	var target_enabled: bool = _resolve_dev_status_target_enabled(current_enabled, mode)
+	_apply_dev_status(player_node, status_name, target_enabled)
+	_dev_console_log("Status %s: %s" % [status_name, "ON" if target_enabled else "OFF"])
+
+
+func _dev_console_time_cmd(tokens: Array[String]) -> void:
+	var clock := _get_dev_console_clock()
+	if clock == null:
+		_dev_console_log("Game clock not found")
+		return
+
+	if tokens.size() <= 1:
+		_dev_console_log("Time: %s" % _format_dev_console_time(_get_dev_console_clock_minutes(clock)))
+		return
+
+	var parsed := _parse_dev_console_time(tokens[1])
+	if not bool(parsed.get("ok", false)):
+		_dev_console_log("Usage: time [HH:MM] or set_time <HH:MM>")
+		return
+
+	var minutes := float(parsed.get("minutes", 0.0))
+	if not clock.has_method("set_game_time_minutes_of_day"):
+		_dev_console_log("Game clock does not support time changes")
+		return
+	clock.call("set_game_time_minutes_of_day", minutes)
+	_dev_console_log("Time set to %s" % _format_dev_console_time(minutes))
+
+
+func _dev_console_add_time_cmd(tokens: Array[String]) -> void:
+	if tokens.size() < 2 or not tokens[1].is_valid_float():
+		_dev_console_log("Usage: add_time <minutes>")
+		return
+
+	var clock := _get_dev_console_clock()
+	if clock == null:
+		_dev_console_log("Game clock not found")
+		return
+	if not clock.has_method("add_game_time_minutes"):
+		_dev_console_log("Game clock does not support time changes")
+		return
+
+	var minutes_delta := float(tokens[1])
+	clock.call("add_game_time_minutes", minutes_delta)
+	_dev_console_log("Time shifted by %.2f minutes -> %s" % [minutes_delta, _format_dev_console_time(_get_dev_console_clock_minutes(clock))])
+
+
+func _get_dev_console_clock() -> Node:
+	return get_tree().get_first_node_in_group("game_clock")
+
+
+func _get_dev_console_clock_minutes(clock: Node) -> float:
+	if clock != null and clock.has_method("get_game_time_minutes_of_day"):
+		return float(clock.call("get_game_time_minutes_of_day"))
+	return 0.0
+
+
+func _parse_dev_console_time(raw_value: String) -> Dictionary:
+	var value := raw_value.strip_edges()
+	if value.is_empty():
+		return {"ok": false, "minutes": 0.0}
+
+	if value.contains(":"):
+		var parts := value.split(":", false)
+		if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
+			return {"ok": false, "minutes": 0.0}
+		var hour := int(parts[0])
+		var minute := int(parts[1])
+		if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+			return {"ok": false, "minutes": 0.0}
+		return {"ok": true, "minutes": float(hour * 60 + minute)}
+
+	if value.is_valid_float():
+		var hour_float := float(value)
+		if hour_float < 0.0 or hour_float >= 24.0:
+			return {"ok": false, "minutes": 0.0}
+		return {"ok": true, "minutes": hour_float * 60.0}
+
+	return {"ok": false, "minutes": 0.0}
+
+
+func _format_dev_console_time(minutes_of_day: float) -> String:
+	var normalized := fmod(minutes_of_day, 24.0 * 60.0)
+	if normalized < 0.0:
+		normalized += 24.0 * 60.0
+	var total_minutes := int(floor(normalized))
+	return "%02d:%02d" % [total_minutes / 60, total_minutes % 60]
+
+
+func _resolve_dev_status_target_enabled(current_enabled: bool, mode: String) -> bool:
+	if mode in ["on", "1", "true"]:
+		return true
+	if mode in ["off", "0", "false"]:
+		return false
+	return not current_enabled
+
+
+func _is_dev_status_enabled(player_node: Node, status_name: String) -> bool:
+	match status_name:
+		"bleeding", "bleed":
+			return bool(player_node.get("is_bleeding"))
+		"fracture", "fractured":
+			return bool(player_node.get("is_fractured"))
+		"disease", "diseased":
+			return bool(player_node.get("is_diseased"))
+		"regen", "regeneration":
+			return player_node.has_method("has_passive_regeneration") and bool(player_node.call("has_passive_regeneration"))
+		_:
+			return false
+
+
+func _apply_dev_status(player_node: Node, status_name: String, enabled: bool) -> void:
+	match status_name:
+		"bleeding", "bleed":
+			if player_node.has_method("_set_bleeding"):
+				player_node.call("_set_bleeding", enabled)
+			else:
+				player_node.set("is_bleeding", enabled)
+		"fracture", "fractured":
+			if player_node.has_method("_set_fractured"):
+				player_node.call("_set_fractured", enabled)
+			else:
+				player_node.set("is_fractured", enabled)
+		"disease", "diseased":
+			if player_node.has_method("_set_diseased"):
+				player_node.call("_set_diseased", enabled, 999999.0)
+			else:
+				player_node.set("is_diseased", enabled)
+		"regen", "regeneration":
+			_apply_dev_regeneration_status(player_node, enabled)
+
+	if player_node.has_signal("status_effects_changed"):
+		player_node.status_effects_changed.emit()
+	if player_node.has_signal("stats_changed"):
+		player_node.stats_changed.emit()
+
+
+func _apply_dev_regeneration_status(player_node: Node, enabled: bool) -> void:
+	_set_dev_hud_status_override(&"regeneration", enabled)
+	var max_health: float = float(player_node.get("max_health"))
+	if enabled:
+		if "max_food" in player_node:
+			player_node.set("food", float(player_node.get("max_food")))
+		if "max_water" in player_node:
+			player_node.set("water", float(player_node.get("max_water")))
+		player_node.set("health", maxf(max_health * 0.5, 1.0))
+		return
+
+	player_node.set("health", max_health)
+
+
+func _set_dev_hud_status_override(status_name: StringName, enabled: bool) -> void:
+	for hud_node in get_tree().get_nodes_in_group("hud"):
+		if hud_node != null and hud_node.has_method("set_debug_status_override"):
+			hud_node.call("set_debug_status_override", status_name, enabled)
+
+
 func _get_dev_console_player() -> Node:
-	return get_tree().get_first_node_in_group("player")
+	return _get_local_inventory_player()
 
 
 func _get_house_placement_controller() -> Node:
@@ -4135,6 +5977,104 @@ func _dev_console_place_house_cmd(tokens: Array[String]) -> void:
 	_dev_console_log("Placing house: %s | left click - place | right click/Esc - cancel" % house_id)
 
 
+func _get_village_placement_controller() -> VillagePlacementController:
+	var existing := get_tree().get_first_node_in_group("village_placement_controller") as VillagePlacementController
+	if existing != null:
+		return existing
+
+	var scene_root := get_tree().current_scene
+	if scene_root == null:
+		return null
+
+	var controller := VillagePlacementController.new()
+	controller.name = "VillagePlacementController"
+	scene_root.add_child(controller)
+	return controller
+
+
+func _dev_console_village_place_cmd(tokens: Array[String]) -> void:
+	if _is_network_client_inventory_mutation_blocked():
+		_dev_console_log("Command is available only on server or in single-player")
+		return
+
+	var parsed_seed := _parse_dev_console_village_seed(tokens, 1)
+	if not bool(parsed_seed.get("ok", false)):
+		_dev_console_log("Usage: village_place [seed|random]")
+		return
+
+	var placement_controller := _get_village_placement_controller()
+	if placement_controller == null:
+		_dev_console_log("Village placement controller not found")
+		return
+
+	var seed_value := int(parsed_seed.get("seed", -1))
+	if not placement_controller.start_village_placement(seed_value):
+		_dev_console_log("Failed to start village placement")
+		return
+
+	close_inventory()
+	var active_seed := placement_controller.get_pending_village_seed()
+	_dev_console_log("Placing generated village | seed: %d | left click - place | right click/Esc - cancel" % active_seed)
+
+
+func _dev_console_village_regen_cmd(tokens: Array[String]) -> void:
+	if _is_network_client_inventory_mutation_blocked():
+		_dev_console_log("Command is available only on server or in single-player")
+		return
+
+	var parsed_seed := _parse_dev_console_village_seed(tokens, 1)
+	if not bool(parsed_seed.get("ok", false)):
+		_dev_console_log("Usage: village_regen [seed|random]")
+		return
+
+	var placement_controller := _get_village_placement_controller()
+	if placement_controller == null:
+		_dev_console_log("Village placement controller not found")
+		return
+
+	var used_seed := placement_controller.regenerate_last_village(int(parsed_seed.get("seed", -1)))
+	if used_seed < 0:
+		_dev_console_log("No placed village to regenerate")
+		return
+	_dev_console_log("Village regenerated | seed: %d" % used_seed)
+
+
+func _dev_console_village_seed_cmd() -> void:
+	var placement_controller := _get_village_placement_controller()
+	if placement_controller == null:
+		_dev_console_log("Village placement controller not found")
+		return
+	var seed_value := placement_controller.get_last_village_seed()
+	if seed_value < 0:
+		_dev_console_log("No placed village")
+		return
+	_dev_console_log("Last village seed: %d" % seed_value)
+
+
+func _dev_console_village_clear_cmd() -> void:
+	if _is_network_client_inventory_mutation_blocked():
+		_dev_console_log("Command is available only on server or in single-player")
+		return
+
+	var placement_controller := _get_village_placement_controller()
+	if placement_controller == null:
+		_dev_console_log("Village placement controller not found")
+		return
+	var cleared_count := placement_controller.clear_generated_villages()
+	_dev_console_log("Cleared villages: %d" % cleared_count)
+
+
+func _parse_dev_console_village_seed(tokens: Array[String], seed_index: int) -> Dictionary:
+	if tokens.size() <= seed_index:
+		return {"ok": true, "seed": -1}
+	var raw_seed := tokens[seed_index].strip_edges().to_lower()
+	if raw_seed.is_empty() or raw_seed == "random" or raw_seed == "new":
+		return {"ok": true, "seed": -1}
+	if not raw_seed.is_valid_int():
+		return {"ok": false, "seed": -1}
+	return {"ok": true, "seed": max(int(raw_seed), 0)}
+
+
 func _on_dev_console_input_text_changed(new_text: String) -> void:
 	_refresh_dev_console_suggestions(new_text)
 
@@ -4152,7 +6092,7 @@ func _refresh_dev_console_suggestions(text: String) -> void:
 		_dev_console_suggestions.visible = false
 		return
 
-	var known_commands: Array[String] = ["help", "list_items", "find_item", "give", "give_inv", "spawn", "give_name", "god", "invuln", "speed", "list_houses", "place_house", "history", "aliases", "alias"]
+	var known_commands: Array[String] = ["help", "list_items", "find_item", "give", "give_inv", "spawn", "give_name", "status", "stat", "time", "set_time", "add_time", "god", "invuln", "speed", "list_houses", "place_house", "village_place", "village_regen", "village_generate", "village_seed", "village_clear", "history", "aliases", "alias"]
 	var tokens: Array[String] = _tokenize_dev_console_command(text)
 	if tokens.is_empty():
 		_dev_console_suggestions.visible = false
@@ -4205,6 +6145,31 @@ func _refresh_dev_console_suggestions(text: String) -> void:
 			if existing_filter.is_empty() or hint.begins_with(existing_filter):
 				_dev_console_suggestion_values.append(hint)
 				_dev_console_suggestions.add_item("filter: %s" % hint)
+	elif first in ["status", "stat"]:
+		if tokens.size() <= 2:
+			var status_filter: String = tokens[1].to_lower() if tokens.size() >= 2 else ""
+			for hint in ["bleeding", "fracture", "disease", "regen", "all"]:
+				if status_filter.is_empty() or hint.begins_with(status_filter):
+					_dev_console_suggestion_values.append(hint)
+					_dev_console_suggestions.add_item("status: %s" % hint)
+		elif tokens.size() <= 3:
+			var mode_filter: String = tokens[2].to_lower() if tokens.size() >= 3 else ""
+			for hint in ["on", "off", "toggle"]:
+				if mode_filter.is_empty() or hint.begins_with(mode_filter):
+					_dev_console_suggestion_values.append(hint)
+					_dev_console_suggestions.add_item("mode: %s" % hint)
+	elif first in ["time", "set_time"] and tokens.size() <= 2:
+		var time_filter: String = tokens[1].to_lower() if tokens.size() >= 2 else ""
+		for hint in ["06:00", "08:00", "12:00", "18:00", "22:00"]:
+			if time_filter.is_empty() or hint.begins_with(time_filter):
+				_dev_console_suggestion_values.append(hint)
+				_dev_console_suggestions.add_item("time: %s" % hint)
+	elif first == "add_time" and tokens.size() <= 2:
+		var delta_filter: String = tokens[1].to_lower() if tokens.size() >= 2 else ""
+		for hint in ["60", "180", "-60"]:
+			if delta_filter.is_empty() or hint.begins_with(delta_filter):
+				_dev_console_suggestion_values.append(hint)
+				_dev_console_suggestions.add_item("minutes: %s" % hint)
 	elif first == "place_house":
 		var placement_controller := _get_house_placement_controller()
 		if placement_controller != null and placement_controller.has_method("get_available_house_ids"):
@@ -4220,6 +6185,12 @@ func _refresh_dev_console_suggestions(text: String) -> void:
 						_dev_console_suggestions.add_item("house: %s" % house_id)
 					if _dev_console_suggestion_values.size() >= max_hints:
 						break
+	elif first in ["village_place", "village_regen", "village_generate"] and tokens.size() <= 2:
+		var seed_filter: String = tokens[1].to_lower() if tokens.size() >= 2 else ""
+		for hint in ["random", "1337", "2026"]:
+			if seed_filter.is_empty() or hint.begins_with(seed_filter):
+				_dev_console_suggestion_values.append(hint)
+				_dev_console_suggestions.add_item("seed: %s" % hint)
 
 	_dev_console_suggestions.visible = not _dev_console_suggestion_values.is_empty()
 	if _dev_console_suggestions.visible:
@@ -4276,8 +6247,40 @@ func _apply_dev_console_selected_suggestion() -> void:
 		_dev_console_input.text = "give_name \"%s\" " % selected
 	elif first == "list_items":
 		_dev_console_input.text = "list_items %s " % selected
+	elif first in ["status", "stat"]:
+		var parts: PackedStringArray = text.split(" ", false)
+		if parts.size() <= 1:
+			_dev_console_input.text = "status %s " % selected
+		elif parts.size() == 2:
+			_dev_console_input.text = "%s %s " % [parts[0], selected]
+		else:
+			_dev_console_input.text = "%s %s %s" % [parts[0], parts[1], selected]
+	elif first in ["time", "set_time", "add_time"]:
+		var parts: PackedStringArray = text.split(" ", false)
+		if parts.size() <= 1:
+			_dev_console_input.text = "%s %s" % [first, selected]
+		else:
+			parts[1] = selected
+			var rebuilt: String = ""
+			for i in range(parts.size()):
+				if i > 0:
+					rebuilt += " "
+				rebuilt += parts[i]
+			_dev_console_input.text = rebuilt
 	elif first == "place_house":
 		_dev_console_input.text = "place_house %s " % selected
+	elif first in ["village_place", "village_regen", "village_generate"]:
+		var parts: PackedStringArray = text.split(" ", false)
+		if parts.size() <= 1:
+			_dev_console_input.text = "%s %s" % [first, selected]
+		else:
+			parts[1] = selected
+			var rebuilt: String = ""
+			for i in range(parts.size()):
+				if i > 0:
+					rebuilt += " "
+				rebuilt += parts[i]
+			_dev_console_input.text = rebuilt
 	else:
 		_dev_console_input.text = selected
 
@@ -4297,3 +6300,77 @@ func _dev_console_log(message: String) -> void:
 	if _dev_console_output == null:
 		return
 	_dev_console_output.append_text("%s\n" % message)
+
+
+var _network_loot_open_pending := false
+
+func _shared_world() -> Node:
+	return get_tree().get_first_node_in_group("network_shared_world")
+
+func _get_local_inventory_player() -> Node2D:
+	for actor in get_tree().get_nodes_in_group("player"):
+		if actor is Node2D and (multiplayer.multiplayer_peer == null or int(actor.get("peer_id")) == NetworkManager.get_local_peer_id()):
+			return actor
+	return null
+
+func _network_loot_source() -> Node:
+	var id := active_bandit_loot_source_id if active_loot_context == LOOT_CONTEXT_BANDIT else active_container_source_id
+	return instance_from_id(id) if id != 0 and is_instance_id_valid(id) else null
+
+func apply_network_loot_state(path: String, items: Array[ItemData]) -> void:
+	var source := _network_loot_source()
+	if source == null or String(source.get_path()) != path: return
+	var should_open := is_inventory_open or _network_loot_open_pending
+	_network_loot_open_pending = false
+	_open_loot_slots(items, active_loot_context)
+	if not should_open: close_inventory()
+
+func _is_loot_index(index: int) -> bool:
+	return index >= 0 and int(index / 100.0) == LOOT_PROVIDER_SLOT_TYPE
+
+func _queue_shared_loot_edit(target: InventorySlot, data: Dictionary, drop: bool) -> bool:
+	if _shared_world() == null: return false
+	var from_loot := int(data.get("source_mode", -1)) == InventorySlot.SlotMode.CONTAINER and _is_loot_index(int(data.get("container_index", -1)))
+	var to_loot := target != null and target.slot_mode == InventorySlot.SlotMode.CONTAINER and _is_loot_index(target.container_index)
+	if not from_loot and not to_loot: return false
+	var source := _network_loot_source()
+	if source != null:
+		if drop and from_loot:
+			_shared_world().drop_container_item(source, int(data.get("container_index", -1)) % 100)
+			return true
+		_shared_world().transact(source, Callable(self, "_apply_shared_loot_edit").bind(target, data.duplicate(), drop, String(source.get_path())))
+	return true
+
+func _apply_shared_loot_edit(items: Array[ItemData], target: InventorySlot, data: Dictionary, drop: bool, path: String) -> void:
+	var source := _network_loot_source()
+	if source == null or String(source.get_path()) != path or (not drop and not is_instance_valid(target)): return
+	var index := int(data.get("container_index", -1))
+	if int(data.get("source_mode", -1)) == InventorySlot.SlotMode.CONTAINER and _is_loot_index(index):
+		var slot := index % 100
+		if slot >= items.size() or items[slot] == null: return
+		if GameSaveManager.serialize_item(items[slot]) != GameSaveManager.serialize_item(data.get("item")): return
+		data.item = items[slot]
+	var previous: Array[ItemData] = loot_provider.runtime_storage_items
+	loot_provider.runtime_storage_items = items
+	_approved_inventory_move(target, data, drop)
+	loot_provider.runtime_storage_items = previous
+	refresh_ui()
+
+func _drag_payload(data: Dictionary) -> Dictionary:
+	var slot: InventorySlot = data.get("source_slot")
+	return {"slot_mode": int(data.get("source_mode", -1)), "slot_type": slot.slot_type if is_instance_valid(slot) else 0, "container_index": int(data.get("container_index", -1))}
+
+func _approved_inventory_move(target: InventorySlot, data: Dictionary, drop: bool) -> void:
+	var mode := int(data.get("source_mode", -1))
+	var source: InventorySlot = data.get("source_slot")
+	var current: ItemData = null
+	if mode == InventorySlot.SlotMode.EQUIPMENT and is_instance_valid(source): current = InventoryManager.get_equipped(source.slot_type)
+	elif mode == InventorySlot.SlotMode.CONTAINER: current = _get_bound_storage_item(_decode_storage_binding(int(data.get("container_index", -1))))
+	if current == null or current != data.get("item"): return
+	_network_inventory_action_bypass = true
+	if drop: _drop_dragged_item_to_world(data)
+	elif is_instance_valid(target): _on_slot_drop_requested(target, data)
+	_network_inventory_action_bypass = false
+
+func _is_shared_loot_slot(slot: InventorySlot) -> bool:
+	return _shared_world() != null and is_instance_valid(slot) and slot.slot_mode == InventorySlot.SlotMode.CONTAINER and _is_loot_index(slot.container_index)

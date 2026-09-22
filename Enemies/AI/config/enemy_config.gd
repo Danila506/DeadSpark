@@ -26,6 +26,7 @@ class_name EnemyConfig
 @export var projectile_damage: float = 8.0
 @export var projectile_max_distance: float = 420.0
 @export var ranged_spread_degrees: float = 9.0
+@export var ranged_uses_shotgun_shells: bool = false
 @export var require_line_of_sight_for_attack: bool = true
 @export var prevent_friendly_fire: bool = true
 @export var ranged_burst_min_shots: int = 3

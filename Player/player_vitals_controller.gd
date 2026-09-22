@@ -75,10 +75,11 @@ func take_damage(amount: float, damage_type: int = ItemData.DamageType.GENERIC, 
 		return
 	if _is_invulnerable():
 		return
+	var safe_amount: float = max(amount, 0.0)
 	if apply_clothing_damage:
-		player._apply_clothing_endurance_from_damage(amount, damage_type)
+		player._apply_clothing_endurance_from_damage(safe_amount, damage_type)
 
-	_apply_health_loss(amount)
+	_apply_health_loss(_get_damage_after_armor(safe_amount, damage_type))
 	player.stats_changed.emit()
 
 	if player.health <= 0.0:
@@ -246,3 +247,15 @@ func _apply_health_loss(amount: float) -> bool:
 		return player.health <= 0.0
 	player.health = clamp(player.health - amount, 0.0, player.max_health)
 	return player.health <= 0.0
+
+
+func _get_damage_after_armor(amount: float, damage_type: int) -> float:
+	if amount <= 0.0:
+		return 0.0
+	if player != null and player.has_method("get_incoming_damage_after_armor"):
+		return float(player.call("get_incoming_damage_after_armor", amount, damage_type))
+	if InventoryManager == null:
+		return amount
+	if not InventoryManager.has_method("get_damage_after_equipped_clothing_armor"):
+		return amount
+	return float(InventoryManager.get_damage_after_equipped_clothing_armor(amount, damage_type))

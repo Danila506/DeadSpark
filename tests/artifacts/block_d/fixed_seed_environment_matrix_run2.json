@@ -1,0 +1,302 @@
+{
+	"id": "block_d_fixed_seed_environment_matrix_v1",
+	"matrix_digest": "790e0aa228229c9191ac7ab2dec24d9012992c79ea5b00fca8d2deb3cbdb3bbd",
+	"seeds": [
+		{
+			"compatibility_hash": "31b9babe14f86c1c176cbc74c59bac33bd6470045419ac2d2689037dc399c719",
+			"environment_content_hash": "77e397d3895e0b9d630826ec0ba044bf622b2c8a7b9d3154d96a5aa9ec404cd8",
+			"environment_manifest_hash": "4d9e7749258de0b8cb5092b830d7e30096ea0c6bace163a2dc4d78ef268baeea",
+			"environment_occupancy_claim_count": 88,
+			"generated_object_id_digest": "2bbabb27983a9c3d2f62be04682c3eae382740d473a067cdb37d420bef09b63a",
+			"global_manifest_hash": "085dd4d0093dfb25089ad2d6d50572f04c485b47cfa24b77065bb4e37bc6a85b",
+			"global_output_hash": "bfa9cbda0d7408e81383bb198b036e3dfddb549d06b611b2c89175b8a8f7fe22",
+			"placements_by_category": {
+				"berry_bushes": 10,
+				"biom1_static_tiles": 12,
+				"biom2_static_tiles": 5,
+				"bushes": 12,
+				"deadwood": 14,
+				"puddles": 9,
+				"stones": 10,
+				"trees": 14,
+				"xz_static_tiles": 2
+			},
+			"poi_hash": "6c141bce754e6491ca95295dccdb4191514f56edc523996fbc4ba6f8bd5fb626",
+			"rejection_counts": [
+				{
+					"count": 323,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 93,
+					"reason": "max_instances"
+				},
+				{
+					"count": 48,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 36,
+					"reason": "poi"
+				},
+				{
+					"count": 52,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "75916414acdf7aef1502e082bcc72bd976b5b24f8b7aca5a4177e4d5e48d49f7",
+			"road_raster_hash": "0c17ddbedde7fdf8c6e98690b73cba62dc100d15231ee2a4f4dc59827ed2dcb8",
+			"scene_placement_count": 69,
+			"seed": 1337,
+			"tilemap_placement_count": 19,
+			"total_placements": 88,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		},
+		{
+			"compatibility_hash": "31b9babe14f86c1c176cbc74c59bac33bd6470045419ac2d2689037dc399c719",
+			"environment_content_hash": "5c9152e0fc8b26d6f8a36a1c41889289740a5cdf80030b88dc1551d2527ce494",
+			"environment_manifest_hash": "31ba74b28af62fcb27895ead6002b7a87ae6e6b61484e32a8dc1c28df5d624ee",
+			"environment_occupancy_claim_count": 94,
+			"generated_object_id_digest": "5f206a0d0655e13fcb36fc5014956eea338eeaeb49de9ee1b19c112f569cec44",
+			"global_manifest_hash": "1251c61175e8286c5f6f523eb9c5396935e649d4af34766f9c94569c6453c104",
+			"global_output_hash": "8f7c4a90bc72f7832b7e2f9bdc525f8613a8d0776c3fecb1a2af9a83fc1f3054",
+			"placements_by_category": {
+				"berry_bushes": 10,
+				"biom1_static_tiles": 13,
+				"biom2_static_tiles": 6,
+				"bushes": 12,
+				"deadwood": 14,
+				"puddles": 10,
+				"stones": 10,
+				"trees": 12,
+				"xz_static_tiles": 7
+			},
+			"poi_hash": "5e08cb67e3652521d1934b0f34aa4d19f2e2ae1ea3bbb27217eb7b8860eb4c4a",
+			"rejection_counts": [
+				{
+					"count": 289,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 135,
+					"reason": "max_instances"
+				},
+				{
+					"count": 46,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 21,
+					"reason": "poi"
+				},
+				{
+					"count": 55,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "c0d2d1c49646b378b718f363be32cd7f5ebd5b4e7fe475e790ea59f043b1150a",
+			"road_raster_hash": "29e53d122dad2febef3553dfa7c5d5bdb3eb1665f5892fc92e53cd8d763acaca",
+			"scene_placement_count": 68,
+			"seed": 7331,
+			"tilemap_placement_count": 26,
+			"total_placements": 94,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		},
+		{
+			"compatibility_hash": "31b9babe14f86c1c176cbc74c59bac33bd6470045419ac2d2689037dc399c719",
+			"environment_content_hash": "c1d5c8bca32177b14de47ac319e48a67764e8fd925d5be09f1c0ee550547df3e",
+			"environment_manifest_hash": "044223208199af3928d2db1e5444d41d1a4b9311f772c19ddf27fcec211f567c",
+			"environment_occupancy_claim_count": 89,
+			"generated_object_id_digest": "5ea5ce1fa2c7af83f6b2d5afbe7f05cefdbf3fdcc593942e1dd333c93217a818",
+			"global_manifest_hash": "a31a001c1b76b4c0a2dcb17832e8645b2ee47e8b7846115fae0b79588b808e7a",
+			"global_output_hash": "2e3273601b0725490aacf0e7f1336654cf96bcc2475fd253f3aade0f24be19f5",
+			"placements_by_category": {
+				"berry_bushes": 10,
+				"biom1_static_tiles": 18,
+				"biom2_static_tiles": 7,
+				"bushes": 12,
+				"deadwood": 12,
+				"puddles": 10,
+				"stones": 10,
+				"trees": 8,
+				"xz_static_tiles": 2
+			},
+			"poi_hash": "5e08cb67e3652521d1934b0f34aa4d19f2e2ae1ea3bbb27217eb7b8860eb4c4a",
+			"rejection_counts": [
+				{
+					"count": 283,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 135,
+					"reason": "max_instances"
+				},
+				{
+					"count": 46,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 33,
+					"reason": "poi"
+				},
+				{
+					"count": 54,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "c1fba5461fe7fccbed29350c3608a19029512d0fa4de52eba4892ad1348ba45d",
+			"road_raster_hash": "4f82c5b3107abfe085fd58047c5f149786fbaa65db8f6ff596ed485df01b15a1",
+			"scene_placement_count": 62,
+			"seed": 15885,
+			"tilemap_placement_count": 27,
+			"total_placements": 89,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		},
+		{
+			"compatibility_hash": "31b9babe14f86c1c176cbc74c59bac33bd6470045419ac2d2689037dc399c719",
+			"environment_content_hash": "33cc7f29194887c2b8472c1c51b19868cd0669709822c0fd941ead6a52622a85",
+			"environment_manifest_hash": "73b4aa2cf08df8cfa305d7c9eca3d9928da20bc05df21b75be7ff1d4c366ca36",
+			"environment_occupancy_claim_count": 89,
+			"generated_object_id_digest": "48d7b31a0063d1fe7b9a69882e158f017a11dad8151c530c4471528d35d8f7e7",
+			"global_manifest_hash": "f761830e32c56878d4ed329ac5ca5c765afcd51dd625db2f678dc07b012b671e",
+			"global_output_hash": "7af5e45275c7c910bce26de5e098389f733baf411d833bfd8f6fbe388b801ceb",
+			"placements_by_category": {
+				"berry_bushes": 10,
+				"biom1_static_tiles": 22,
+				"biom2_static_tiles": 4,
+				"bushes": 12,
+				"deadwood": 14,
+				"puddles": 10,
+				"stones": 8,
+				"trees": 8,
+				"xz_static_tiles": 1
+			},
+			"poi_hash": "c0231aecbce19dda2442120f13d073638fc9941b70f46af10c6dbfa9a727b988",
+			"rejection_counts": [
+				{
+					"count": 382,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 116,
+					"reason": "max_instances"
+				},
+				{
+					"count": 46,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 7,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "0f30b309c61fdc9663ecea9340536f6f4b630e9ad1226df4b130b6640a61a920",
+			"road_raster_hash": "3b9365e673ce83655f3f6965f70f717ee4bc0a0c6add5234c7312a9fe2389c2c",
+			"scene_placement_count": 62,
+			"seed": 1001,
+			"tilemap_placement_count": 27,
+			"total_placements": 89,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		},
+		{
+			"compatibility_hash": "31b9babe14f86c1c176cbc74c59bac33bd6470045419ac2d2689037dc399c719",
+			"environment_content_hash": "29072dba989c4e1b0f29f0e1824cbbeb14c6a46c76d5a85b089bc01eb4ef83d4",
+			"environment_manifest_hash": "efd6329f041e4c2cb264fa5c75c9e9d253da498846baf73ca636ccb64fbb53ed",
+			"environment_occupancy_claim_count": 86,
+			"generated_object_id_digest": "ebbae29e3e8d26a9c3315763a6af8c025ac12d5f83c21bb01edd20db80231b2f",
+			"global_manifest_hash": "7fd5b2c336e0a7fda9beca1e0afd31398417a1d65e1b0b7ebd201bdef8ea1ce4",
+			"global_output_hash": "66b160af464a2596b35ac9ccaf3f6d8c790c6fa816bd02d0cb6cc9f7e6c6cc46",
+			"placements_by_category": {
+				"berry_bushes": 10,
+				"biom1_static_tiles": 18,
+				"biom2_static_tiles": 3,
+				"bushes": 12,
+				"deadwood": 9,
+				"puddles": 10,
+				"stones": 10,
+				"trees": 8,
+				"xz_static_tiles": 6
+			},
+			"poi_hash": "b968d2d1487e58a162956c3f1b1d91fb5f402a665e444fc0910ec056562c94af",
+			"rejection_counts": [
+				{
+					"count": 303,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 96,
+					"reason": "max_instances"
+				},
+				{
+					"count": 61,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 25,
+					"reason": "poi"
+				},
+				{
+					"count": 69,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "ffa98f68dcb9accb4b56d3d8a4a6fec70c1e4ab3521f09ae95a2071c91bdc03f",
+			"road_raster_hash": "3fc95e61f6b96c2bc3ca41b05840cb18753932160ee9c88c620e78e2a0be11d0",
+			"scene_placement_count": 59,
+			"seed": 2026,
+			"tilemap_placement_count": 27,
+			"total_placements": 86,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		},
+		{
+			"compatibility_hash": "31b9babe14f86c1c176cbc74c59bac33bd6470045419ac2d2689037dc399c719",
+			"environment_content_hash": "2289cf36471f39370ce006d54d1bbc5914fe417a85c4daebc24e986176dbd275",
+			"environment_manifest_hash": "c11d97cfd5b57e01b0c337dd04dd4a227c70d987513c4a3bdd166dcaeeee99ca",
+			"environment_occupancy_claim_count": 89,
+			"generated_object_id_digest": "7c23ed53cf6e925983eb4dd4b40837479266552358af7bdac749f38bd9b3dcc6",
+			"global_manifest_hash": "152ac6abf91871d5f6862827a40e3e59eefa8c9f374fd6502ca143c1623810cb",
+			"global_output_hash": "c2bc4215fc22f098927e37c81016cd835100f61414303ac0b7701ac2c7e4a9c2",
+			"placements_by_category": {
+				"berry_bushes": 10,
+				"biom1_static_tiles": 19,
+				"biom2_static_tiles": 5,
+				"bushes": 12,
+				"deadwood": 7,
+				"puddles": 10,
+				"stones": 10,
+				"trees": 11,
+				"xz_static_tiles": 5
+			},
+			"poi_hash": "fbcdce53d53b56929791061a6fa9879c30a08d382961ce05517573bf69d88b0a",
+			"rejection_counts": [
+				{
+					"count": 335,
+					"reason": "environment_spacing"
+				},
+				{
+					"count": 105,
+					"reason": "max_instances"
+				},
+				{
+					"count": 54,
+					"reason": "out_of_bounds"
+				},
+				{
+					"count": 28,
+					"reason": "poi"
+				},
+				{
+					"count": 29,
+					"reason": "road"
+				}
+			],
+			"road_graph_hash": "0b71f6a7620ea1d264166f976c723ddcc8b4feff86c5206cd6f3312e5f1b0cc6",
+			"road_raster_hash": "db288e0800b50253cd2c56181fdd9dac94aaa082f9c285d30a4172b47e6541fa",
+			"scene_placement_count": 60,
+			"seed": 99999,
+			"tilemap_placement_count": 29,
+			"total_placements": 89,
+			"village_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+		}
+	]
+}

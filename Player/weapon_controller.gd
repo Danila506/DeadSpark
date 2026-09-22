@@ -36,6 +36,7 @@ class_name WeaponController
 @export_range(6, 64, 1) var melee_debug_segments: int = 20
 @export var cursor_speed_min_px_per_sec: float = 120.0
 @export var cursor_speed_max_px_per_sec: float = 1400.0
+@export_range(0.25, 4.0, 0.05) var aim_cursor_scale: float = 2.0
 @export var aim_target_offset: Vector2 = Vector2(0.0, 0.0)
 @export var aim_camera_zoom: Vector2 = Vector2(2.65, 2.65)
 @export var scoped_aim_camera_zoom: Vector2 = Vector2(3.25, 3.25)
@@ -81,6 +82,7 @@ var melee_camera_shake_time_left: float = 0.0
 var _last_mouse_mode: int = -1
 var _last_cursor_texture: Texture2D = null
 var _last_cursor_hotspot: Vector2 = Vector2(-999999.0, -999999.0)
+var _scaled_aim_cursor_cache: Dictionary = {}
 var mobile_aim_active: bool = false
 var mobile_aim_vector: Vector2 = Vector2.DOWN
 var mobile_aim_distance: float = 420.0
@@ -92,6 +94,16 @@ var base_camera_zoom: Vector2 = Vector2(2.0, 2.0)
 var base_camera_position: Vector2 = Vector2.ZERO
 var _network_shot_seq: int = 0
 var _network_shot_time_offset_ms: int = 0
+var _network_reload_seq: int = 0
+var _network_reload_slot: int = -1
+var _network_melee_seq: int = 0
+var _server_last_reload_request_seq: int = -1
+var _server_last_melee_request_seq: int = -1
+var _server_active_reload_sender_id: int = 0
+var _server_active_reload_request_seq: int = -1
+var _server_active_reload_slot: int = -1
+var _server_active_melee_sender_id: int = 0
+var _server_active_melee_request_seq: int = -1
 var noise_controller
 var reload_controller
 var shooting_controller
@@ -132,6 +144,15 @@ func _process(delta: float) -> void:
 	_update_current_weapon()
 	if noise_controller != null:
 		noise_controller.update(delta)
+	if shooting_controller != null:
+		shooting_controller.update_shoot_cooldown(delta)
+	if melee_controller != null:
+		melee_controller.update_melee_attack(delta)
+	if reload_controller != null:
+		reload_controller.update(delta)
+	_sync_reload_state_from_controller()
+	if not _can_read_local_weapon_input():
+		return
 	if melee_debug_root == null or melee_debug_fill == null or melee_debug_outline == null:
 		_setup_melee_debug_visual()
 	_update_melee_debug_visual()
@@ -140,15 +161,9 @@ func _process(delta: float) -> void:
 	_update_spread(delta)
 	_update_cursor_heat(delta)
 	_update_cursor()
-	if shooting_controller != null:
-		shooting_controller.update_shoot_cooldown(delta)
 	if melee_controller != null:
-		melee_controller.update_melee_attack(delta)
 		melee_controller.update_melee_camera_shake(delta)
 	_update_aim_camera(delta)
-	if reload_controller != null:
-		reload_controller.update(delta)
-	_sync_reload_state_from_controller()
 	if reload_controller != null:
 		reload_controller.try_reload()
 	_sync_reload_state_from_controller()
@@ -158,17 +173,22 @@ func _process(delta: float) -> void:
 		shooting_controller.try_shoot()
 
 
+func sync_aim_state_for_movement() -> void:
+	_update_current_weapon()
+	_update_aim_state()
+
+
 func _update_current_weapon() -> void:
 	var previous_weapon: ItemData = current_weapon
 	var previous_melee_weapon: ItemData = current_melee_weapon
-	var active_weapon_slot: int = InventoryManager.get_active_weapon_slot()
+	var active_weapon_slot: int = _get_active_weapon_slot()
 	current_weapon = null
 	current_melee_weapon = null
 
 	if active_weapon_slot in [ItemData.ItemType.AR_Weapon, ItemData.ItemType.Pistols]:
-		current_weapon = InventoryManager.get_equipped(active_weapon_slot)
+		current_weapon = _get_equipped_item(active_weapon_slot)
 	elif active_weapon_slot == ItemData.ItemType.MeleeWeapon:
-		current_melee_weapon = InventoryManager.get_equipped(active_weapon_slot)
+		current_melee_weapon = _get_equipped_item(active_weapon_slot)
 
 	if previous_weapon != current_weapon or previous_melee_weapon != current_melee_weapon:
 		_cancel_reload()
@@ -225,6 +245,15 @@ func _update_aim_state() -> void:
 		cursor_heat_ratio = 0.0
 		cursor_motion_ratio = 0.0
 		aim_visual_ratio = 1.0
+	if is_aiming != was_aiming:
+		_refresh_player_animation_for_aim_state()
+
+
+func _refresh_player_animation_for_aim_state() -> void:
+	if player == null:
+		return
+	if player.has_method("_force_refresh_animation"):
+		player.call("_force_refresh_animation")
 
 
 func _update_cursor() -> void:
@@ -243,8 +272,9 @@ func _update_cursor() -> void:
 	if is_aiming and current_weapon != null:
 		var cursor_texture: Texture2D = _get_current_aim_cursor()
 		if cursor_texture != null:
-			var hotspot: Vector2 = cursor_texture.get_size() / 2.0
-			_set_cursor_if_changed(cursor_texture, hotspot)
+			var scaled_cursor_texture: Texture2D = _get_scaled_aim_cursor_texture(cursor_texture)
+			var hotspot: Vector2 = scaled_cursor_texture.get_size() / 2.0
+			_set_cursor_if_changed(scaled_cursor_texture, hotspot)
 			return
 
 	if default_cursor != null:
@@ -277,6 +307,34 @@ func _set_cursor_if_changed(texture: Texture2D, hotspot: Vector2) -> void:
 		Input.set_custom_mouse_cursor(null)
 	else:
 		Input.set_custom_mouse_cursor(texture, Input.CURSOR_ARROW, hotspot)
+
+
+func _get_scaled_aim_cursor_texture(source_texture: Texture2D) -> Texture2D:
+	if source_texture == null:
+		return null
+
+	var safe_scale: float = maxf(aim_cursor_scale, 0.05)
+	if is_equal_approx(safe_scale, 1.0):
+		return source_texture
+
+	var cache_key: String = "%s:%s" % [str(source_texture.get_instance_id()), snappedf(safe_scale, 0.001)]
+	var cached_texture: Texture2D = _scaled_aim_cursor_cache.get(cache_key, null) as Texture2D
+	if cached_texture != null:
+		return cached_texture
+
+	var image: Image = source_texture.get_image()
+	if image == null or image.is_empty():
+		return source_texture
+
+	var target_size: Vector2i = Vector2i(
+		maxi(int(round(float(image.get_width()) * safe_scale)), 1),
+		maxi(int(round(float(image.get_height()) * safe_scale)), 1)
+	)
+	image.resize(target_size.x, target_size.y, Image.INTERPOLATE_NEAREST)
+
+	var scaled_texture: ImageTexture = ImageTexture.create_from_image(image)
+	_scaled_aim_cursor_cache[cache_key] = scaled_texture
+	return scaled_texture
 
 
 func _update_spread(delta: float) -> void:
@@ -731,6 +789,176 @@ func is_local_network_player() -> bool:
 	return false
 
 
+func _can_read_local_weapon_input() -> bool:
+	return not is_networked_game() or is_local_network_player()
+
+
+func can_use_local_timed_action_ui() -> bool:
+	return not is_networked_game() or is_local_network_player()
+
+
+func request_network_reload() -> bool:
+	if reload_controller == null or not is_networked_game() or not is_local_network_player():
+		return false
+	if is_server_network_instance():
+		return bool(reload_controller.start_reload(true))
+	_network_reload_seq += 1
+	_network_reload_slot = _get_active_weapon_slot()
+	if not bool(reload_controller.start_reload(false)):
+		return false
+	rpc_id(1, "rpc_request_network_reload", _network_reload_seq, _network_reload_slot)
+	return true
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_request_network_reload(request_seq: int, requested_slot: int) -> void:
+	if not is_server_network_instance():
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	if sender_id != _get_owner_peer_id() or request_seq <= _server_last_reload_request_seq:
+		return
+	_server_last_reload_request_seq = request_seq
+	_update_current_weapon()
+	var accepted: bool = requested_slot == _get_active_weapon_slot() and reload_controller != null and bool(reload_controller.start_reload(true))
+	if accepted:
+		_server_active_reload_sender_id = sender_id
+		_server_active_reload_request_seq = request_seq
+		_server_active_reload_slot = requested_slot
+	rpc_id(sender_id, "rpc_confirm_network_reload_started", request_seq, accepted)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_confirm_network_reload_started(request_seq: int, accepted: bool) -> void:
+	if is_server_network_instance() or not is_local_network_player():
+		return
+	if multiplayer.get_remote_sender_id() != 1 or request_seq != _network_reload_seq:
+		return
+	if not accepted and reload_controller != null:
+		reload_controller.cancel_reload()
+		_sync_reload_state_from_controller()
+
+
+func _complete_server_network_reload() -> void:
+	if not is_server_network_instance() or _server_active_reload_sender_id <= 1:
+		return
+	var sender_id: int = _server_active_reload_sender_id
+	var request_seq: int = _server_active_reload_request_seq
+	var slot_type: int = _server_active_reload_slot
+	_server_active_reload_sender_id = 0
+	_server_active_reload_request_seq = -1
+	_server_active_reload_slot = -1
+	var weapon: ItemData = _get_equipped_item(slot_type)
+	var ammo_in_mag: int = InventoryManager.get_ammo_in_mag(weapon) if weapon != null else 0
+	var reserve_ammo: int = InventoryManager.get_reserve_ammo(weapon) if weapon != null else 0
+	rpc_id(sender_id, "rpc_finish_network_reload", request_seq, slot_type, ammo_in_mag, reserve_ammo)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_finish_network_reload(request_seq: int, slot_type: int, ammo_in_mag: int, reserve_ammo: int) -> void:
+	if is_server_network_instance() or not is_local_network_player():
+		return
+	if multiplayer.get_remote_sender_id() != 1 or request_seq != _network_reload_seq or slot_type != _network_reload_slot:
+		return
+	var weapon: ItemData = InventoryManager.get_equipped(slot_type)
+	if weapon != null:
+		_apply_confirmed_local_ammo_state(weapon, ammo_in_mag, reserve_ammo)
+	if reload_controller != null:
+		reload_controller.complete_network_prediction()
+	_sync_reload_state_from_controller()
+
+
+func request_network_melee(attack_direction: Vector2) -> bool:
+	if melee_controller == null or not is_networked_game() or not is_local_network_player():
+		return false
+	var safe_direction: Vector2 = attack_direction.normalized()
+	if safe_direction == Vector2.ZERO:
+		safe_direction = Vector2.DOWN
+	if is_server_network_instance():
+		return bool(melee_controller.start_melee_attack(safe_direction, true, true))
+	_network_melee_seq += 1
+	if not bool(melee_controller.start_melee_attack(safe_direction, false, false)):
+		return false
+	rpc_id(1, "rpc_request_network_melee", safe_direction, _network_melee_seq)
+	return true
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_request_network_melee(attack_direction: Vector2, request_seq: int) -> void:
+	if not is_server_network_instance():
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	if sender_id != _get_owner_peer_id() or request_seq <= _server_last_melee_request_seq:
+		return
+	if not is_finite(attack_direction.x) or not is_finite(attack_direction.y):
+		return
+	_server_last_melee_request_seq = request_seq
+	_update_current_weapon()
+	var safe_direction: Vector2 = attack_direction.normalized()
+	if safe_direction == Vector2.ZERO:
+		safe_direction = Vector2.DOWN
+	var accepted: bool = melee_controller != null and bool(melee_controller.start_melee_attack(safe_direction, true, true))
+	if accepted:
+		_server_active_melee_sender_id = sender_id
+		_server_active_melee_request_seq = request_seq
+		_broadcast_network_melee_visual(safe_direction, sender_id)
+	rpc_id(sender_id, "rpc_confirm_network_melee_started", request_seq, accepted)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_confirm_network_melee_started(request_seq: int, accepted: bool) -> void:
+	if is_server_network_instance() or not is_local_network_player():
+		return
+	if multiplayer.get_remote_sender_id() != 1 or request_seq != _network_melee_seq:
+		return
+	if not accepted and melee_controller != null:
+		melee_controller.cancel_melee_attack()
+
+
+func _complete_server_network_melee() -> void:
+	if not is_server_network_instance() or _server_active_melee_sender_id <= 1:
+		return
+	var sender_id: int = _server_active_melee_sender_id
+	var request_seq: int = _server_active_melee_request_seq
+	_server_active_melee_sender_id = 0
+	_server_active_melee_request_seq = -1
+	var melee_item: ItemData = _get_equipped_item(ItemData.ItemType.MeleeWeapon)
+	var endurance: int = melee_item.endurance if melee_item != null else -1
+	rpc_id(sender_id, "rpc_finish_network_melee", request_seq, endurance)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_finish_network_melee(request_seq: int, endurance: int) -> void:
+	if is_server_network_instance() or not is_local_network_player():
+		return
+	if multiplayer.get_remote_sender_id() != 1 or request_seq != _network_melee_seq:
+		return
+	var local_melee: ItemData = InventoryManager.get_equipped(ItemData.ItemType.MeleeWeapon)
+	if local_melee == null:
+		return
+	if endurance < 0:
+		InventoryManager.set_equipped(ItemData.ItemType.MeleeWeapon, null)
+	else:
+		local_melee.endurance = clampi(endurance, 0, 100)
+		InventoryManager.equipment_changed.emit(ItemData.ItemType.MeleeWeapon, local_melee)
+
+
+func _broadcast_network_melee_visual(attack_direction: Vector2, owner_peer_id: int) -> void:
+	if NetworkManager == null:
+		return
+	for target_peer_id in NetworkManager.get_active_client_peers():
+		if target_peer_id == owner_peer_id:
+			continue
+		rpc_id(target_peer_id, "rpc_play_network_melee_visual", attack_direction)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_play_network_melee_visual(attack_direction: Vector2) -> void:
+	if is_server_network_instance() or multiplayer.get_remote_sender_id() != 1:
+		return
+	if melee_controller != null:
+		melee_controller.play_network_melee_visual(attack_direction)
+
+
 func request_network_shot() -> void:
 	if not is_networked_game():
 		return
@@ -822,7 +1050,7 @@ func rpc_confirm_network_shot(_request_seq: int, accepted: bool, ammo_in_mag: in
 	if not is_local_network_player():
 		return
 	if accepted:
-		_set_ammo_state(ammo_in_mag, reserve_ammo)
+		_apply_confirmed_local_ammo_state(current_weapon, ammo_in_mag, reserve_ammo)
 		shoot_cooldown = max(cooldown_sec, 0.0)
 	else:
 		shoot_cooldown = min(shoot_cooldown, 0.05)
@@ -949,8 +1177,48 @@ func _get_reserve_ammo() -> int:
 func _set_ammo_state(ammo_in_mag: int, reserve_ammo: int) -> void:
 	if current_weapon == null:
 		return
+	if _uses_network_peer_inventory():
+		InventoryManager.set_network_peer_ammo_state(_get_owner_peer_id(), _get_active_weapon_slot(), ammo_in_mag, reserve_ammo)
+	else:
+		InventoryManager.set_ammo_state(current_weapon, ammo_in_mag, reserve_ammo)
 
-	InventoryManager.set_ammo_state(current_weapon, ammo_in_mag, reserve_ammo)
+
+func _apply_confirmed_local_ammo_state(weapon: ItemData, ammo_in_mag: int, reserve_ammo: int) -> void:
+	if weapon == null:
+		return
+	if player != null and player.has_method("apply_network_authoritative_ammo_state"):
+		player.call("apply_network_authoritative_ammo_state", weapon, ammo_in_mag, reserve_ammo)
+	else:
+		InventoryManager.set_ammo_state(weapon, ammo_in_mag, reserve_ammo)
+
+
+func _get_active_weapon_slot() -> int:
+	if _uses_network_peer_inventory():
+		return InventoryManager.get_network_peer_active_weapon_slot(_get_owner_peer_id())
+	return InventoryManager.get_active_weapon_slot()
+
+
+func _get_equipped_item(slot_type: int) -> ItemData:
+	if _uses_network_peer_inventory():
+		return InventoryManager.get_network_peer_equipped(_get_owner_peer_id(), slot_type)
+	return InventoryManager.get_equipped(slot_type)
+
+
+func _apply_current_weapon_endurance_loss(percent_loss: float) -> bool:
+	var slot_type: int = _get_active_weapon_slot()
+	if _uses_network_peer_inventory():
+		return InventoryManager.apply_endurance_percent_loss_to_network_peer_equipped(_get_owner_peer_id(), slot_type, percent_loss)
+	return InventoryManager.apply_endurance_percent_loss_to_equipped(slot_type, percent_loss)
+
+
+func _uses_network_peer_inventory() -> bool:
+	# A remote server replica must never fall back to the host's global inventory.
+	# Until its owner snapshot arrives it intentionally has no usable equipment.
+	return is_server_network_instance() and not is_local_network_player()
+
+
+func _get_owner_peer_id() -> int:
+	return int(player.get("peer_id")) if player != null else 0
 
 
 func _reset_aim_settle() -> void:

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" format=3 uid="uid://dk07i5bvgvkek"]
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dk07i5bvgvkek"]
 
 [ext_resource type="Texture2D" uid="uid://du1odui04t02i" path="res://Assets/itemAssets/animation_sprites/weapon/AR_Weapon/kar92l.png" id="1_0j2nj"]
 [ext_resource type="Texture2D" uid="uid://dhj3hwv0qr13g" path="res://Assets/Sights/sight.png" id="1_b7qh2"]
@@ -176,7 +176,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Down",
-"speed": 10.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -257,7 +257,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Left",
-"speed": 10.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -274,7 +274,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Right",
-"speed": 10.0
+"speed": 11.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -291,7 +291,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Up",
-"speed": 10.0
+"speed": 11.0
 }, {
 "frames": [],
 "loop": true,
@@ -307,11 +307,12 @@ item_name = "Kar92l"
 world_icon = ExtResource("4_qajex")
 inventory_icon = ExtResource("2_mhvcm")
 inventory_icon_rotation_degrees = -45.0
+item_weight = 3.9
 ammo_type = "kar92l"
 item_type = 0
 equipped_frames = SubResource("SpriteFrames_4u5tg")
 can_receive_scope_attachment = true
-scope_inventory_offset = Vector2(-13, -29)
+scope_inventory_offset = Vector2(-12, -39)
 aim_cursor = ExtResource("1_b7qh2")
 aim_cursor_low_spread = ExtResource("3_ctnag")
 aim_cursor_medium_spread = ExtResource("4_cnds5")

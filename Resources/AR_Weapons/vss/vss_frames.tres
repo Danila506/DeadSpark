@@ -2,22 +2,6 @@
 
 [ext_resource type="Texture2D" uid="uid://dfgrdws1phqqr" path="res://Assets/itemAssets/animation_sprites/weapon/AR_Weapon/vss.png" id="1_bigd6"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_mbgno"]
-atlas = ExtResource("1_bigd6")
-region = Rect2(64, 352, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_7ia4e"]
-atlas = ExtResource("1_bigd6")
-region = Rect2(96, 352, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_k5auf"]
-atlas = ExtResource("1_bigd6")
-region = Rect2(128, 352, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_rbyfo"]
-atlas = ExtResource("1_bigd6")
-region = Rect2(160, 352, 32, 32)
-
 [sub_resource type="AtlasTexture" id="AtlasTexture_8j0f5"]
 atlas = ExtResource("1_bigd6")
 region = Rect2(96, 288, 32, 32)
@@ -114,25 +98,24 @@ region = Rect2(128, 128, 32, 32)
 atlas = ExtResource("1_bigd6")
 region = Rect2(160, 128, 32, 32)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_mbgno"]
+atlas = ExtResource("1_bigd6")
+region = Rect2(64, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7ia4e"]
+atlas = ExtResource("1_bigd6")
+region = Rect2(96, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k5auf"]
+atlas = ExtResource("1_bigd6")
+region = Rect2(128, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rbyfo"]
+atlas = ExtResource("1_bigd6")
+region = Rect2(160, 352, 32, 32)
+
 [resource]
 animations = [{
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_mbgno")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_7ia4e")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_k5auf")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_rbyfo")
-}],
-"loop": true,
-"name": &"Using",
-"speed": 5.0
-}, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_8j0f5")
@@ -264,6 +247,23 @@ animations = [{
 "loop": true,
 "name": &"Up",
 "speed": 11.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mbgno")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7ia4e")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_k5auf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rbyfo")
+}],
+"loop": true,
+"name": &"Using",
+"speed": 5.0
 }, {
 "frames": [],
 "loop": true,

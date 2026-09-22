@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://6t4i6bprxnaa"]
+
+[ext_resource type="Texture2D" uid="uid://brm3boyhwfv02" path="res://World/Assets/Village/villageObjects.png" id="1_i2ud5"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nmeci"]
+atlas = ExtResource("1_i2ud5")
+region = Rect2(200, 59, 16, 19)
+
+[node name="Bin" type="Node2D" unique_id=1027025590]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1193041242]
+position = Vector2(0, -9)
+texture = SubResource("AtlasTexture_nmeci")

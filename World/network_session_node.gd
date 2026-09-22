@@ -6,7 +6,7 @@ signal client_spawn_ack_received(peer_id: int, spawn_token: int)
 signal client_ready_acknowledged(ack_peer_id: int, ready_seq: int, protocol_version: int, spawn_token: int)
 
 const CLIENT_READY_RETRY_INTERVAL_SEC: float = 0.75
-const CLIENT_READY_RETRY_MAX_ATTEMPTS: int = 20
+const CLIENT_READY_RETRY_MAX_ATTEMPTS: int = 120
 
 var _client_ready_confirmed: bool = false
 var _client_ready_retry_attempts: int = 0
@@ -119,8 +119,12 @@ func rpc_client_ready(peer_id: int, ready_seq: int, protocol_version: int, world
 func rpc_server_ready_ack(ack_peer_id: int, ready_seq: int, protocol_version: int, spawn_token: int) -> void:
 	if NetworkManager == null or NetworkManager.is_server():
 		return
-	if ready_seq < _client_ready_seq:
+	if ready_seq <= 0:
 		return
+	# The host can legitimately acknowledge an earlier retry while a slow mobile
+	# client has already sent the next sequence. Any validated host ACK completes
+	# the same idempotent ready flow.
+	_client_ready_seq = maxi(_client_ready_seq, ready_seq)
 	_client_ready_confirmed = true
 	_client_ready_retry_active = false
 	_expected_spawn_token = spawn_token

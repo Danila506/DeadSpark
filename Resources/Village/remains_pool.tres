@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="VillageObjectPool" format=3 uid="uid://dptv5pjunagtk"]
+
+[ext_resource type="Script" uid="uid://dtpfrjypb8e7i" path="res://Villages/Scripts/village_object_pool.gd" id="1"]
+[ext_resource type="Script" uid="uid://bymmpay55q4lq" path="res://Villages/Scripts/village_object_entry.gd" id="2"]
+[ext_resource type="PackedScene" uid="uid://bk5l6skgxs517" path="res://World/Assets/Village/Ruins.tscn" id="3"]
+
+[sub_resource type="Resource" id="a"]
+script = ExtResource("2")
+scene = ExtResource("3")
+entry_id = "ruins"
+
+[resource]
+script = ExtResource("1")
+entries = Array[ExtResource("2")]([SubResource("a")])
+pool_id = "remains_pool"

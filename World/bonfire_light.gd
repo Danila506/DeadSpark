@@ -1,6 +1,8 @@
 extends AnimatedSprite2D
 class_name CampfireLightController
 
+const SMOKE_TEXTURE: Texture2D = preload("res://Assets/Misc/par_iz_rta.png")
+
 enum LightLayer {
 	CORE,
 	MEDIUM,
@@ -69,6 +71,14 @@ static var _radial_texture_cache: Dictionary = {}
 @export_range(0.05, 3.0, 0.01) var night_scale_multiplier: float = 1.08
 @export_range(0.1, 20.0, 0.1) var time_of_day_response_speed: float = 4.2
 
+@export_group("Smoke")
+@export var smoke_enabled: bool = true
+@export var smoke_offset: Vector2 = Vector2(0.0, -22.0)
+@export var smoke_amount: int = 18
+@export var smoke_lifetime_sec: float = 2.0
+@export var smoke_scale_min: float = 2.5
+@export var smoke_scale_max: float = 4.0
+
 var _core_light: PointLight2D
 var _medium_light: PointLight2D
 var _halo_light: PointLight2D
@@ -76,6 +86,7 @@ var _phase: float = 0.0
 var _time_of_day_manager: Node = null
 var _time_of_day_energy_multiplier: float = 1.0
 var _time_of_day_scale_multiplier: float = 1.0
+var _smoke_particles: GPUParticles2D = null
 
 
 func _ready() -> void:
@@ -91,9 +102,11 @@ func _ready() -> void:
 
 	if sprite_frames != null and sprite_frames.has_animation(campfire_animation):
 		play(campfire_animation)
+	_ensure_smoke_particles()
 
 
 func _process(delta: float) -> void:
+	_update_smoke(delta)
 	if _core_light == null and _medium_light == null and _halo_light == null:
 		return
 
@@ -111,6 +124,77 @@ func _process(delta: float) -> void:
 	_apply_parent_scale_compensation(_core_light)
 	_apply_parent_scale_compensation(_medium_light)
 	_apply_parent_scale_compensation(_halo_light)
+
+
+func _ensure_smoke_particles() -> void:
+	if _smoke_particles != null or not smoke_enabled:
+		return
+	if SMOKE_TEXTURE == null:
+		return
+
+	_smoke_particles = GPUParticles2D.new()
+	_smoke_particles.name = "SmokeParticles"
+	_smoke_particles.texture = SMOKE_TEXTURE
+	_smoke_particles.amount = max(smoke_amount, 1)
+	_smoke_particles.lifetime = maxf(smoke_lifetime_sec, 0.1)
+	_smoke_particles.one_shot = false
+	_smoke_particles.explosiveness = 0.0
+	_smoke_particles.randomness = 0.88
+	_smoke_particles.local_coords = true
+	_smoke_particles.position = smoke_offset
+	_smoke_particles.z_as_relative = true
+	_smoke_particles.z_index = 4
+	_smoke_particles.material = _create_particle_atlas_material(3, 1)
+	_smoke_particles.process_material = _create_smoke_process_material()
+	add_child(_smoke_particles)
+	_smoke_particles.emitting = true
+
+
+func _update_smoke(delta: float) -> void:
+	if not smoke_enabled:
+		if _smoke_particles != null:
+			_smoke_particles.emitting = false
+		return
+	if _smoke_particles == null:
+		_ensure_smoke_particles()
+	if _smoke_particles == null:
+		return
+
+	_smoke_particles.position = smoke_offset
+	_smoke_particles.amount = max(smoke_amount, 1)
+	_smoke_particles.lifetime = maxf(smoke_lifetime_sec, 0.1)
+	if not _smoke_particles.emitting:
+		_smoke_particles.emitting = true
+
+
+func _create_particle_atlas_material(h_frames: int, v_frames: int) -> CanvasItemMaterial:
+	var material := CanvasItemMaterial.new()
+	material.particles_animation = true
+	material.particles_anim_h_frames = max(h_frames, 1)
+	material.particles_anim_v_frames = max(v_frames, 1)
+	material.particles_anim_loop = false
+	return material
+
+
+func _create_smoke_process_material() -> ParticleProcessMaterial:
+	var material := ParticleProcessMaterial.new()
+	material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	material.emission_sphere_radius = 4.0
+	material.direction = Vector3(0.0, -1.0, 0.0)
+	material.spread = 35.0
+	material.initial_velocity_min = 8.0
+	material.initial_velocity_max = 22.0
+	material.gravity = Vector3(0.0, -7.0, 0.0)
+	material.scale_min = smoke_scale_min
+	material.scale_max = maxf(smoke_scale_max, smoke_scale_min)
+	material.angular_velocity_min = -40.0
+	material.angular_velocity_max = 40.0
+	material.color = Color(0.75, 0.75, 0.75, 0.42)
+	material.anim_speed_min = 0.0
+	material.anim_speed_max = 0.18
+	material.anim_offset_min = 0.0
+	material.anim_offset_max = 1.0
+	return material
 
 
 func _resolve_light(path: NodePath, fallback_index: int) -> PointLight2D:

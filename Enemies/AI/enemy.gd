@@ -2,6 +2,7 @@ extends CharacterBody2D
 class_name EnemyAI
 
 const DamageZones = preload("res://Enemies/AI/damage_zones.gd")
+const ShellEjectionEffect = preload("res://Effects/shell_ejection_effect.gd")
 
 signal state_changed(from_state: StringName, to_state: StringName)
 signal animation_requested(animation_name: StringName)
@@ -69,8 +70,22 @@ const DEFAULT_BANDIT_MEDICAL_POOL: Array[ItemData] = [
 @export var hit_blood_offset: Vector2 = Vector2(0.0, -10.0)
 @export var hit_blood_fly_distance: float = 14.0
 @export var hit_blood_fly_duration_sec: float = 0.16
-@export var hit_blood_z_index: int = 35
+@export var hit_blood_z_index: int = -1
 @export var dead_body_z_index: int = -1
+@export_category("Bleeding")
+@export_range(0.0, 1.0, 0.01) var bleeding_chance_on_damage: float = 0.35
+@export var bleeding_damage_amount: float = 2.0
+@export var bleeding_damage_interval: float = 3.0
+@export_range(0.0, 1.0, 0.01) var bleeding_auto_heal_chance: float = 0.10
+@export var bleeding_effect_animation_name: String = "Bleeding"
+@export var bleeding_trail_interval_sec: float = 0.20
+@export var bleeding_trail_lifetime_sec: float = 60.0
+@export var bleeding_trail_fade_out_sec: float = 0.8
+@export var bleeding_trail_scale: Vector2 = Vector2(0.95, 0.95)
+@export var bleeding_trail_offset: Vector2 = Vector2(0.0, 2.0)
+@export var bleeding_trail_random_radius: float = 2.0
+@export var bleeding_trail_random_rotation: bool = true
+@export var bleeding_trail_z_index: int = -1
 @export var use_directional_death_animation: bool = true
 @export_range(0.1, 6.0, 0.05) var head_damage_multiplier: float = 2.0
 @export_range(0.1, 6.0, 0.05) var body_damage_multiplier: float = 1.0
@@ -85,10 +100,14 @@ const DEFAULT_BANDIT_MEDICAL_POOL: Array[ItemData] = [
 @onready var navigation_agent: NavigationAgent2D = $NavigationAgent2D
 @onready var state_machine: EnemyStateMachine = $StateMachine
 @onready var body_sprite: AnimatedSprite2D = _resolve_body_sprite()
+@onready var dying_sprite: Sprite2D = get_node_or_null("DyingSprite") as Sprite2D
 @onready var health_bar_root: Control = get_node_or_null("ActionBarRoot") as Control
 @onready var health_bar: TextureProgressBar = get_node_or_null("ActionBarRoot/ActionBarFill") as TextureProgressBar
 
 var health: float = 100
+var is_bleeding: bool = false
+var bleeding_timer: float = 0.0
+var bleeding_trail_timer: float = 0.0
 var spawn_position: Vector2 = Vector2.ZERO
 var current_target: Node2D = null
 var _last_known_target_position: Vector2 = Vector2.ZERO
@@ -160,6 +179,8 @@ var _net_server_time_offset_sec: float = 0.0
 var _net_server_time_offset_initialized: bool = false
 var _net_lag_history_samples: Array[Dictionary] = []
 var _net_lag_history_sample_timer: float = 0.0
+var _death_animation_finished: bool = false
+var _dead_bandit_player_near: bool = false
 const MOVE_TARGET_REPATH_FACTOR: float = 1.75
 const MELEE_STANDOFF_RATIO: float = 0.72
 const MELEE_STANDOFF_MIN_PX: float = 8.0
@@ -192,6 +213,7 @@ func _ready() -> void:
 	_net_last_transform_update_ms = Time.get_ticks_msec()
 	_setup_damage_hitboxes()
 	_disable_unused_passive_areas()
+	_setup_dead_bandit_dying_sprite()
 
 	navigation_agent.target_desired_distance = config.nav_target_desired_distance
 	navigation_agent.path_desired_distance = config.nav_path_desired_distance
@@ -222,6 +244,7 @@ func _physics_process(delta: float) -> void:
 	if _is_networked_game() and not _is_server_authority():
 		_apply_remote_snapshot_interpolation()
 		_apply_remote_animation()
+		_update_dead_bandit_dying_sprite_state()
 		move_and_slide()
 		return
 	if _is_networked_game() and _is_server_authority():
@@ -231,6 +254,7 @@ func _physics_process(delta: float) -> void:
 	_update_sensors(delta)
 	if _is_dead:
 		_close_bandit_loot_when_player_is_far()
+		_update_dead_bandit_dying_sprite_state()
 
 	if state_machine != null:
 		state_machine.physics_update(delta)
@@ -255,6 +279,7 @@ func _tick_timers(delta: float) -> void:
 	_attack_los_cache_left = max(_attack_los_cache_left - delta, 0.0)
 	_friendly_fire_cache_left = max(_friendly_fire_cache_left - delta, 0.0)
 	_nearest_bandit_cache_left = max(_nearest_bandit_cache_left - delta, 0.0)
+	_update_bleeding(delta)
 
 
 func _update_sensors(delta: float) -> void:
@@ -264,7 +289,7 @@ func _update_sensors(delta: float) -> void:
 	var sensor_interval: float = _get_sensor_interval_for_distance()
 	_sensor_tick_left = sensor_interval
 
-	if current_target == null or not is_instance_valid(current_target):
+	if current_target == null or not is_instance_valid(current_target) or (_is_networked_game() and _is_server_authority() and not _should_keep_current_non_player_target()):
 		_resolve_player_reference()
 
 	var sees_player_now: bool = _can_see_target()
@@ -924,7 +949,9 @@ func _disable_unused_passive_areas() -> void:
 
 func _collect_damage_hitboxes() -> Array[Area2D]:
 	var result: Array[Area2D] = []
-	var hitboxes_root: Node = get_node_or_null("Hitboxes")
+	var hitboxes_root: Node = get_node_or_null("HitBoxes")
+	if hitboxes_root == null:
+		hitboxes_root = get_node_or_null("Hitboxes")
 	if hitboxes_root != null:
 		for child in hitboxes_root.get_children():
 			if child is Area2D:
@@ -957,6 +984,8 @@ func take_damage(amount: float, hit_direction: StringName = StringName("")) -> v
 	if _is_networked_game() and not _is_server_authority():
 		return
 	apply_damage(amount, hit_direction)
+	if amount > 0.0 and not _is_dead and randf() <= clamp(bleeding_chance_on_damage, 0.0, 1.0):
+		set_bleeding(true)
 
 
 func take_damage_from(amount: float, source: Node, hit_context: Dictionary = {}) -> void:
@@ -973,6 +1002,8 @@ func take_damage_from(amount: float, source: Node, hit_context: Dictionary = {})
 	var final_damage: float = max(amount * damage_multiplier, 0.0)
 	_spawn_hit_blood(source)
 	apply_damage(final_damage, hit_direction)
+	if final_damage > 0.0 and not _is_dead and randf() <= clamp(bleeding_chance_on_damage, 0.0, 1.0):
+		set_bleeding(true)
 	if source is Node2D and not _is_dead:
 		current_target = source as Node2D
 		_target_confirmed = true
@@ -1119,6 +1150,10 @@ func kill(hit_direction: StringName = StringName("")) -> void:
 	if hit_direction != StringName(""):
 		_last_lethal_hit_direction = hit_direction
 	_is_dead = true
+	_death_animation_finished = false
+	_dead_bandit_player_near = false
+	_set_dead_bandit_dying_sprite_visible(false)
+	set_bleeding(false)
 	stop_move()
 	_house_search_time_left = 0.0
 	_house_search_wait_timer = 0.0
@@ -1164,6 +1199,9 @@ func rpc_sync_enemy_state(server_health: float, server_dead: bool, hit_direction
 	if server_dead:
 		if not _is_dead:
 			_is_dead = true
+			_death_animation_finished = false
+			_dead_bandit_player_near = false
+			_set_dead_bandit_dying_sprite_visible(false)
 			stop_move()
 			velocity = Vector2.ZERO
 			collision_layer = 0
@@ -1200,7 +1238,14 @@ func _sync_enemy_state_if_needed(play_hurt: bool) -> void:
 		return
 	_net_last_synced_health = health
 	_net_last_synced_dead = _is_dead
-	rpc("rpc_sync_enemy_state", health, _is_dead, _last_lethal_hit_direction, play_hurt and not _is_dead)
+	for target_peer in NetworkManager.get_active_client_peers():
+		if _has_confirmed_replica(target_peer):
+			rpc_id(target_peer, "rpc_sync_enemy_state", health, _is_dead, _last_lethal_hit_direction, play_hurt and not _is_dead)
+
+
+func _has_confirmed_replica(peer: int) -> bool:
+	var world := get_tree().current_scene
+	return world != null and world.has_method("has_world_replica") and world.has_world_replica(peer, self)
 
 
 func _sync_enemy_transform_if_needed(delta: float = 0.0) -> void:
@@ -1215,6 +1260,8 @@ func _sync_enemy_transform_if_needed(delta: float = 0.0) -> void:
 
 	var alive_keys: Dictionary = {}
 	for target_peer_id in ready_peers:
+		if not _has_confirmed_replica(target_peer_id):
+			continue
 		var interval_sec: float = _get_enemy_transform_sync_interval_for_peer(target_peer_id)
 		var timer_left: float = float(_net_transform_sync_timer_by_peer.get(target_peer_id, 0.0)) - delta
 		if timer_left <= 0.0:
@@ -1565,6 +1612,7 @@ func _command_house_retreat(shared_house_center: Vector2) -> void:
 
 
 func _ensure_loot_slots() -> void:
+	if _is_networked_game() and not NetworkManager.is_server(): return
 	if _loot_initialized:
 		return
 	_loot_initialized = true
@@ -1645,6 +1693,48 @@ func _close_bandit_loot_when_player_is_far() -> void:
 		inventory_root.call("close_bandit_loot_for", self)
 
 
+func _setup_dead_bandit_dying_sprite() -> void:
+	if dying_sprite != null:
+		dying_sprite.visible = false
+	if body_sprite != null and not body_sprite.animation_finished.is_connected(_on_body_sprite_animation_finished):
+		body_sprite.animation_finished.connect(_on_body_sprite_animation_finished)
+
+
+func _on_body_sprite_animation_finished() -> void:
+	if not _is_dead:
+		return
+	_death_animation_finished = true
+	_update_dead_bandit_dying_sprite_state()
+
+
+func _update_dead_bandit_dying_sprite_state() -> void:
+	if not _is_dead or not is_in_group(&"bandit"):
+		_set_dead_bandit_dying_sprite_visible(false)
+		return
+	if not _death_animation_finished:
+		_set_dead_bandit_dying_sprite_visible(false)
+		return
+	if dying_sprite == null:
+		return
+
+	var player_node: Node2D = get_tree().get_first_node_in_group(player_group) as Node2D
+	var player_near: bool = false
+	if player_node != null and is_instance_valid(player_node):
+		player_near = global_position.distance_to(player_node.global_position) <= max(loot_interaction_distance, 1.0)
+
+	if player_near == _dead_bandit_player_near:
+		return
+	_dead_bandit_player_near = player_near
+	_set_dead_bandit_dying_sprite_visible(player_near)
+
+
+func _set_dead_bandit_dying_sprite_visible(visible_state: bool) -> void:
+	if dying_sprite != null:
+		dying_sprite.visible = visible_state
+	if body_sprite != null and _is_dead and _death_animation_finished:
+		body_sprite.visible = not visible_state
+
+
 func _collect_patrol_points() -> void:
 	_patrol_points.clear()
 	if patrol_points_root_path.is_empty():
@@ -1660,6 +1750,23 @@ func _collect_patrol_points() -> void:
 
 
 func _resolve_player_reference() -> void:
+	if _is_networked_game() and _is_server_authority():
+		var nearest_player: Node2D = null
+		var nearest_distance_squared: float = INF
+		for candidate_variant: Variant in get_tree().get_nodes_in_group(player_group):
+			var candidate: Node2D = candidate_variant as Node2D
+			if candidate == null or not is_instance_valid(candidate):
+				continue
+			if bool(candidate.get("is_dead")):
+				continue
+			var distance_squared: float = global_position.distance_squared_to(candidate.global_position)
+			if distance_squared < nearest_distance_squared:
+				nearest_distance_squared = distance_squared
+				nearest_player = candidate
+		if nearest_player != null:
+			current_target = nearest_player
+			return
+
 	if not player_path.is_empty():
 		var player_node: Node = get_node_or_null(player_path)
 		if player_node is Node2D:
@@ -1877,6 +1984,13 @@ func _fire_ranged_projectile() -> void:
 		)
 	elif projectile.has_method("setup"):
 		projectile.call("setup", shoot_direction, config.projectile_damage, config.projectile_speed)
+	_spawn_shell_ejection(origin, shoot_direction)
+
+
+func _spawn_shell_ejection(origin: Vector2, shoot_direction: Vector2) -> void:
+	if config == null:
+		return
+	ShellEjectionEffect.spawn(get_tree(), origin, shoot_direction, config.ranged_uses_shotgun_shells)
 
 
 func _resolve_projectile_origin() -> Vector2:
@@ -1982,6 +2096,7 @@ func _spawn_hit_blood(source: Node) -> void:
 	if blood_sprite == null:
 		return
 	blood_sprite.top_level = true
+	blood_sprite.z_as_relative = false
 	blood_sprite.sprite_frames = hit_blood_frames
 	blood_sprite.animation = animation_name
 	blood_sprite.global_position = global_position + hit_blood_offset
@@ -2014,6 +2129,106 @@ func _spawn_hit_blood(source: Node) -> void:
 	blood_sprite.animation_finished.connect(release_blood_sprite, CONNECT_ONE_SHOT)
 
 
+func set_bleeding(value: bool) -> void:
+	if is_bleeding == value:
+		return
+
+	is_bleeding = value
+	bleeding_timer = 0.0
+	if is_bleeding:
+		bleeding_trail_timer = max(bleeding_trail_interval_sec, 0.01)
+		_spawn_bleeding_trail_mark()
+	else:
+		bleeding_trail_timer = 0.0
+
+
+func _update_bleeding(delta: float) -> void:
+	if _is_dead or not is_bleeding:
+		bleeding_timer = 0.0
+		return
+
+	bleeding_trail_timer += delta
+	if bleeding_trail_timer >= max(bleeding_trail_interval_sec, 0.01):
+		bleeding_trail_timer = 0.0
+		_spawn_bleeding_trail_mark()
+
+	bleeding_timer += delta
+	var tick_interval: float = max(bleeding_damage_interval, 0.01)
+	while bleeding_timer >= tick_interval and is_bleeding and not _is_dead:
+		bleeding_timer -= tick_interval
+		_apply_bleeding_damage_tick()
+		if _is_dead:
+			break
+		if randf() <= clamp(bleeding_auto_heal_chance, 0.0, 1.0):
+			set_bleeding(false)
+			break
+
+
+func _apply_bleeding_damage_tick() -> void:
+	var tick_damage: float = max(bleeding_damage_amount, 0.0)
+	if tick_damage <= 0.0:
+		return
+
+	health = max(health - tick_damage, 0.0)
+	_update_health_bar_ui()
+	if health <= 0.0:
+		kill(_last_lethal_hit_direction)
+	else:
+		_sync_enemy_state_if_needed(false)
+
+
+func _spawn_bleeding_trail_mark() -> void:
+	if hit_blood_frames == null:
+		return
+	if not hit_blood_frames.has_animation(bleeding_effect_animation_name):
+		return
+
+	var frame_count: int = hit_blood_frames.get_frame_count(bleeding_effect_animation_name)
+	if frame_count <= 0:
+		return
+
+	var random_pool_size: int = min(frame_count, 3)
+	var random_frame_index: int = randi() % random_pool_size
+	var frame_texture: Texture2D = hit_blood_frames.get_frame_texture(bleeding_effect_animation_name, random_frame_index)
+	if frame_texture == null:
+		return
+
+	var fx_root: Node = get_tree().current_scene
+	if fx_root == null:
+		fx_root = get_parent()
+	if fx_root == null:
+		return
+
+	var blood_mark: Sprite2D = EffectPool.acquire_sprite(fx_root) if get_node_or_null("/root/EffectPool") != null else Sprite2D.new()
+	if blood_mark == null:
+		return
+	blood_mark.texture = frame_texture
+	blood_mark.top_level = true
+	blood_mark.z_as_relative = false
+	blood_mark.scale = bleeding_trail_scale
+	blood_mark.modulate = Color(1.0, 1.0, 1.0, 0.95)
+	blood_mark.z_index = bleeding_trail_z_index
+	blood_mark.global_position = global_position + bleeding_trail_offset + Vector2(
+		randf_range(-bleeding_trail_random_radius, bleeding_trail_random_radius),
+		randf_range(-bleeding_trail_random_radius, bleeding_trail_random_radius)
+	)
+	if bleeding_trail_random_rotation:
+		blood_mark.rotation = randf_range(-PI, PI)
+	if blood_mark.get_parent() == null:
+		fx_root.add_child(blood_mark)
+
+	var fade_tween: Tween = blood_mark.create_tween()
+	fade_tween.tween_interval(max(bleeding_trail_lifetime_sec, 0.1))
+	fade_tween.tween_property(blood_mark, "modulate:a", 0.0, max(bleeding_trail_fade_out_sec, 0.05))
+	fade_tween.finished.connect(func() -> void:
+		if is_instance_valid(blood_mark):
+			if get_node_or_null("/root/EffectPool") != null:
+				EffectPool.release_sprite(blood_mark)
+			else:
+				blood_mark.queue_free()
+	)
+
+
 func _resolve_hit_blood_animation_name() -> String:
 	if hit_blood_frames == null:
 		return ""
@@ -2039,3 +2254,8 @@ static func emit_noise(tree: SceneTree, world_position: Vector2, loudness: float
 	if tree == null:
 		return
 	tree.call_group_flags(SceneTree.GROUP_CALL_DEFERRED, "noise_listener", "hear_noise", world_position, loudness, source)
+
+
+func get_network_loot_items() -> Array[ItemData]:
+	_ensure_loot_slots()
+	return _loot_slots

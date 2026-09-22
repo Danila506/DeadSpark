@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnvironmentEntry" format=3]
+[ext_resource type="Script" path="res://World/Generation/environment_entry.gd" id="1"]
+[ext_resource type="PackedScene" path="res://World/Boxes/Box1/Box1.tscn" id="2"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/Loot/box_loot_profile.tres" id="3"]
+[resource]
+script = ExtResource("1")
+entry_id = "supply_box"
+category = "containers"
+target_path = NodePath("../../Y-Sort_Objects")
+scene = ExtResource("2")
+loot_profile = ExtResource("3")
+density = 0.04
+max_instances_per_chunk = 1
+max_instances_per_world = 6
+candidate_budget_per_chunk = 32
+minimum_spacing_cells = 1
+near_structure_radius_cells = 8.0
+occupancy_flags = 128

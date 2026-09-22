@@ -4,6 +4,7 @@ class_name ChunkTreeSpawnerConfig
 const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 
 @export var enabled: bool = true
+@export var world_generated_mode: bool = false
 @export var spawner_id: String = ""
 @export var player_path: NodePath
 @export var spawn_parent_path: NodePath

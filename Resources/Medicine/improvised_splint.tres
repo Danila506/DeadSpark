@@ -11,5 +11,6 @@ item_name = "Самодельная шина"
 world_icon = ExtResource("3_o7cdn")
 inventory_icon = ExtResource("1_j2j70")
 inventory_icon_scale = 0.8
+item_weight = 0.45
 medical_use_time_sec = 20.0
 medical_heal_fracture = true

@@ -11,3 +11,4 @@ item_name = "Реставратор"
 world_icon = ExtResource("3_r0aeg")
 inventory_icon = ExtResource("1_u72pv")
 inventory_icon_scale = 0.8
+item_weight = 0.25
