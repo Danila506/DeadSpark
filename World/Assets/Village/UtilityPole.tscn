@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://World/Assets/Village/villageObjects.png" id="1_atlas"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pole"]
+atlas = ExtResource("1_atlas")
+region = Rect2(780, 42, 68, 168)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pole"]
+size = Vector2(15, 30)
+
+[node name="UtilityPole" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, -84)
+texture = SubResource("AtlasTexture_pole")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D"]
+position = Vector2(0, -14)
+shape = SubResource("RectangleShape2D_pole")

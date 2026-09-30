@@ -2,6 +2,8 @@ extends Node
 
 const HOST_WEAPON = preload("res://Resources/AR_Weapons/akp_103/akp_103.tres")
 const CLIENT_WEAPON = preload("res://Resources/Pistols/pv/pv.tres")
+const CLIENT_BAG = preload("res://Resources/Clothes/bag.tres")
+const CLIENT_FOOD = preload("res://Resources/Food/apple.tres")
 
 var failures: Array[String] = []
 
@@ -75,7 +77,16 @@ func _run() -> void:
 		network_peer.close()
 		multiplayer.multiplayer_peer = null
 
-	InventoryManager.clear_network_peer_inventory(42)
+	var client_bag: ItemData = CLIENT_BAG.create_instance(1, 65)
+	client_bag.runtime_storage_items.resize(maxi(client_bag.extra_storage_slots, 1))
+	var client_food: ItemData = CLIENT_FOOD.create_instance(3)
+	client_bag.runtime_storage_items[0] = client_food
+	_check(InventoryManager.set_network_peer_equipped(42, ItemData.ItemType.Bag, client_bag), "peer death bag setup failed")
+	var death_drops: Array[ItemData] = InventoryManager.drain_network_peer_inventory_for_death(42)
+	_check(death_drops.has(restored_client_weapon), "equipped weapon missing from death drops")
+	_check(death_drops.has(client_bag), "equipped bag missing from death drops")
+	_check(death_drops.has(client_food), "nested food missing from death drops")
+	_check(client_bag.runtime_storage_items[0] == null, "nested death drop must be detached from its container")
 	_check(not InventoryManager.has_network_peer_inventory(42), "peer inventory cleanup failed")
 	for failure in failures:
 		push_error(failure)

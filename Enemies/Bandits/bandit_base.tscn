@@ -1,25 +1,16 @@
 [gd_scene format=4 uid="uid://b6rsdynib7tli"]
 
 [ext_resource type="Texture2D" uid="uid://bx3jbhovgpl4f" path="res://Assets/World/Enemies/banditBaseLayer.png" id="1_cpjxf"]
-[ext_resource type="Script" path="res://Enemies/Bandits/bandit_base.gd" id="2_bandit_base_script"]
+[ext_resource type="Script" uid="uid://bo5fmudki17el" path="res://Enemies/Bandits/bandit_base.gd" id="2_bandit_base_script"]
 [ext_resource type="SpriteFrames" uid="uid://d4dswf3gekngb" path="res://Resources/Misc/bonfire.tres" id="3_bonfire_frames"]
-[ext_resource type="Script" path="res://World/bonfire_light.gd" id="4_bonfire_light_script"]
-[ext_resource type="Script" path="res://World/Generation/enemy_spawn_marker.gd" id="5_marker"]
-
-[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_near_left"]
-polygon = PackedVector2Array(-18, -7, -8, -14, 1, -9, 2, 12, -17, 13)
-
-[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_near_right"]
-polygon = PackedVector2Array(8, -11, 21, -7, 20, 14, 6, 10)
-
-[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_far_top"]
-polygon = PackedVector2Array(-13, -21, 13, -20, 11, -7, -12, -6)
+[ext_resource type="Script" uid="uid://dfk48bd3gq3u2" path="res://World/bonfire_light.gd" id="4_bonfire_light_script"]
+[ext_resource type="Script" uid="uid://by8n1ncqmy4hg" path="res://World/Generation/enemy_spawn_marker.gd" id="5_marker"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_d2o0l"]
 texture = ExtResource("1_cpjxf")
 1:1/size_in_atlas = Vector2i(6, 4)
 1:1/0 = 0
-1:1/0/y_sort_origin = 26
+1:1/0/y_sort_origin = 8
 1:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-36.64873, 6.180664, 28.98819, 3.9173226, 15.582241, 21.153545, -41.87183, 19.238409)
 1:7/size_in_atlas = Vector2i(5, 2)
 1:7/0 = 0
@@ -71,71 +62,84 @@ texture = ExtResource("1_cpjxf")
 physics_layer_0/collision_layer = 1
 sources/0 = SubResource("TileSetAtlasSource_d2o0l")
 
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_near_left"]
+polygon = PackedVector2Array(-18, -7, -8, -14, 1, -9, 2, 12, -17, 13)
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_near_right"]
+polygon = PackedVector2Array(8, -11, 21, -7, 20, 14, 6, 10)
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_far_top"]
+polygon = PackedVector2Array(-13, -21, 13, -20, 11, -7, -12, -6)
+
 [node name="BanditBase" type="Node2D" unique_id=515154822]
-z_index = 6
+y_sort_enabled = true
 script = ExtResource("2_bandit_base_script")
 
 [node name="BanditBaseLayer" type="TileMapLayer" parent="." unique_id=1651870417]
+y_sort_enabled = true
 rotation = -0.0007949845
-z_index = 6
 tile_map_data = PackedByteArray("AAAAAPn/AAAIAAEAAAD4////AAAYAAMAAAD5//v/AAABAAEAAAD+//3/AAAWAAkAAAADAP//AAABAAcAAAD3/wMAAAAbAAkAAAD6/wIAAAA0AA0AAAD7/wEAAAA0AA0AAAAKAP7/AAAwAAoAAAAIAP//AAA0AA0AAAAHAAIAAAANAAYAAAACAAMAAAAIAAgAAAAEAPf/AAAwAAMAAAAHAPn/AAAiAAEAAAADAAgAAAAqAAEAAAD9/wYAAAANAAEAAAD//woAAAAwAAMAAAAHAAcAAAAwAAoAAAAIAAcAAAAwAAoAAAAJAAgAAAAwAAoAAAD5//j/AAAwAAoAAAA=")
 tile_set = SubResource("TileSet_xs5b2")
 
-[node name="PopulationMarkers" type="Node2D" parent="."]
-[node name="GuardMarkerA" type="Node2D" parent="PopulationMarkers" groups=["enemy_population_marker"]]
-position=Vector2(-96,-48)
-script=ExtResource("5_marker")
-stable_marker_id="guard_spawn_00"
-[node name="GuardMarkerB" type="Node2D" parent="PopulationMarkers" groups=["enemy_population_marker"]]
-position=Vector2(96,-48)
-script=ExtResource("5_marker")
-stable_marker_id="guard_spawn_01"
-[node name="GuardMarkerC" type="Node2D" parent="PopulationMarkers" groups=["enemy_population_marker"]]
-position=Vector2(-96,64)
-script=ExtResource("5_marker")
-stable_marker_id="guard_spawn_02"
-[node name="GuardMarkerD" type="Node2D" parent="PopulationMarkers" groups=["enemy_population_marker"]]
-position=Vector2(96,64)
-script=ExtResource("5_marker")
-stable_marker_id="guard_spawn_03"
+[node name="PopulationMarkers" type="Node2D" parent="." unique_id=869732015]
 
-[node name="Bonfire" type="AnimatedSprite2D" parent="." unique_id=298448201]
-position = Vector2(0, 0)
-z_index = 7
+[node name="GuardMarkerA" type="Node2D" parent="PopulationMarkers" unique_id=1828244303 groups=["enemy_population_marker"]]
+position = Vector2(-96, -48)
+script = ExtResource("5_marker")
+stable_marker_id = "guard_spawn_00"
+
+[node name="GuardMarkerB" type="Node2D" parent="PopulationMarkers" unique_id=1531369611 groups=["enemy_population_marker"]]
+position = Vector2(96, -48)
+script = ExtResource("5_marker")
+stable_marker_id = "guard_spawn_01"
+
+[node name="GuardMarkerC" type="Node2D" parent="PopulationMarkers" unique_id=223073798 groups=["enemy_population_marker"]]
+position = Vector2(-96, 64)
+script = ExtResource("5_marker")
+stable_marker_id = "guard_spawn_02"
+
+[node name="GuardMarkerD" type="Node2D" parent="PopulationMarkers" unique_id=179675501 groups=["enemy_population_marker"]]
+position = Vector2(96, 64)
+script = ExtResource("5_marker")
+stable_marker_id = "guard_spawn_03"
+
+[node name="BonfireSortRoot" type="Node2D" parent="." unique_id=1849449497]
+position = Vector2(0, 12)
+
+[node name="Bonfire" type="AnimatedSprite2D" parent="BonfireSortRoot" unique_id=298448201]
+position = Vector2(0, -12)
 sprite_frames = ExtResource("3_bonfire_frames")
 animation = &"bonfire"
 autoplay = "bonfire"
-playing = true
 script = ExtResource("4_bonfire_light_script")
-medium_light_path = NodePath("SoftLight")
 core_light_path = NodePath("CoreLight")
+medium_light_path = NodePath("MediumLight")
 halo_light_path = NodePath("HaloLight")
 
-[node name="SoftLight" type="PointLight2D" parent="Bonfire" unique_id=472190001]
-offset = Vector2(0, 4)
+[node name="MediumLight" type="PointLight2D" parent="BonfireSortRoot/Bonfire" unique_id=472190001]
 z_index = 1
-
-[node name="CoreLight" type="PointLight2D" parent="Bonfire" unique_id=472190002]
 offset = Vector2(0, 4)
+
+[node name="CoreLight" type="PointLight2D" parent="BonfireSortRoot/Bonfire" unique_id=472190002]
 z_index = 2
-
-[node name="HaloLight" type="PointLight2D" parent="Bonfire" unique_id=472190007]
 offset = Vector2(0, 4)
-z_index = 0
 
-[node name="Occluders" type="Node2D" parent="Bonfire" unique_id=472190003]
+[node name="HaloLight" type="PointLight2D" parent="BonfireSortRoot/Bonfire" unique_id=472190007]
+offset = Vector2(0, 4)
 
-[node name="LeftCrateOccluder" type="LightOccluder2D" parent="Bonfire/Occluders" unique_id=472190004]
+[node name="Occluders" type="Node2D" parent="BonfireSortRoot/Bonfire" unique_id=472190003]
+
+[node name="LeftCrateOccluder" type="LightOccluder2D" parent="BonfireSortRoot/Bonfire/Occluders" unique_id=472190004]
 position = Vector2(-31, 11)
 occluder = SubResource("OccluderPolygon2D_near_left")
 occluder_light_mask = 2
 
-[node name="RightBarrelOccluder" type="LightOccluder2D" parent="Bonfire/Occluders" unique_id=472190005]
+[node name="RightBarrelOccluder" type="LightOccluder2D" parent="BonfireSortRoot/Bonfire/Occluders" unique_id=472190005]
 position = Vector2(30, 8)
 occluder = SubResource("OccluderPolygon2D_near_right")
 occluder_light_mask = 2
 
-[node name="TopTableOccluder" type="LightOccluder2D" parent="Bonfire/Occluders" unique_id=472190006]
+[node name="TopTableOccluder" type="LightOccluder2D" parent="BonfireSortRoot/Bonfire/Occluders" unique_id=472190006]
 position = Vector2(0, -14)
 occluder = SubResource("OccluderPolygon2D_far_top")
 occluder_light_mask = 2

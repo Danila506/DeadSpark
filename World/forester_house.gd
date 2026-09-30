@@ -1,6 +1,7 @@
 extends Node2D
 const BuildingLoot = preload("res://World/Generation/building_loot_provider.gd")
 const LootPersistence = preload("res://World/Generation/loot_container_persistence.gd")
+const LootRestock = preload("res://World/Generation/loot_container_restock.gd")
 
 const INSIDE_HOUSE_GROUP: StringName = &"inside_house"
 const INSIDE_HOUSE_ANCHOR_META: StringName = &"inside_house_anchor"
@@ -68,8 +69,10 @@ var applied_loot_manifest: LootContainerManifest
 var _loot_persistence_state := LootPersistence.STATE_UNOPENED
 var _removed_loot_slot_ids: Array[String] = []
 var legacy_random_path_used := false
+var _loot_restock_state: Dictionary = {}
 const ENEMY_GROUP: StringName = &"enemy"
 const HOUSE_ENEMY_EJECT_MARGIN: float = 6.0
+const INSIDE_FORESTER_Z: int = -1
 const OUTSIDE_FORESTER_Z: int = 0
 
 
@@ -90,6 +93,7 @@ func _ready() -> void:
 	call_deferred("_eject_current_overlapping_enemies")
 	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
 		GameSaveManager.register_persistent_node(self)
+	call_deferred("_restore_loot_restock_cycle")
 
 
 func _refresh_world_generation_blocker() -> void:
@@ -250,7 +254,9 @@ func _update_house_visual() -> void:
 	outside_sprite.visible = true
 	outside_right_sprite.visible = not player_in_shadow_zone
 	outside_shadow_overlay.visible = player_in_shadow_zone
-	inside_sprite.visible = player_in_house
+	# The exterior texture has a transparent entrance. Keep the interior below it
+	# so the doorway shows the authored floor instead of the world terrain.
+	inside_sprite.visible = true
 	outside_sprite.modulate.a = outside_alpha_when_inside if player_in_house else 1.0
 	outside_right_sprite.modulate.a = outside_right_alpha_when_inside if player_in_house else 1.0
 	outside_shadow_overlay.modulate.a = outside_shadow_alpha_when_inside if player_in_house else 1.0
@@ -260,6 +266,9 @@ func _update_house_visual() -> void:
 
 
 func _configure_visual_layers() -> void:
+	if inside_sprite != null:
+		inside_sprite.z_as_relative = true
+		inside_sprite.z_index = INSIDE_FORESTER_Z
 	for sprite in [outside_sprite, outside_right_sprite, outside_shadow_overlay]:
 		if sprite == null:
 			continue
@@ -386,7 +395,9 @@ func set_loot_persistence_state(state: String) -> void: _loot_persistence_state 
 func get_removed_loot_slot_ids() -> Array[String]: return _removed_loot_slot_ids.duplicate()
 func serialize_loot_state() -> Dictionary: return LootPersistence.serialize_provider_state(self)
 func restore_loot_state(data: Dictionary) -> Dictionary: return LootPersistence.restore_provider_state(self, data)
-func mark_loot_opened() -> Dictionary: return LootPersistence.mark_opened(self)
+func mark_loot_opened() -> Dictionary:
+	LootRestock.begin_open_cycle(self, _loot_restock_state, wardrobe_loot_slots)
+	return LootPersistence.mark_opened(self)
 func record_loot_slot_removed(slot_id: String) -> Dictionary: return LootPersistence.mark_slot_removed(self, slot_id)
 func record_persisted_loot_slot_removal(slot_id: String) -> Dictionary:
 	var bindings := get_loot_slot_bindings()
@@ -424,10 +435,25 @@ func _get_persistent_identity() -> String:
 	return "%s|%s" % [scene_path, local_path]
 
 
+func _restore_loot_restock_cycle() -> void:
+	_loot_restock_state = LootRestock.restore_cycle(self, _loot_restock_state)
+
+
+func update_loot_restock(total_minutes: float) -> void:
+	if not LootRestock.is_restock_due(self, _loot_restock_state, wardrobe_loot_slots, total_minutes): return
+	var stable_id := get_loot_container_id() if world_generated_mode else _get_persistent_identity()
+	LootRestock.top_up_empty_slots(self, loot_profile, wardrobe_loot_slots, wardrobe_slot_count, stable_id, total_minutes)
+	_removed_loot_slot_ids.clear(); _loot_persistence_state = LootPersistence.STATE_OPENED
+	LootRestock.finish_cycle(self, _loot_restock_state); LootRestock.notify_network_state(self)
+	var inventory_root := get_tree().get_first_node_in_group("inventory_root")
+	if inventory_root != null and inventory_root.has_method("refresh_ui"): inventory_root.call("refresh_ui")
+
+
 func get_save_data() -> Dictionary:
 	return {
 		"wardrobe_loot_initialized": wardrobe_loot_initialized,
-		"wardrobe_loot_slots": _serialize_item_array(wardrobe_loot_slots)
+		"wardrobe_loot_slots": _serialize_item_array(wardrobe_loot_slots),
+		"loot_restock_state": LootRestock.serialize_cycle(_loot_restock_state, wardrobe_loot_slots)
 	}
 
 
@@ -435,9 +461,11 @@ func apply_save_data(save_data: Dictionary) -> void:
 	wardrobe_opened = false
 	wardrobe_loot_initialized = bool(save_data.get("wardrobe_loot_initialized", false))
 	wardrobe_loot_slots = _deserialize_item_array(save_data.get("wardrobe_loot_slots", []))
+	_loot_restock_state = save_data.get("loot_restock_state", {}).duplicate(true)
 	_set_wardrobe_loot_panel_state(false)
 	_update_house_visual()
 	_update_wardrobe_visual()
+	call_deferred("_restore_loot_restock_cycle")
 
 
 func _serialize_item_array(items: Array) -> Array:

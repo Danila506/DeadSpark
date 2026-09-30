@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const DEFAULT_STORM_AUDIO_PATH: String = "res://Assets/AudioWaw/EnvSound/snowstorm.mp3"
+
 @export var enabled: bool = false
 @export var snowflake_textures: Array[Texture2D] = [
 	preload("res://World/Assets/snowflake.png"),
@@ -16,6 +18,14 @@ extends CanvasLayer
 
 @export var global_wind_speed: float = 0.0
 @export var global_wind_strength: float = 0.0
+
+@export_category("Storm Audio")
+@export var storm_audio_enabled: bool = true
+@export var storm_audio_stream: AudioStream = null
+@export_range(0.0, 1.0, 0.01) var storm_intensity: float = 1.0
+@export_range(-40.0, 0.0, 0.5) var storm_audio_volume_db: float = -10.0
+@export_range(0.05, 10.0, 0.05) var storm_audio_fade_in_sec: float = 2.5
+@export_range(0.05, 10.0, 0.05) var storm_audio_fade_out_sec: float = 4.0
 
 @export var far_min_fall_speed: float = 55.0
 @export var far_max_fall_speed: float = 110.0
@@ -49,6 +59,8 @@ var _particles_root: Node2D = null
 var _wind_material_entries: Array[Dictionary] = []
 var _particle_entries: Array[Dictionary] = []
 var _bounds_update_elapsed: float = 0.0
+var _storm_audio_player: AudioStreamPlayer = null
+var _storm_audio_gain: float = 0.0
 
 
 func _ready() -> void:
@@ -56,11 +68,12 @@ func _ready() -> void:
 	follow_viewport_enabled = false
 	follow_viewport_scale = 1.0
 	offset = Vector2.ZERO
+	_setup_storm_audio()
 
 	if not enabled:
 		_clear_gpu_snow()
 		visible = false
-		set_process(false)
+		_refresh_process_state()
 		return
 
 	_rng.randomize()
@@ -69,10 +82,11 @@ func _ready() -> void:
 	_world_rect = _resolve_world_rect()
 	_rebuild_gpu_snow()
 	_update_particle_bounds(true)
-	set_process(global_wind_speed > 0.0 and abs(global_wind_strength) > 0.001)
+	_refresh_process_state()
 
 
 func _process(delta: float) -> void:
+	_update_storm_audio(delta)
 	if not enabled:
 		return
 	if _wind_material_entries.is_empty():
@@ -94,6 +108,81 @@ func _process(delta: float) -> void:
 	if _bounds_update_elapsed >= max(bounds_update_interval_sec, 0.01):
 		_bounds_update_elapsed = 0.0
 		_update_particle_bounds(false)
+
+
+func _exit_tree() -> void:
+	if _storm_audio_player != null:
+		_storm_audio_player.stop()
+		_storm_audio_player.stream = null
+	storm_audio_stream = null
+
+
+## Updates the ambience without restarting the stream. Weather code can call this
+## every frame; zero fades out and stops playback, while values above zero fade in.
+func set_storm_intensity(value: float) -> void:
+	storm_intensity = clampf(value, 0.0, 1.0)
+	if is_node_ready():
+		_ensure_storm_audio_playing()
+		_refresh_process_state()
+
+
+func _setup_storm_audio() -> void:
+	_storm_audio_player = get_node_or_null("StormAmbience") as AudioStreamPlayer
+	if _storm_audio_player == null:
+		_storm_audio_player = AudioStreamPlayer.new()
+		_storm_audio_player.name = "StormAmbience"
+		add_child(_storm_audio_player)
+
+	_storm_audio_player.bus = &"Sounds"
+	_storm_audio_player.volume_db = -80.0
+	if storm_audio_stream == null:
+		storm_audio_stream = load(DEFAULT_STORM_AUDIO_PATH) as AudioStream
+	if storm_audio_stream != null:
+		if storm_audio_stream is AudioStreamMP3:
+			(storm_audio_stream as AudioStreamMP3).loop = true
+		_storm_audio_player.stream = storm_audio_stream
+	_ensure_storm_audio_playing()
+
+
+func _ensure_storm_audio_playing() -> void:
+	if _storm_audio_player == null or _storm_audio_player.stream == null:
+		return
+	if DisplayServer.get_name() == "headless":
+		return
+	if not storm_audio_enabled or storm_intensity <= 0.0:
+		return
+	if not _storm_audio_player.playing:
+		_storm_audio_player.play()
+
+
+func _update_storm_audio(delta: float) -> void:
+	if _storm_audio_player == null:
+		return
+
+	var target_gain: float = 0.0
+	if storm_audio_enabled:
+		target_gain = clampf(storm_intensity, 0.0, 1.0) * db_to_linear(storm_audio_volume_db)
+	if target_gain > 0.0:
+		_ensure_storm_audio_playing()
+
+	var fade_sec: float = storm_audio_fade_in_sec if target_gain > _storm_audio_gain else storm_audio_fade_out_sec
+	var fade_speed: float = db_to_linear(storm_audio_volume_db) / maxf(fade_sec, 0.05)
+	_storm_audio_gain = move_toward(_storm_audio_gain, target_gain, fade_speed * maxf(delta, 0.0))
+	_storm_audio_player.volume_db = linear_to_db(maxf(_storm_audio_gain, 0.0001))
+
+	if target_gain <= 0.0 and _storm_audio_gain <= 0.0001 and _storm_audio_player.playing:
+		_storm_audio_player.stop()
+		_storm_audio_player.volume_db = -80.0
+	_refresh_process_state()
+
+
+func _refresh_process_state() -> void:
+	var wind_needs_process: bool = enabled and global_wind_speed > 0.0 and absf(global_wind_strength) > 0.001
+	var audio_needs_process: bool = (
+		_storm_audio_player != null
+		and (_storm_audio_player.playing or (storm_audio_enabled and storm_intensity > 0.0))
+	)
+	set_process(wind_needs_process or audio_needs_process)
 
 
 func _rebuild_gpu_snow() -> void:

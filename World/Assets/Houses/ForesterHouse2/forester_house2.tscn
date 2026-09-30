@@ -66,7 +66,7 @@ size = Vector2(18.5, 13)
 script = ExtResource("1_y6pu0")
 
 [node name="ForesterHouseOutside" type="Sprite2D" parent="." unique_id=794156031]
-position = Vector2(8, 1)
+position = Vector2(3, 0)
 texture = ExtResource("2_2f4df")
 region_enabled = true
 region_rect = Rect2(0, 0, 83.2, 64)
@@ -109,18 +109,21 @@ horizontal_alignment = 1
 metadata/_edit_use_anchors_ = true
 
 [node name="HouseArea" type="Area2D" parent="." unique_id=1219130001]
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="HouseArea" unique_id=1219130002]
 position = Vector2(0.5, 13.5)
 shape = SubResource("RectangleShape2D_house")
 
 [node name="ShadowArea" type="Area2D" parent="." unique_id=1219130010]
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="ShadowArea" unique_id=1219130011]
 position = Vector2(54, 14)
 shape = SubResource("RectangleShape2D_shadow_zone")
 
 [node name="CollisionOutside" type="StaticBody2D" parent="." unique_id=1635001001]
+visible = false
 
 [node name="LeftWall" type="CollisionShape2D" parent="CollisionOutside" unique_id=1635001002]
 position = Vector2(-30.011719, 15.362813)
@@ -133,7 +136,7 @@ scale = Vector2(0.63, 0.98)
 shape = SubResource("RectangleShape2D_wall_right")
 
 [node name="TopWall" type="CollisionShape2D" parent="CollisionOutside" unique_id=1635001004]
-position = Vector2(12.54, 2.5)
+position = Vector2(12.54, 1)
 shape = SubResource("RectangleShape2D_wall_top")
 
 [node name="Under" type="CollisionShape2D" parent="CollisionOutside" unique_id=956054081]
@@ -151,6 +154,7 @@ scale = Vector2(1, 1.025)
 shape = SubResource("RectangleShape2D_enhwp")
 
 [node name="CollisionInside" type="StaticBody2D" parent="." unique_id=1635001005]
+visible = false
 
 [node name="LeftWall" type="CollisionShape2D" parent="CollisionInside" unique_id=1635001006]
 position = Vector2(-26, 13.285)

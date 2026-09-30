@@ -2,6 +2,7 @@ extends Node2D
 const ProviderContract = preload("res://World/Generation/loot_container_provider_contract.gd")
 const BuildingLoot = preload("res://World/Generation/building_loot_provider.gd")
 const LootPersistence = preload("res://World/Generation/loot_container_persistence.gd")
+const LootRestock = preload("res://World/Generation/loot_container_restock.gd")
 
 @onready var interact_area: Area2D = $InteractArea
 @onready var interact_label: Label = $InteractLabel
@@ -35,6 +36,7 @@ var loot_slots: Array[ItemData] = []
 var _loot_manifest: LootContainerManifest
 var _loot_persistence_state := LootPersistence.STATE_UNOPENED
 var _removed_loot_slot_ids: Array[String] = []
+var _loot_restock_state: Dictionary = {}
 
 
 func _ready() -> void:
@@ -45,6 +47,7 @@ func _ready() -> void:
 	_update_interact_label()
 	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
 		GameSaveManager.register_persistent_node(self)
+	call_deferred("_restore_loot_restock_cycle")
 
 
 func handle_primary_interaction(interactor: Node) -> bool:
@@ -173,7 +176,9 @@ func set_loot_persistence_state(state: String) -> void: _loot_persistence_state 
 func get_removed_loot_slot_ids() -> Array[String]: return _removed_loot_slot_ids.duplicate()
 func serialize_loot_state() -> Dictionary: return LootPersistence.serialize_provider_state(self)
 func restore_loot_state(data: Dictionary) -> Dictionary: return LootPersistence.restore_provider_state(self, data)
-func mark_loot_opened() -> Dictionary: return LootPersistence.mark_opened(self)
+func mark_loot_opened() -> Dictionary:
+	LootRestock.begin_open_cycle(self, _loot_restock_state, loot_slots)
+	return LootPersistence.mark_opened(self)
 func record_loot_slot_removed(slot_id: String) -> Dictionary: return LootPersistence.mark_slot_removed(self, slot_id)
 func record_persisted_loot_slot_removal(slot_id: String) -> Dictionary:
 	var bindings := get_loot_slot_bindings()
@@ -211,10 +216,29 @@ func _get_persistent_identity() -> String:
 	return "%s|%s" % [scene_path, local_path]
 
 
+func _restore_loot_restock_cycle() -> void:
+	_loot_restock_state = LootRestock.restore_cycle(self, _loot_restock_state)
+
+
+func update_loot_restock(total_minutes: float) -> void:
+	if not LootRestock.is_restock_due(self, _loot_restock_state, loot_slots, total_minutes): return
+	if loot_profile != null:
+		var stable_id := get_loot_container_id() if world_generated_loot else _get_persistent_identity()
+		LootRestock.top_up_empty_slots(self, loot_profile, loot_slots, loot_slot_count, stable_id, total_minutes)
+	else:
+		var candidates := LootRestock.roll_legacy_candidates(loot_slot_count, loot_spawn_min, loot_spawn_max, medicine_pool)
+		LootRestock.top_up_from_candidates(loot_slots, candidates)
+	_removed_loot_slot_ids.clear(); _loot_persistence_state = LootPersistence.STATE_OPENED
+	LootRestock.finish_cycle(self, _loot_restock_state); LootRestock.notify_network_state(self)
+	var inventory_root := get_tree().get_first_node_in_group("inventory_root")
+	if inventory_root != null and inventory_root.has_method("refresh_ui"): inventory_root.call("refresh_ui")
+
+
 func get_save_data() -> Dictionary:
 	return {
 		"loot_initialized": loot_initialized,
-		"loot_slots": _serialize_item_array(loot_slots)
+		"loot_slots": _serialize_item_array(loot_slots),
+		"loot_restock_state": LootRestock.serialize_cycle(_loot_restock_state, loot_slots)
 	}
 
 
@@ -222,8 +246,10 @@ func apply_save_data(save_data: Dictionary) -> void:
 	is_opened = false
 	loot_initialized = bool(save_data.get("loot_initialized", false))
 	loot_slots = _deserialize_item_array(save_data.get("loot_slots", []))
+	_loot_restock_state = save_data.get("loot_restock_state", {}).duplicate(true)
 	_set_loot_panel_state(false)
 	_update_interact_label()
+	call_deferred("_restore_loot_restock_cycle")
 
 
 func _serialize_item_array(items: Array) -> Array:

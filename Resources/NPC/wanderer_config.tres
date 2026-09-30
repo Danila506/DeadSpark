@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="NPCConfig" format=3 uid="uid://mg50y85jjxow"]
+
+[ext_resource type="Script" uid="uid://w3wt2cb4xfo0" path="res://entities/friends/npc_config.gd" id="1"]
+[ext_resource type="Resource" path="res://Resources/Food/tushenka.tres" id="2"]
+[ext_resource type="Resource" uid="uid://dvquglkn8pwxm" path="res://Resources/Medicine/bandage.tres" id="3"]
+[ext_resource type="Resource" uid="uid://3h7wstb74hel" path="res://Resources/Misc/matches.tres" id="4"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="5"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Марк, Странник"
+wander_speed = 72.0
+flee_speed = 120.0
+wander_radius = 260.0
+notice_player_distance = 105.0
+interaction_distance = 92.0
+introduction = "Зови меня Марк. Хожу между укрытиями, меняю припасы и собираю слухи."
+familiar_greeting = "Снова встретились. Есть новости или хочешь взглянуть на припасы?"
+rumor_lines = Array[String](["У дороги видели дом, в котором мог остаться нетронутый тайник.", "После заката волки подходят к тропам ближе обычного.", "Если ищешь лекарства, осматривай жилые дома и старые медпункты."])
+trade_item_definitions = Array[ExtResource("5")]([ExtResource("2"), ExtResource("3"), ExtResource("4")])

@@ -8,7 +8,6 @@ const DamageZones = preload("res://Enemies/AI/damage_zones.gd")
 @export var collision_mask_override: int = 1
 @export var collision_layer_override: int = 2
 @export var pass_through_tilemap_layers: bool = false
-@export var pass_through_hit_radius: float = 10.0
 
 var _direction: Vector2 = Vector2.RIGHT
 var _start_position: Vector2 = Vector2.ZERO
@@ -16,9 +15,6 @@ var _max_distance: float = 420.0
 var _shooter: Node = null
 var _lifetime_left: float = 0.0
 var _released: bool = false
-var _damaged_targets: Dictionary = {}
-
-
 func _ready() -> void:
 	_lifetime_left = lifetime_sec
 	_disable_physics_collision()
@@ -35,7 +31,9 @@ func _physics_process(delta: float) -> void:
 
 	var from_pos: Vector2 = global_position
 	var to_pos: Vector2 = from_pos + _direction * speed * delta
-	_apply_pass_through_damage(from_pos, to_pos)
+	var hit: Dictionary = _raycast_to_position(from_pos, to_pos)
+	if not hit.is_empty() and _handle_raycast_hit(hit):
+		return
 	global_position = to_pos
 
 	if _max_distance > 0.0 and _start_position.distance_to(global_position) >= _max_distance:
@@ -67,7 +65,6 @@ func initialize(
 	collision_mask_override = mask
 	rotation = _direction.angle()
 	_released = false
-	_damaged_targets.clear()
 	_disable_physics_collision()
 	visible = true
 	set_physics_process(true)
@@ -82,7 +79,6 @@ func setup(direction: Vector2, new_damage: float, new_speed: float) -> void:
 	_lifetime_left = lifetime_sec
 	rotation = _direction.angle()
 	_released = false
-	_damaged_targets.clear()
 	_disable_physics_collision()
 	visible = true
 	set_physics_process(true)
@@ -135,7 +131,7 @@ func _is_damage_hitbox_area(area: Area2D) -> bool:
 		return true
 	if area.has_meta(&"damage_zone"):
 		return true
-	return area.name == "HitboxArea"
+	return area.name == "HitboxArea" or area.name == "Hurtbox"
 
 
 func _resolve_damage_target_from_area(area: Area2D) -> Node:
@@ -166,9 +162,19 @@ func _apply_damage_to_target(target: Node, hit_context: Dictionary) -> void:
 func _is_friendly_target(target: Node) -> bool:
 	if target == null:
 		return false
-	if target.is_in_group("bandit"):
-		return _shooter == null or _shooter.is_in_group("bandit")
-	return false
+	var target_bandit: Node = _find_group_owner(target, &"bandit")
+	if target_bandit == null:
+		return false
+	return _shooter == null or _find_group_owner(_shooter, &"bandit") != null
+
+
+func _find_group_owner(node: Node, group_name: StringName) -> Node:
+	var candidate: Node = node
+	while candidate != null:
+		if candidate.is_in_group(group_name):
+			return candidate
+		candidate = candidate.get_parent()
+	return null
 
 
 func _build_hit_context_for_body_hit() -> Dictionary:
@@ -263,70 +269,32 @@ func _disable_physics_collision() -> void:
 	monitorable = false
 
 
-func _apply_pass_through_damage(from_pos: Vector2, to_pos: Vector2) -> void:
-	for target in _collect_pass_through_targets():
-		if target == null or not is_instance_valid(target):
-			continue
-		if target == _shooter:
-			continue
-		if _damaged_targets.has(target.get_instance_id()):
-			continue
-		if _is_friendly_target(target):
-			continue
-		if _should_ignore_collision(target):
-			continue
-		if not (target is Node2D):
-			continue
-
-		var target_position: Vector2 = (target as Node2D).global_position
-		if _distance_to_segment(target_position, from_pos, to_pos) > pass_through_hit_radius:
-			continue
-
-		_damaged_targets[target.get_instance_id()] = true
-		var hit_context: Dictionary = _build_hit_context_for_body_hit()
-		hit_context["hit_position"] = target_position
-		_apply_damage_to_target(target, hit_context)
-
-
-func _collect_pass_through_targets() -> Array[Node]:
-	var result: Array[Node] = []
-	var tree: SceneTree = get_tree()
-	if tree == null:
-		return result
-
-	if _shooter != null and _shooter.is_in_group("bandit"):
-		for node in tree.get_nodes_in_group("player"):
-			if node is Node:
-				result.append(node as Node)
-		return result
-
-	for node in tree.get_nodes_in_group("enemy"):
-		if node is Node:
-			result.append(node as Node)
-	return result
-
-
-func _distance_to_segment(point: Vector2, segment_start: Vector2, segment_end: Vector2) -> float:
-	var segment: Vector2 = segment_end - segment_start
-	var length_sq: float = segment.length_squared()
-	if length_sq <= 0.0001:
-		return point.distance_to(segment_start)
-	var t: float = clampf((point - segment_start).dot(segment) / length_sq, 0.0, 1.0)
-	return point.distance_to(segment_start + segment * t)
-
-
 func _raycast_to_position(from_pos: Vector2, to_pos: Vector2) -> Dictionary:
 	var world := get_world_2d()
 	if world == null:
 		return {}
-	var query := PhysicsRayQueryParameters2D.create(from_pos, to_pos, collision_mask)
-	query.collide_with_bodies = true
-	query.collide_with_areas = true
 	var exclude: Array[RID] = [get_rid()]
 	if is_instance_valid(_shooter) and _shooter is CollisionObject2D:
 		exclude.append((_shooter as CollisionObject2D).get_rid())
-	query.exclude = exclude
-	return world.direct_space_state.intersect_ray(query)
+
+	var world_query := PhysicsRayQueryParameters2D.create(from_pos, to_pos, collision_mask_override)
+	world_query.collide_with_bodies = true
+	world_query.collide_with_areas = true
+	world_query.exclude = exclude
+	var world_hit: Dictionary = world.direct_space_state.intersect_ray(world_query)
+
+	var hurtbox_query := PhysicsRayQueryParameters2D.create(from_pos, to_pos, DamageZones.HURTBOX_COLLISION_LAYER)
+	hurtbox_query.collide_with_bodies = false
+	hurtbox_query.collide_with_areas = true
+	hurtbox_query.exclude = exclude
+	var hurtbox_hit: Dictionary = world.direct_space_state.intersect_ray(hurtbox_query)
+	if hurtbox_hit.is_empty():
+		return world_hit
+	if world_hit.is_empty():
+		return hurtbox_hit
+	var world_distance_sq: float = from_pos.distance_squared_to(world_hit.get("position", to_pos))
+	var hurtbox_distance_sq: float = from_pos.distance_squared_to(hurtbox_hit.get("position", to_pos))
+	return hurtbox_hit if hurtbox_distance_sq <= world_distance_sq else world_hit
 
 
 func _handle_raycast_hit(hit: Dictionary) -> bool:
@@ -346,15 +314,40 @@ func _handle_raycast_hit(hit: Dictionary) -> bool:
 		return false
 	if target_node is Area2D and _is_damage_hitbox_area(target_node as Area2D):
 		var target: Node = _resolve_damage_target_from_area(target_node as Area2D)
-		if target != null and target != _shooter and not _is_friendly_target(target) and not _should_ignore_collision(target):
-			var hit_context: Dictionary = _build_hit_context_for_area_hit(target_node as Area2D)
-			_apply_damage_to_target(target, hit_context)
+		if target == null:
+			_release_projectile()
+			return true
+		if target == _shooter or _is_friendly_target(target) or _should_ignore_collision(target):
+			return false
+		var hit_context: Dictionary = _build_hit_context_for_area_hit(target_node as Area2D)
+		_apply_damage_to_target(target, hit_context)
+		_release_projectile()
+		return true
+	# Actors with an explicit damage hitbox receive projectile damage only through
+	# that Area2D. Their CharacterBody2D collider remains movement-only.
+	if _has_damage_hitbox(target_node):
 		_release_projectile()
 		return true
 	var body_context: Dictionary = _build_hit_context_for_body_hit()
 	_apply_damage_to_target(target_node, body_context)
 	_release_projectile()
 	return true
+
+
+func _has_damage_hitbox(target: Node) -> bool:
+	if target == null:
+		return false
+	var hurtbox := target.get_node_or_null("Hurtbox") as Area2D
+	if hurtbox != null:
+		return true
+	var hitboxes_root := target.get_node_or_null("HitBoxes")
+	if hitboxes_root == null:
+		hitboxes_root = target.get_node_or_null("Hitboxes")
+	if hitboxes_root != null:
+		for child in hitboxes_root.get_children():
+			if child is Area2D:
+				return true
+	return target.get_node_or_null("HitboxArea") is Area2D
 
 
 func _tilemap_hit_is_solid(tilemap_layer: TileMapLayer, hit: Dictionary) -> bool:
@@ -385,7 +378,6 @@ func _tilemap_hit_is_solid(tilemap_layer: TileMapLayer, hit: Dictionary) -> bool
 func reset_for_pool_reuse() -> void:
 	_released = false
 	_lifetime_left = lifetime_sec
-	_damaged_targets.clear()
 	_disable_physics_collision()
 	visible = true
 	set_physics_process(true)
@@ -394,7 +386,6 @@ func reset_for_pool_reuse() -> void:
 func prepare_for_pool() -> void:
 	_released = true
 	_shooter = null
-	_damaged_targets.clear()
 	_disable_physics_collision()
 	visible = false
 	set_physics_process(false)

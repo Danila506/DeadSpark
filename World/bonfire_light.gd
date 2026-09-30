@@ -16,6 +16,14 @@ static var _radial_texture_cache: Dictionary = {}
 @export var halo_light_path: NodePath
 @export var campfire_animation: StringName = &"bonfire"
 
+@export_group("Burn Damage")
+@export_range(0.0, 100.0, 0.1) var burn_damage_per_tick: float = 5.0
+@export_range(0.1, 10.0, 0.1) var burn_tick_interval_sec: float = 1.0
+@export_range(0.0, 100.0, 0.1) var clothing_endurance_loss_percent: float = 1.5
+@export_range(4.0, 128.0, 1.0) var burn_radius: float = 22.0
+@export_flags_2d_physics var burn_collision_mask: int = 1
+@export var burn_area_offset: Vector2 = Vector2(0.0, 4.0)
+
 @export_group("Light Masks")
 @export var light_item_cull_mask: int = 1
 @export var shadow_item_cull_mask: int = 2
@@ -28,17 +36,18 @@ static var _radial_texture_cache: Dictionary = {}
 @export var core_color: Color = Color(1.0, 0.87, 0.64, 1.0)
 
 @export_group("Medium Light")
-@export var medium_base_energy: float = 0.55
+@export var medium_base_energy: float = 0.48
 @export var medium_energy_variation: float = 0.05
-@export var medium_base_scale: float = 5.2
-@export var medium_scale_variation: float = 0.22
+@export var medium_base_scale: float = 2.0
+@export var medium_scale_variation: float = 0.12
 @export var medium_color: Color = Color(1.0, 0.62, 0.35, 0.92)
 
 @export_group("Halo Light")
-@export var halo_base_energy: float = 0.24
+@export var halo_enabled: bool = false
+@export var halo_base_energy: float = 0.14
 @export var halo_energy_variation: float = 0.025
-@export var halo_base_scale: float = 6.9
-@export var halo_scale_variation: float = 0.16
+@export var halo_base_scale: float = 4.0
+@export var halo_scale_variation: float = 0.12
 @export var halo_color: Color = Color(1.0, 0.52, 0.29, 0.62)
 
 @export_group("Shadows")
@@ -52,12 +61,26 @@ static var _radial_texture_cache: Dictionary = {}
 
 @export_group("Texture")
 @export_range(128, 768, 1) var radial_texture_size: int = 384
-@export_range(0.0, 0.35, 0.01) var edge_noise_strength: float = 0.12
+## Keep this at zero for instant engine-side gradient creation. Non-zero values opt in
+## to the more expensive one-time CPU texture bake for a noisy outer edge.
+@export_range(0.0, 0.35, 0.01) var edge_noise_strength: float = 0.0
 @export_range(8.0, 128.0, 1.0) var edge_noise_scale: float = 34.0
 
 @export_group("Flicker")
 @export var flicker_speed: float = 3.6
 @export var flicker_secondary_speed: float = 6.1
+@export var medium_flicker_phase_offset: float = 1.73
+@export var halo_flicker_phase_offset: float = 3.91
+
+@export_group("Distance LOD")
+@export var distance_lod_enabled: bool = true
+@export_range(0.05, 2.0, 0.05) var distance_lod_update_interval_sec: float = 0.1
+@export_range(32.0, 512.0, 16.0) var distance_lod_fade_range: float = 160.0
+@export_range(64.0, 4096.0, 16.0) var shadow_disable_distance: float = 520.0
+@export_range(64.0, 4096.0, 16.0) var halo_disable_distance: float = 560.0
+@export_range(64.0, 4096.0, 16.0) var medium_disable_distance: float = 700.0
+@export_range(64.0, 4096.0, 16.0) var smoke_disable_distance: float = 700.0
+@export_range(64.0, 4096.0, 16.0) var all_lights_disable_distance: float = 900.0
 
 @export_group("Time Of Day")
 @export var time_of_day_manager_path: NodePath
@@ -87,6 +110,14 @@ var _time_of_day_manager: Node = null
 var _time_of_day_energy_multiplier: float = 1.0
 var _time_of_day_scale_multiplier: float = 1.0
 var _smoke_particles: GPUParticles2D = null
+var _distance_lod_elapsed: float = INF
+var _smoke_lod_enabled: bool = true
+var _all_lights_lod_disabled: bool = false
+var _core_lod_strength: float = 1.0
+var _medium_lod_strength: float = 1.0
+var _halo_lod_strength: float = 1.0
+var _burn_area: Area2D = null
+var _burn_elapsed_by_player: Dictionary = {}
 
 
 func _ready() -> void:
@@ -103,23 +134,86 @@ func _ready() -> void:
 	if sprite_frames != null and sprite_frames.has_animation(campfire_animation):
 		play(campfire_animation)
 	_ensure_smoke_particles()
+	_ensure_burn_area()
+
+
+func _physics_process(delta: float) -> void:
+	if not _is_damage_authority() or _burn_area == null:
+		return
+	var active_player_ids := {}
+	for body in _burn_area.get_overlapping_bodies():
+		if body == null or not body.is_in_group("player"):
+			continue
+		if bool(body.get("is_dead")):
+			continue
+		var player_id := body.get_instance_id()
+		active_player_ids[player_id] = true
+		var elapsed := float(_burn_elapsed_by_player.get(player_id, 0.0)) + maxf(delta, 0.0)
+		var interval := maxf(burn_tick_interval_sec, 0.1)
+		while elapsed >= interval:
+			elapsed -= interval
+			_apply_burn_tick(body)
+			if not is_instance_valid(body) or bool(body.get("is_dead")):
+				break
+		_burn_elapsed_by_player[player_id] = elapsed
+	for tracked_id in _burn_elapsed_by_player.keys():
+		if not active_player_ids.has(tracked_id):
+			_burn_elapsed_by_player.erase(tracked_id)
+
+
+func _ensure_burn_area() -> void:
+	if _burn_area != null:
+		return
+	_burn_area = Area2D.new()
+	_burn_area.name = "BurnArea"
+	_burn_area.collision_layer = 0
+	_burn_area.collision_mask = burn_collision_mask
+	_burn_area.monitoring = true
+	_burn_area.monitorable = false
+	var collision := CollisionShape2D.new()
+	collision.name = "CollisionShape2D"
+	collision.position = burn_area_offset
+	var shape := CircleShape2D.new()
+	shape.radius = maxf(burn_radius, 4.0)
+	collision.shape = shape
+	_burn_area.add_child(collision)
+	add_child(_burn_area)
+
+
+func _apply_burn_tick(player_node: Node) -> void:
+	if player_node == null or not is_instance_valid(player_node):
+		return
+	if player_node.has_method("take_damage"):
+		player_node.call("take_damage", burn_damage_per_tick, ItemData.DamageType.GENERIC, false)
+	if player_node.has_method("apply_clothing_endurance_percent_loss"):
+		player_node.call("apply_clothing_endurance_percent_loss", clothing_endurance_loss_percent)
+
+
+func _is_damage_authority() -> bool:
+	return multiplayer.multiplayer_peer == null or (NetworkManager != null and NetworkManager.is_server())
 
 
 func _process(delta: float) -> void:
+	_distance_lod_elapsed += delta
+	if _distance_lod_elapsed >= maxf(distance_lod_update_interval_sec, 0.05):
+		_distance_lod_elapsed = 0.0
+		_update_distance_lod()
+
 	_update_smoke(delta)
 	if _core_light == null and _medium_light == null and _halo_light == null:
+		return
+	if _all_lights_lod_disabled:
 		return
 
 	_update_time_of_day_response(delta)
 	_phase += delta * maxf(flicker_speed, 0.1)
-	var speed_ratio := flicker_secondary_speed / maxf(flicker_speed, 0.1)
-	var primary := sin(_phase) * 0.62
-	var secondary := sin(_phase * speed_ratio + 1.17) * 0.38
-	var pulse := clampf(0.5 + (primary + secondary) * 0.5, 0.0, 1.0)
+	var core_pulse := _build_flicker_pulse(0.0, 1.0)
+	var medium_pulse := _build_flicker_pulse(medium_flicker_phase_offset, 0.91)
+	var halo_pulse := _build_flicker_pulse(halo_flicker_phase_offset, 0.73)
 
-	_apply_flicker(_core_light, core_base_energy, core_energy_variation, core_base_scale, core_scale_variation, clampf(0.52 + pulse * 0.65, 0.0, 1.0))
-	_apply_flicker(_medium_light, medium_base_energy, medium_energy_variation, medium_base_scale, medium_scale_variation, clampf(0.47 + pulse * 0.72, 0.0, 1.0))
-	_apply_flicker(_halo_light, halo_base_energy, halo_energy_variation, halo_base_scale, halo_scale_variation, clampf(0.45 + pulse * 0.56, 0.0, 1.0))
+	_apply_flicker(_core_light, core_base_energy, core_energy_variation, core_base_scale, core_scale_variation, clampf(0.52 + core_pulse * 0.65, 0.0, 1.0), _core_lod_strength)
+	_apply_flicker(_medium_light, medium_base_energy, medium_energy_variation, medium_base_scale, medium_scale_variation, clampf(0.47 + medium_pulse * 0.72, 0.0, 1.0), _medium_lod_strength)
+	_apply_flicker(_halo_light, halo_base_energy, halo_energy_variation, halo_base_scale, halo_scale_variation, clampf(0.45 + halo_pulse * 0.56, 0.0, 1.0), _halo_lod_strength)
 
 	_apply_parent_scale_compensation(_core_light)
 	_apply_parent_scale_compensation(_medium_light)
@@ -151,7 +245,7 @@ func _ensure_smoke_particles() -> void:
 
 
 func _update_smoke(delta: float) -> void:
-	if not smoke_enabled:
+	if not smoke_enabled or not _smoke_lod_enabled:
 		if _smoke_particles != null:
 			_smoke_particles.emitting = false
 		return
@@ -165,6 +259,66 @@ func _update_smoke(delta: float) -> void:
 	_smoke_particles.lifetime = maxf(smoke_lifetime_sec, 0.1)
 	if not _smoke_particles.emitting:
 		_smoke_particles.emitting = true
+
+
+func _build_flicker_pulse(phase_offset: float, speed_multiplier: float) -> float:
+	var phase := _phase * speed_multiplier + phase_offset
+	var speed_ratio := flicker_secondary_speed / maxf(flicker_speed, 0.1)
+	var primary := sin(phase) * 0.62
+	var secondary := sin(phase * speed_ratio + 1.17 + phase_offset * 0.37) * 0.38
+	return clampf(0.5 + (primary + secondary) * 0.5, 0.0, 1.0)
+
+
+func _update_distance_lod() -> void:
+	if not distance_lod_enabled:
+		_set_full_quality_lod()
+		_smoke_lod_enabled = true
+		_all_lights_lod_disabled = false
+		_update_core_shadow_lod(true)
+		return
+
+	var camera := get_viewport().get_camera_2d()
+	if camera == null:
+		_set_full_quality_lod()
+		_smoke_lod_enabled = true
+		_all_lights_lod_disabled = false
+		_update_core_shadow_lod(true)
+		return
+
+	var distance_to_camera := global_position.distance_to(camera.get_screen_center_position())
+	_core_lod_strength = _calculate_lod_strength(distance_to_camera, all_lights_disable_distance)
+	_medium_lod_strength = _calculate_lod_strength(distance_to_camera, minf(medium_disable_distance, all_lights_disable_distance))
+	_halo_lod_strength = _calculate_lod_strength(distance_to_camera, minf(halo_disable_distance, all_lights_disable_distance)) if halo_enabled else 0.0
+	_set_light_lod_enabled(_core_light, _core_lod_strength > 0.001)
+	_set_light_lod_enabled(_medium_light, _medium_lod_strength > 0.001)
+	_set_light_lod_enabled(_halo_light, _halo_lod_strength > 0.001)
+	_smoke_lod_enabled = distance_to_camera <= smoke_disable_distance
+	_all_lights_lod_disabled = _core_lod_strength <= 0.001
+	_update_core_shadow_lod(distance_to_camera <= shadow_disable_distance)
+
+
+func _set_full_quality_lod() -> void:
+	_core_lod_strength = 1.0
+	_medium_lod_strength = 1.0
+	_halo_lod_strength = 1.0 if halo_enabled else 0.0
+	_set_light_lod_enabled(_core_light, true)
+	_set_light_lod_enabled(_medium_light, true)
+	_set_light_lod_enabled(_halo_light, halo_enabled)
+
+
+func _calculate_lod_strength(distance_to_camera: float, disable_distance: float) -> float:
+	var fade_start := maxf(disable_distance - distance_lod_fade_range, 0.0)
+	return 1.0 - _smoothstep(fade_start, disable_distance, distance_to_camera)
+
+
+func _set_light_lod_enabled(light: PointLight2D, should_enable: bool) -> void:
+	if light != null and light.enabled != should_enable:
+		light.enabled = should_enable
+
+
+func _update_core_shadow_lod(within_shadow_distance: bool) -> void:
+	if _core_light != null:
+		_core_light.shadow_enabled = core_cast_shadows and within_shadow_distance
 
 
 func _create_particle_atlas_material(h_frames: int, v_frames: int) -> CanvasItemMaterial:
@@ -248,6 +402,7 @@ func _setup_light(light: PointLight2D, layer: int) -> void:
 			light.shadow_filter_smooth = medium_shadow_filter_smooth
 			light.shadow_color = Color(0.0, 0.0, 0.0, medium_shadow_alpha)
 		LightLayer.HALO:
+			light.enabled = halo_enabled
 			light.color = halo_color
 			light.texture = _build_radial_texture(
 				Color(1.0, 0.66, 0.39, 0.42),
@@ -323,12 +478,12 @@ func _make_radial_texture_cache_key(center_color: Color, mid_color: Color, outer
 	]
 
 
-func _apply_flicker(light: PointLight2D, base_energy: float, energy_variation: float, base_scale: float, scale_variation: float, pulse: float) -> void:
+func _apply_flicker(light: PointLight2D, base_energy: float, energy_variation: float, base_scale: float, scale_variation: float, pulse: float, lod_strength: float) -> void:
 	if light == null:
 		return
 	var target_energy := base_energy + (pulse - 0.5) * 2.0 * energy_variation
 	var target_scale := base_scale + (pulse - 0.5) * 2.0 * scale_variation
-	light.energy = target_energy * _time_of_day_energy_multiplier
+	light.energy = target_energy * _time_of_day_energy_multiplier * lod_strength
 	light.texture_scale = target_scale * _time_of_day_scale_multiplier
 
 

@@ -2,10 +2,13 @@ extends Node
 # Enabled only by --lan-smoke-gameplay=1; uses real network player movement and enemy RPCs.
 const PROBE_PISTOL = preload("res://Resources/Pistols/pv/pv.tres")
 const PROBE_MELEE = preload("res://Resources/Melee/axe.tres")
+const PROBE_DEATH_BAG = preload("res://Resources/Clothes/bag.tres")
+const PROBE_DEATH_FOOD = preload("res://Resources/Food/apple.tres")
 
 var checked := {}
 var timer := 0.0
 var weapon_probe_targets := {}
+var death_probe_server_ok := {}
 
 
 class WeaponProbeTarget:
@@ -59,8 +62,17 @@ func report_client(health_ok: bool, moved: bool, position: Vector2, player_count
 	var actor = world.players.get(peer)
 	var position_ok: bool = actor != null and actor.global_position.distance_to(position) < 40.0
 	var peer_inventory_ok: bool = InventoryManager.has_network_peer_inventory(peer)
-	var ok: bool = health_ok and moved and position_ok and peer_inventory_ok and player_count == world.players.size()
-	print("LAN_GAMEPLAY_PROBE=%s peer=%d damage_sync=%s movement=%s position_sync=%s peer_inventory=%s players=%d" % ["PASS" if ok else "FAIL", peer, health_ok, moved, position_ok, peer_inventory_ok, player_count])
+	var thermal: ItemData = InventoryManager.get_network_peer_equipped(peer, ItemData.ItemType.Cap)
+	var thermal_battery: ItemData = thermal.runtime_storage_items[0] if thermal != null and not thermal.runtime_storage_items.is_empty() else null
+	var thermal_ok: bool = (
+		thermal != null
+		and thermal.enables_thermal_vision
+		and thermal_battery != null
+		and thermal_battery.is_battery_item
+		and thermal_battery.battery_charge_seconds > 0.0
+	)
+	var ok: bool = health_ok and moved and position_ok and peer_inventory_ok and thermal_ok and player_count == world.players.size()
+	print("LAN_GAMEPLAY_PROBE=%s peer=%d damage_sync=%s movement=%s position_sync=%s peer_inventory=%s thermal=%s players=%d" % ["PASS" if ok else "FAIL", peer, health_ok, moved, position_ok, peer_inventory_ok, thermal_ok, player_count])
 	if ok:
 		actor.health = 73.0
 		actor.water = 64.0
@@ -79,7 +91,6 @@ func report_client(health_ok: bool, moved: bool, position: Vector2, player_count
 		InventoryManager.set_network_peer_active_weapon_slot(peer, ItemData.ItemType.Pistols)
 		InventoryManager.set_network_peer_ammo_state(peer, ItemData.ItemType.Pistols, 0, 8)
 		rpc_id(peer, "prepare_weapon_actions_probe", InventoryManager.get_network_peer_inventory_snapshot(peer))
-	if ok and "--lan-smoke-death=1" in OS.get_cmdline_user_args(): rpc_id(peer, "prepare_death_probe")
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -103,9 +114,25 @@ func check_client_vitals() -> void:
 		and is_equal_approx(hud.health_bar.value, actor.health)
 		and is_equal_approx(hud.water_bar.value, actor.water)
 		and is_equal_approx(hud.food_bar.value, actor.food)
-		and is_equal_approx(hud.stamina_bar.value, actor.stamina)
+		# Stamina keeps changing between the snapshot signal and this assertion.
+		and absf(hud.stamina_bar.value - actor.stamina) <= 1.0
 	)
-	print("LAN_CLIENT_VITALS state=%s hud=%s" % [state_ok, hud_ok])
+	print(
+		"LAN_CLIENT_VITALS state=%s hud=%s bound=%s values=%s/%s/%s/%s actor=%s/%s/%s/%s"
+		% [
+			state_ok,
+			hud_ok,
+			hud != null and hud.player == actor,
+			hud.health_bar.value if hud != null else -1.0,
+			hud.water_bar.value if hud != null else -1.0,
+			hud.food_bar.value if hud != null else -1.0,
+			hud.stamina_bar.value if hud != null else -1.0,
+			actor.health if actor != null else -1.0,
+			actor.water if actor != null else -1.0,
+			actor.food if actor != null else -1.0,
+			actor.stamina if actor != null else -1.0,
+		]
+	)
 	rpc_id(1, "report_vitals_probe", state_ok, hud_ok)
 
 
@@ -192,6 +219,11 @@ func report_weapon_actions_probe(reload_ok: bool, melee_requested: bool) -> void
 	weapon_probe_targets.erase(peer)
 	if target != null:
 		target.queue_free()
+	# Death drains the authoritative inventory, so it must run only after the
+	# weapon/inventory probe has finished consuming that state. The vitals/HUD
+	# probe also completes earlier while the weapon probe waits for reload.
+	if "--lan-smoke-death=1" in OS.get_cmdline_user_args():
+		rpc_id(peer, "prepare_death_probe")
 
 
 class DeathScreenProbe:
@@ -212,12 +244,27 @@ func death_probe_prepared() -> void:
 	var peer := multiplayer.get_remote_sender_id()
 	var actor = get_parent().players.get(peer)
 	if actor == null: return
+	var bag: ItemData = PROBE_DEATH_BAG.create_instance(1, 71)
+	bag.runtime_storage_items.resize(maxi(bag.extra_storage_slots, 1))
+	var food: ItemData = PROBE_DEATH_FOOD.create_instance(2)
+	bag.runtime_storage_items[0] = food
+	InventoryManager.set_network_peer_equipped(peer, ItemData.ItemType.Bag, bag)
+	var expected_runtime_ids: Array[String] = [bag.get_runtime_id(), food.get_runtime_id()]
 	actor.health = 0.0
 	actor.die()
 	actor.die() # Repeated damage/death must be harmless.
 	# A delayed pre-death update must not restore health.
 	actor.rpc_id(peer, "rpc_sync_vitals", peer, 100.0, false)
 	await get_tree().create_timer(0.5).timeout
+	var found_runtime_ids: Dictionary = {}
+	for pickup in get_tree().get_nodes_in_group("world_pickup"):
+		var item: ItemData = pickup.get("item_data") as ItemData
+		if item != null:
+			found_runtime_ids[item.get_runtime_id()] = true
+	var drops_ok := true
+	for runtime_id in expected_runtime_ids:
+		drops_ok = drops_ok and found_runtime_ids.has(runtime_id)
+	death_probe_server_ok[peer] = drops_ok and not actor.anim.visible and not InventoryManager.has_network_peer_inventory(peer)
 	rpc_id(peer, "check_death_probe")
 
 @rpc("authority", "call_remote", "reliable")
@@ -229,4 +276,7 @@ func check_death_probe() -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func report_death_probe(ok: bool) -> void:
-	if NetworkManager.is_server(): print("LAN_DEATH_PROBE=" + ("PASS" if ok else "FAIL"))
+	if not NetworkManager.is_server(): return
+	var peer := multiplayer.get_remote_sender_id()
+	var server_ok: bool = bool(death_probe_server_ok.get(peer, false))
+	print("LAN_DEATH_PROBE=" + ("PASS" if ok and server_ok else "FAIL"))

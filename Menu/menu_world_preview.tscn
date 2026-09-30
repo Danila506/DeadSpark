@@ -237,16 +237,14 @@ animation = &"bonfire"
 autoplay = "bonfire"
 script = ExtResource("7_bonfire_script")
 core_light_path = NodePath("CoreLight")
-medium_light_path = NodePath("SoftLight")
+medium_light_path = NodePath("MediumLight")
 halo_light_path = NodePath("HaloLight")
 core_base_energy = 0.86
 core_base_scale = 1.52
 medium_base_energy = 0.31
-medium_base_scale = 3.7
-halo_base_energy = 0.09
-halo_base_scale = 4.6
+medium_base_scale = 1.8
 
-[node name="SoftLight" type="PointLight2D" parent="BanditCamp/MenuBonfire" unique_id=1559065179]
+[node name="MediumLight" type="PointLight2D" parent="BanditCamp/MenuBonfire" unique_id=1559065179]
 z_index = 1
 offset = Vector2(0, 4)
 

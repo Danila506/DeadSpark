@@ -23,6 +23,14 @@ func run() -> void:
 	var initial_signature := _compute_world_snapshot_signature(payload)
 	var sliced_payload: Array = await _collect_world_snapshot_payload_sliced()
 	check(sliced_payload == payload, "frame-budgeted snapshot matches synchronous snapshot")
+	var freed_node := Node2D.new()
+	parent.add_child(freed_node)
+	freed_node.free()
+	var freed_node_payload: Array = []
+	check(
+		not _append_world_snapshot_entry(freed_node, freed_node_payload) and freed_node_payload.is_empty(),
+		"snapshot collector safely skips a node freed between slices"
+	)
 	check(
 		await _compute_world_snapshot_signature_sliced(sliced_payload) == initial_signature,
 		"frame-budgeted snapshot signature matches synchronous signature"

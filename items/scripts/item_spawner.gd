@@ -121,7 +121,7 @@ const NEW_FOOD_ITEMS: Array[ItemData] = [
 ]
 
 const EXCLUDED_WORLD_SPAWN_RESOURCE_PATHS: Dictionary = {
-	"res://Resources/Medicine/medicalKit.tres": true,
+	"res://Resources/Medicine/healthBox.tres": true,
 	"res://Resources/Misc/stone.tres": true
 }
 
@@ -176,7 +176,11 @@ func spawn_starter_items_near_player_if_enabled() -> void:
 	_spawn_starter_items_near_player(0)
 
 
-func spawn_random_world_pickup_at_position(spawn_position: Vector2, forced_runtime_id: String = "") -> bool:
+func spawn_random_world_pickup_at_position(
+	spawn_position: Vector2,
+	forced_runtime_id: String = "",
+	visibility_scope: Dictionary = {}
+) -> bool:
 	if not _can_spawn_on_this_peer():
 		return false
 	if pickup_scene == null:
@@ -190,7 +194,21 @@ func spawn_random_world_pickup_at_position(spawn_position: Vector2, forced_runti
 	var item_data: ItemData = valid_items[rng.randi_range(0, valid_items.size() - 1)]
 	if item_data == null:
 		return false
-	return _spawn_pickup(item_data, spawn_position, forced_runtime_id)
+	return _spawn_pickup(item_data, spawn_position, forced_runtime_id, visibility_scope)
+
+
+func spawn_world_pickup_at_position(
+	item_data: ItemData,
+	spawn_position: Vector2,
+	forced_runtime_id: String = "",
+	visibility_scope: Dictionary = {}
+) -> bool:
+	if not _can_spawn_on_this_peer():
+		return false
+	if pickup_scene == null:
+		push_warning("ItemSpawner: pickup_scene is not assigned")
+		return false
+	return _spawn_pickup(item_data, spawn_position, forced_runtime_id, visibility_scope)
 
 
 func get_valid_world_spawn_items() -> Array[ItemData]:
@@ -461,7 +479,12 @@ func _is_excluded_world_spawn_resource_path(resource_path: String) -> bool:
 	return EXCLUDED_WORLD_SPAWN_RESOURCE_PATHS.has(normalized_path)
 
 
-func _spawn_pickup(item_data: ItemData, spawn_position: Vector2, forced_runtime_id: String = "") -> bool:
+func _spawn_pickup(
+	item_data: ItemData,
+	spawn_position: Vector2,
+	forced_runtime_id: String = "",
+	visibility_scope: Dictionary = {}
+) -> bool:
 	if item_data == null or pickup_scene == null:
 		return false
 
@@ -489,6 +512,8 @@ func _spawn_pickup(item_data: ItemData, spawn_position: Vector2, forced_runtime_
 		"item": item_copy.to_save_dict() if item_copy.has_method("to_save_dict") else {},
 		"position": {"x": spawn_position.x, "y": spawn_position.y}
 	}
+	if not visibility_scope.is_empty():
+		payload["visibility_scope"] = visibility_scope.duplicate(true)
 	_spawn_pickup_from_payload(payload)
 	if multiplayer != null and multiplayer.multiplayer_peer != null and multiplayer.is_server():
 		rpc("rpc_spawn_pickup_payload", payload)
@@ -515,6 +540,9 @@ func _spawn_pickup_from_payload(payload: Dictionary) -> void:
 		pickup.call("setup_from_item_data", item)
 	elif "item_data" in pickup:
 		pickup.item_data = item
+	var visibility_scope: Variant = payload.get("visibility_scope", {})
+	if visibility_scope is Dictionary and not (visibility_scope as Dictionary).is_empty() and pickup.has_method("configure_visibility_scope"):
+		pickup.call("configure_visibility_scope", visibility_scope)
 	var pos_dict: Dictionary = payload.get("position", {})
 	pickup.global_position = Vector2(
 		float(pos_dict.get("x", 0.0)),
@@ -575,10 +603,15 @@ func _collect_pickup_snapshot_payloads() -> Array:
 		var pickup_pos := Vector2.ZERO
 		if pickup is Node2D:
 			pickup_pos = (pickup as Node2D).global_position
-		result.append({
+		var payload := {
 			"item": item.to_save_dict(),
 			"position": {"x": pickup_pos.x, "y": pickup_pos.y}
-		})
+		}
+		if pickup.has_method("get_visibility_scope_payload"):
+			var visibility_scope: Dictionary = pickup.call("get_visibility_scope_payload") as Dictionary
+			if not visibility_scope.is_empty():
+				payload["visibility_scope"] = visibility_scope
+		result.append(payload)
 	return result
 
 

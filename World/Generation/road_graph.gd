@@ -7,6 +7,7 @@ var bounds := Rect2i()
 var rejection_reasons: Array[String] = []
 var rejection_counts: Dictionary = {}
 var branch_start_cells: Array[Vector2i] = []
+var village_connector_cells: Array[Vector2i] = []
 var primary_anchor_sides: Array[String] = []
 var route_attempts := 0
 var primary_bend_count := 0
@@ -52,14 +53,15 @@ func canonical_manifest() -> Dictionary:
 	for cell in sorted_cells:
 		var adjacent := neighbors(cell)
 		var topology := "SEGMENT"
-		if _is_boundary(cell): topology = "BOUNDARY_ANCHOR"
+		if village_connector_cells.has(cell): topology = "VILLAGE_CONNECTOR"
+		elif _is_boundary(cell): topology = "BOUNDARY_ANCHOR"
 		elif adjacent.size() >= 3: topology = "JUNCTION"
 		elif adjacent.size() == 1: topology = "DEAD_END_POI_CANDIDATE" if String((cells[cell] as Dictionary).get("role", "")) == "secondary" else "DEAD_END"
 		nodes.append({"id": node_id(cell), "cell": cell, "topology": topology})
 		for other in adjacent:
 			if node_id(cell) < node_id(other):
 				edges.append({"id": edge_id(cell, other), "from": node_id(cell), "to": node_id(other), "role": String((cells[cell] as Dictionary).get("role", "primary"))})
-	return {"bounds": bounds, "nodes": nodes, "edges": edges, "rejections": rejection_counts, "primary_anchor_sides": primary_anchor_sides, "route_attempts": route_attempts, "primary_bends": primary_bend_count, "branch_bends_total": branch_bend_count_total}
+	return {"bounds": bounds, "nodes": nodes, "edges": edges, "rejections": rejection_counts, "primary_anchor_sides": primary_anchor_sides, "village_connectors": village_connector_cells, "route_attempts": route_attempts, "primary_bends": primary_bend_count, "branch_bends_total": branch_bend_count_total}
 
 func validate() -> Dictionary:
 	var errors: Array[String] = []
@@ -87,6 +89,8 @@ func validate() -> Dictionary:
 	if all_cells.size() >= 2 and not _is_connected(all_cells): errors.append("GRAPH_NOT_CONNECTED")
 	for branch_start in branch_start_cells:
 		if not cells.has(branch_start) or neighbors(branch_start).size() < 3: errors.append("INVALID_BRANCH_START")
+	for connector in village_connector_cells:
+		if not cells.has(connector): errors.append("INVALID_VILLAGE_CONNECTOR")
 	return {"valid": errors.is_empty(), "errors": errors}
 
 func _is_connected(required: Array[Vector2i]) -> bool:

@@ -1,25 +1,25 @@
 [gd_scene format=3 uid="uid://kyejnamtg2fs"]
 
 [ext_resource type="Script" uid="uid://dfklpn7xdqkm8" path="res://Villages/Scripts/village_spawn_group.gd" id="1_y6qmp"]
-[ext_resource type="Script" path="res://Villages/Scripts/village_generator.gd" id="13_generator"]
 [ext_resource type="Resource" path="res://Resources/Village/houses_profile.tres" id="3_houses"]
 [ext_resource type="Resource" path="res://Resources/Village/remains_profile.tres" id="4_remains"]
 [ext_resource type="Resource" path="res://Resources/Village/small_objects_profile.tres" id="5_small"]
+[ext_resource type="Script" uid="uid://jon0pwtvtn6a" path="res://Villages/Scripts/village_generator.gd" id="13_generator"]
 
 [node name="Village" type="Node2D" unique_id=1197139688]
 script = ExtResource("13_generator")
 spawn_parent_path = NodePath("GeneratedContent")
 
-[node name="RoadConnector" type="Marker2D" parent="."]
+[node name="RoadConnector" type="Marker2D" parent="." unique_id=1646300746]
 position = Vector2(420, 840)
 metadata/stable_id = "village_road_connector_v1"
 
-[node name="PoiBounds" type="Node2D" parent="."]
+[node name="PoiBounds" type="Node2D" parent="." unique_id=1827612501]
 metadata/stable_id = "village_bounds_v1"
 
-[node name="StaticContent" type="Node2D" parent="."]
+[node name="StaticContent" type="Node2D" parent="." unique_id=1067305862]
 
-[node name="GeneratedContent" type="Node2D" parent="."]
+[node name="GeneratedContent" type="Node2D" parent="." unique_id=2064836358]
 
 [node name="Houses" type="Node2D" parent="." unique_id=1579684163]
 script = ExtResource("1_y6qmp")
@@ -73,7 +73,7 @@ spawn_profile = ExtResource("5_small")
 group_id = "small_objects"
 
 [node name="1" type="Marker2D" parent="SmallObjects" unique_id=740691069]
-position = Vector2(176, 159)
+position = Vector2(136, 159)
 metadata/stable_id = "m_small_01"
 
 [node name="2" type="Marker2D" parent="SmallObjects" unique_id=2139510938]

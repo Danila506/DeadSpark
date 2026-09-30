@@ -103,14 +103,17 @@ func generate_prerequisites_preview() -> void:
 		return
 	_dispose_preview_world()
 	_build_preview_world()
-	_road.build_graph_for_inputs(BOUNDS, world_seed)
+	_poi.run_generation_pass()
+	var connector_cells: Array[Vector2i] = []
+	for connector_world in _poi.get_connector_world_positions(): connector_cells.append(_road_layer.local_to_map(connector_world))
+	_road.build_graph_for_inputs(BOUNDS, world_seed, {}, connector_cells)
 	if _road.graph == null:
 		_fail_preview("Road graph generation failed for seed %d." % world_seed)
 		return
 	_road.graph_hash = GenerationHashes.sha256_of(_road.graph.canonical_manifest())
 	_raster.run_generation_pass()
 	_update_road_raster_diagnostics()
-	_poi.run_generation_pass()
+	_poi.import_road_claims_after_raster()
 	if _poi.occupancy.bounds.size == Vector2i.ZERO:
 		_fail_preview("POI generation did not produce a valid occupancy map for seed %d." % world_seed)
 		return

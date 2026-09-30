@@ -2,10 +2,12 @@
 
 [ext_resource type="Texture2D" uid="uid://doemn6uxlnv6u" path="res://Assets/World/Biom2/puddle1.png" id="1_06s3m"]
 [ext_resource type="Script" uid="uid://mnj5sy41jgjc" path="res://World/Assets/Biom2/biom2_random_visual.gd" id="2_7k3f0"]
+[ext_resource type="Material" path="res://Resources/Effects/water_surface_material.tres" id="3_water_surface"]
 
 [node name="Puddle" type="Node2D" unique_id=2110077545]
 script = ExtResource("2_7k3f0")
 sprite_path = NodePath("PuddleTexture")
 
 [node name="PuddleTexture" type="Sprite2D" parent="." unique_id=1697536652]
+material = ExtResource("3_water_surface")
 texture = ExtResource("1_06s3m")

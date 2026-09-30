@@ -4,6 +4,7 @@ const META_GENERATED_CELLS: StringName = &"world_generation_generated_cells"
 const META_PRESERVE_EDITOR_TILES: StringName = &"world_generation_preserve_editor_tiles"
 const META_PROTECTED_CELLS: StringName = &"world_generation_protected_cells"
 const META_BLOCKER_FOOTPRINT_RECT: StringName = &"world_generation_footprint_rect"
+const META_PRESERVE_UNDER_BLOCKERS: StringName = &"world_generation_preserve_under_blockers"
 const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 
 @export var enabled: bool = true
@@ -98,6 +99,7 @@ const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 @export var blocked_node_paths: Array[NodePath] = []
 @export var blocker_group_name: StringName = &"world_generation_blocker"
 @export var blocked_node_radius_px: float = 120.0
+@export var preserve_tiles_under_world_generation_blockers: bool = false
 @export var avoid_physics_collision: bool = false
 @export var physics_collision_padding_px: float = 0.0
 @export var avoid_layer_path: NodePath
@@ -332,6 +334,7 @@ func _apply_config(cfg: ChunkWorldGeneratorConfig) -> void:
 	blocked_node_paths = cfg.blocked_node_paths.duplicate()
 	blocker_group_name = cfg.blocker_group_name
 	blocked_node_radius_px = cfg.blocked_node_radius_px
+	preserve_tiles_under_world_generation_blockers = cfg.preserve_tiles_under_world_generation_blockers
 	avoid_physics_collision = cfg.avoid_physics_collision
 	physics_collision_padding_px = cfg.physics_collision_padding_px
 	avoid_layer_path = cfg.avoid_layer_path
@@ -2681,6 +2684,7 @@ func _sync_generation_layer_meta() -> void:
 	_tile_map.set_meta(META_GENERATED_CELLS, _generated_cells)
 	_tile_map.set_meta(META_PRESERVE_EDITOR_TILES, preserve_editor_tiles)
 	_tile_map.set_meta(META_PROTECTED_CELLS, _protected_cells)
+	_tile_map.set_meta(META_PRESERVE_UNDER_BLOCKERS, preserve_tiles_under_world_generation_blockers)
 	_generation_meta_dirty = false
 
 
@@ -2769,6 +2773,8 @@ func _get_layer_cells_in_world_rect(layer: TileMapLayer, world_rect: Rect2, radi
 func _collect_blocked_positions() -> void:
 	_blocked_world_positions.clear()
 	_blocked_world_rects.clear()
+	if preserve_tiles_under_world_generation_blockers:
+		return
 	for p in blocked_node_paths:
 		if p == NodePath(""):
 			continue
@@ -3092,6 +3098,7 @@ func get_debug_world_generation_info() -> Dictionary:
 		"watched_tile_stats": _debug_watched_tile_stats.duplicate(true),
 		"watched_atlas_tiles": debug_watch_atlas_tiles.duplicate(),
 		"avoid_layer_padding_px": avoid_layer_padding_px,
+		"preserve_tiles_under_world_generation_blockers": preserve_tiles_under_world_generation_blockers,
 		"scheduled_load_chunks": _scheduled_load_chunks.keys(),
 		"scheduled_unload_chunks": _scheduled_unload_chunks.keys()
 	}
@@ -3108,6 +3115,7 @@ func get_generation_compatibility_profile() -> Dictionary:
 		"tile_options_atlas": tile_options_atlas,
 		"tile_option_weights": tile_option_weights,
 		"fill_probability": fill_probability,
+		"preserve_tiles_under_world_generation_blockers": preserve_tiles_under_world_generation_blockers,
 		"terrain": {
 			"use_terrain_connect": use_terrain_connect,
 			"terrain_set_id": terrain_set_id,

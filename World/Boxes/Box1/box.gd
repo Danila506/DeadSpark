@@ -1,6 +1,7 @@
 extends Node2D
 const ProviderContract = preload("res://World/Generation/loot_container_provider_contract.gd")
 const LootPersistence = preload("res://World/Generation/loot_container_persistence.gd")
+const LootRestock = preload("res://World/Generation/loot_container_restock.gd")
 
 @onready var box_closed_sprite: Sprite2D = $Box
 @onready var box_closed_outline_sprite: Sprite2D = $BoxOutline
@@ -10,7 +11,7 @@ const LootPersistence = preload("res://World/Generation/loot_container_persisten
 @onready var interact_label: Label = $InteractLabel
 
 @export var interaction_distance: float = 50.0
-@export var loot_slot_count: int = 10
+@export var loot_slot_count: int = 8
 @export var loot_spawn_min: int = 0
 @export var loot_spawn_max: int = 0
 @export var guaranteed_items: Array[ItemData] = [
@@ -23,7 +24,7 @@ const LootPersistence = preload("res://World/Generation/loot_container_persisten
 @export var world_generated_loot := false
 @export var generated_container_id := ""
 @export var loot_profile: LootProfile = preload("res://Resources/WorldGen/Loot/box_loot_profile.tres")
-@export var loot_slot_ids: Array[String] = ["slot_00", "slot_01", "slot_02", "slot_03", "slot_04", "slot_05", "slot_06", "slot_07", "slot_08", "slot_09"]
+@export var loot_slot_ids: Array[String] = ["slot_00", "slot_01", "slot_02", "slot_03", "slot_04", "slot_05", "slot_06", "slot_07"]
 
 var player_near_box: bool = false
 var box_opened: bool = false
@@ -32,6 +33,8 @@ var loot_slots: Array[ItemData] = []
 var _loot_manifest: LootContainerManifest
 var _loot_persistence_state := LootPersistence.STATE_UNOPENED
 var _removed_loot_slot_ids: Array[String] = []
+var _legacy_overflow_items: Array[ItemData] = []
+var _loot_restock_state: Dictionary = {}
 
 
 func _ready() -> void:
@@ -42,6 +45,7 @@ func _ready() -> void:
 	_update_box_visual()
 	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
 		GameSaveManager.register_persistent_node(self)
+	call_deferred("_restore_loot_restock_cycle")
 
 
 func handle_primary_interaction(interactor: Node) -> bool:
@@ -108,6 +112,7 @@ func _set_loot_panel_state(active: bool) -> void:
 		return
 
 	if active and inventory_root.has_method("open_loot_slots"):
+		_promote_legacy_overflow_items()
 		inventory_root.call("open_loot_slots", loot_slots, self)
 	elif inventory_root.has_method("close_loot_for"):
 		inventory_root.call("close_loot_for", self)
@@ -222,6 +227,7 @@ func restore_loot_state(data: Dictionary) -> Dictionary:
 
 
 func mark_loot_opened() -> Dictionary:
+	LootRestock.begin_open_cycle(self, _loot_restock_state, loot_slots)
 	return LootPersistence.mark_opened(self)
 
 
@@ -299,19 +305,68 @@ func _get_persistent_identity() -> String:
 	return "%s|%s" % [scene_path, local_path]
 
 
+func _restore_loot_restock_cycle() -> void:
+	_loot_restock_state = LootRestock.restore_cycle(self, _loot_restock_state)
+
+
+func update_loot_restock(total_minutes: float) -> void:
+	_promote_legacy_overflow_items()
+	if not LootRestock.is_restock_due(self, _loot_restock_state, loot_slots, total_minutes):
+		return
+	var stable_id := get_loot_container_id() if world_generated_loot else _get_persistent_identity()
+	LootRestock.top_up_empty_slots(self, loot_profile, loot_slots, loot_slot_count, stable_id, total_minutes)
+	_removed_loot_slot_ids.clear()
+	_loot_persistence_state = LootPersistence.STATE_OPENED
+	LootRestock.finish_cycle(self, _loot_restock_state)
+	LootRestock.notify_network_state(self)
+	var inventory_root := get_tree().get_first_node_in_group("inventory_root")
+	if inventory_root != null and inventory_root.has_method("refresh_ui"): inventory_root.call("refresh_ui")
+
+
 func get_save_data() -> Dictionary:
 	return {
 		"loot_initialized": loot_initialized,
-		"loot_slots": _serialize_item_array(loot_slots)
+		"loot_slots": _serialize_item_array(loot_slots),
+		"legacy_overflow_items": _serialize_item_array(_legacy_overflow_items),
+		"loot_restock_state": LootRestock.serialize_cycle(_loot_restock_state, loot_slots)
 	}
 
 
 func apply_save_data(save_data: Dictionary) -> void:
 	box_opened = false
 	loot_initialized = bool(save_data.get("loot_initialized", false))
-	loot_slots = _deserialize_item_array(save_data.get("loot_slots", []))
+	var restored_slots := _deserialize_item_array(save_data.get("loot_slots", []))
+	var restored_overflow := _deserialize_item_array(save_data.get("legacy_overflow_items", []))
+	_migrate_loot_capacity(restored_slots, restored_overflow)
+	_loot_restock_state = save_data.get("loot_restock_state", {}).duplicate(true)
 	_set_loot_panel_state(false)
 	_update_box_visual()
+	call_deferred("_restore_loot_restock_cycle")
+
+
+func _migrate_loot_capacity(restored_slots: Array[ItemData], restored_overflow: Array[ItemData] = []) -> void:
+	loot_slots.clear()
+	loot_slots.resize(max(loot_slot_count, 0))
+	_legacy_overflow_items.clear()
+	var direct_count := mini(restored_slots.size(), loot_slots.size())
+	for index in range(direct_count):
+		loot_slots[index] = restored_slots[index]
+	var pending: Array[ItemData] = []
+	for index in range(direct_count, restored_slots.size()):
+		if restored_slots[index] != null: pending.append(restored_slots[index])
+	for item in restored_overflow:
+		if item != null: pending.append(item)
+	for item in pending:
+		var free_index := loot_slots.find(null)
+		if free_index >= 0: loot_slots[free_index] = item
+		else: _legacy_overflow_items.append(item)
+
+
+func _promote_legacy_overflow_items() -> void:
+	while not _legacy_overflow_items.is_empty():
+		var free_index := loot_slots.find(null)
+		if free_index < 0: return
+		loot_slots[free_index] = _legacy_overflow_items.pop_front()
 
 
 func _serialize_item_array(items: Array) -> Array:

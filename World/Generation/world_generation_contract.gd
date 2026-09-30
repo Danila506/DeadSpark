@@ -1,9 +1,9 @@
 class_name WorldGenerationContract
 extends RefCounted
 
-const GENERATION_VERSION := 2
+const GENERATION_VERSION := 3
 const WORLD_PROFILE_ID := "legacy_finite_world"
-const WORLD_PROFILE_REVISION := 1
+const WORLD_PROFILE_REVISION := 2
 
 static func compatibility_hash(pass_profiles: Array[Dictionary]) -> String:
 	return GenerationHashes.sha256_of({

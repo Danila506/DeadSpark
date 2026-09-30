@@ -52,6 +52,7 @@ enum PeerSessionPhase {
 
 var _peer: ENetMultiplayerPeer
 var _state: int = NetworkState.IDLE
+var _dedicated_server: bool = false
 var _last_error: String = ""
 var _last_join_ip: String = ""
 var _last_join_port: int = 2456
@@ -138,20 +139,33 @@ func _emit_network_ticks(delta: float) -> void:
 
 
 func host_lan_game(port: int = 2456) -> int:
+	return _start_server(port, false)
+
+
+func start_dedicated_server(port: int = 2456) -> int:
+	return _start_server(port, true)
+
+
+func _start_server(port: int, dedicated: bool) -> int:
 	_last_error = ""
+	if port <= 0 or port > 65535:
+		_last_error = "Invalid server port"
+		return ERR_INVALID_PARAMETER
 	if _state == NetworkState.HOSTING or _state == NetworkState.JOINING:
 		_last_error = "Network is busy"
 		return ERR_BUSY
 	disconnect_from_network()
+	_dedicated_server = dedicated
 	_set_state(NetworkState.HOSTING)
 	_peer = ENetMultiplayerPeer.new()
 	_peer.set_bind_ip("0.0.0.0")
 	var result: int = _peer.create_server(port, DEFAULT_MAX_PLAYERS)
 	if result != OK:
-		push_error("Failed to create LAN server on port %d. Error: %d" % [port, result])
+		push_error("Failed to create server on port %d. Error: %d" % [port, result])
 		_last_error = "Host create failed (%d)" % result
 		connection_failed.emit()
 		_peer = null
+		_dedicated_server = false
 		_set_state(NetworkState.IDLE)
 		return result
 
@@ -162,7 +176,7 @@ func host_lan_game(port: int = 2456) -> int:
 	_last_session_local_peer_id = 1
 	_ensure_network_signals_connected()
 	print("Local IP candidates: %s" % str(get_local_ipv4_candidates()))
-	print("LAN server started on port: %d" % port)
+	print("%s server started on port: %d" % ["Dedicated" if dedicated else "LAN", port])
 	_set_state(NetworkState.IN_GAME)
 	server_started.emit()
 	return OK
@@ -214,6 +228,7 @@ func reset_session_state(clear_last_join_target: bool = false) -> void:
 		_known_session_peer_ids.clear()
 		_peer_session_phase_by_peer.clear()
 		_peer_session_phase_changed_ms_by_peer.clear()
+	_dedicated_server = false
 	_reset_net_stats()
 	_set_state(NetworkState.IDLE)
 	session_reset.emit()
@@ -229,6 +244,10 @@ func is_client() -> bool:
 	if not _has_active_multiplayer_peer():
 		return false
 	return not multiplayer.is_server()
+
+
+func is_dedicated_server() -> bool:
+	return _dedicated_server and is_server()
 
 
 func get_local_peer_id() -> int:
@@ -434,7 +453,25 @@ func _score_ipv4_candidate(address: String, iface_name: String, is_virtual_iface
 
 
 func get_rtt_ms() -> float:
+	if is_server():
+		return _get_server_mean_rtt_ms()
 	return _rtt_ms
+
+
+func _get_server_mean_rtt_ms() -> float:
+	if _peer == null or multiplayer == null or not multiplayer.has_multiplayer_peer():
+		return -1.0
+	var total_rtt_ms: float = 0.0
+	var peer_count: int = 0
+	for peer_id in multiplayer.get_peers():
+		var packet_peer: ENetPacketPeer = _peer.get_peer(peer_id)
+		if packet_peer == null:
+			continue
+		total_rtt_ms += float(packet_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+		peer_count += 1
+	if peer_count == 0:
+		return -1.0
+	return total_rtt_ms / float(peer_count)
 
 
 func get_packet_loss_percent() -> float:

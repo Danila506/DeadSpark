@@ -1,4 +1,4 @@
-extends SceneTree
+extends Node
 
 const PROFILE := preload("res://Resources/WorldGen/road_generation_profile.tres")
 const TILESET := preload("res://Assets/World/Roads/RoadTileSet.tres")
@@ -7,17 +7,23 @@ const RASTER_PASS := preload("res://World/Generation/road_rasterization_pass.gd"
 const SEEDS := [1337, 1338, 7331, 15885, 1001, 2026, 99999]
 const BOUNDS := Rect2i(Vector2i(-48, -48), Vector2i(96, 96))
 
-func _init() -> void:
+func _ready() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	_assert(TILESET.tile_size == Vector2i(256, 256), "road tileset cell must match the original 256 px road artwork")
+	var source := TILESET.get_source(0) as TileSetAtlasSource
+	_assert(source != null and source.texture_region_size == TILESET.tile_size, "road atlas region and world cell must have the same size")
 	var results: Array[Dictionary] = []
 	for seed in SEEDS:
 		results.append(_test_seed(seed))
 	print("ROAD_RASTER_CONNECTIVITY=" + JSON.stringify(results))
-	quit(0)
+	get_tree().quit(0)
 
 func _test_seed(seed: int) -> Dictionary:
 	var root := Node.new()
 	root.name = "RasterTest"
-	self.root.add_child(root)
+	get_tree().root.add_child(root)
 	var graph := GRAPH_PASS.new() as RoadGraphPass
 	graph.name = "RoadGraph"
 	graph.profile = PROFILE
@@ -34,6 +40,9 @@ func _test_seed(seed: int) -> Dictionary:
 	root.add_child(raster)
 	graph.build_graph_for_inputs(BOUNDS, seed)
 	_assert(graph.graph != null and bool(graph.graph.validate().valid), "seed %d invalid RoadGraph" % seed)
+	_assert(graph.graph.village_connector_cells.size() >= PROFILE.minimum_village_count, "seed %d missing village connectors" % seed)
+	for cell_variant in graph.graph.cells.keys():
+		_assert(graph.graph.neighbors(cell_variant as Vector2i).size() >= 2, "seed %d contains a dead-end road cell %s" % [seed, cell_variant])
 	raster.run_generation_pass()
 	var diagnostic := raster.get_connectivity_diagnostics()
 	_assert((diagnostic.isolated_road_cells as Array).is_empty(), "seed %d isolated road cells: %s" % [seed, JSON.stringify(diagnostic.isolated_road_cells)])
@@ -51,4 +60,4 @@ func _test_seed(seed: int) -> Dictionary:
 func _assert(condition: bool, message: String) -> void:
 	if not condition:
 		push_error("RoadRaster connectivity: " + message)
-		quit(1)
+		get_tree().quit(1)

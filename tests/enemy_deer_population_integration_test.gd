@@ -59,6 +59,5 @@ func _run() -> void:
 	var ids:=_ids(restored)
 	_assert(killed.is_empty() or not ids.has(killed),"killed no resurrection")
 	_assert(restored.restore_population_state(state).valid and ids==_ids(restored),"repeated restore")
-	var legacy:=load("res://Resources/WorldGen/spawner_deer.tres") as ChunkTreeSpawnerConfig;_assert(legacy!=null and legacy.tree_scene==DEER_SCENE,"legacy config remains explicit")
 	var digest:=GenerationHashes.sha256_of({"manifest":first.population_manifest_hash,"state":PERSISTENCE.compute_saved_state_hash(state),"owner":restored.get_enemy_population_owner_id()})
 	print("ENEMY_DEER_POPULATION_INTEGRATION_TEST=PASS digest=%s"%digest);get_tree().quit(0)

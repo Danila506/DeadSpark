@@ -1,0 +1,13 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://World/Shaders/water_surface.gdshader" id="1_water_shader"]
+
+[resource]
+shader = ExtResource("1_water_shader")
+shader_parameter/cold_tint = Color(0.58, 0.82, 0.94, 1)
+shader_parameter/glint_color = Color(0.78, 0.94, 1, 1)
+shader_parameter/tint_strength = 0.1
+shader_parameter/glint_strength = 0.12
+shader_parameter/wave_speed = 0.55
+shader_parameter/wave_scale = 0.035
+shader_parameter/pixel_step = 4.0

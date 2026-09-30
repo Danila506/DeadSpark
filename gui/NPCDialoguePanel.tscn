@@ -1,0 +1,360 @@
+[gd_scene format=3 uid="uid://bs01wmxm7cmy2"]
+
+[ext_resource type="Script" uid="uid://dpgjbv5pqldt5" path="res://gui/scripts/npc_dialogue_panel.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://4ol8asf1njf6" path="res://gui/NPC_Dialogue/main_frame.png" id="2_frame"]
+[ext_resource type="Texture2D" uid="uid://byiidxpv2i2u3" path="res://gui/NPC_Dialogue/portraitNPC.png" id="3_portrait_frame"]
+[ext_resource type="Texture2D" uid="uid://b3cr8eq6mu6x3" path="res://gui/NPC_Dialogue/name_plate.png" id="4_name_plate"]
+[ext_resource type="Texture2D" uid="uid://duf00kfj16x62" path="res://gui/NPC_Dialogue/replica_field.png" id="5_replica"]
+[ext_resource type="Texture2D" uid="uid://c7hmi52tfow0n" path="res://gui/NPC_Dialogue/regular_button.png" id="6_button"]
+[ext_resource type="Texture2D" uid="uid://cvwjjq0i5od61" path="res://gui/NPC_Dialogue/chosenBtn.png" id="7_button_focus"]
+[ext_resource type="Texture2D" uid="uid://dh7tjnq5rylem" path="res://gui/NPC_Dialogue/inaccessibleBtn.png" id="8_button_disabled"]
+[ext_resource type="Texture2D" uid="uid://crwl6qy60bxg7" path="res://entities/friends/IDLE/idle_down.png" id="9_wanderer_portrait"]
+[ext_resource type="FontFile" uid="uid://br5yfg6e5828x" path="res://gui/NPC_Dialogue/Tiny5-Regular.ttf" id="10_5jcod"]
+[ext_resource type="Texture2D" uid="uid://bs4fx65i0psci" path="res://gui/NPC_Dialogue/exitBtn.png" id="10_i3mkh"]
+[ext_resource type="Texture2D" uid="uid://egxcjnjbvf02" path="res://gui/NPC_Dialogue/NPC_dialogue_icons.png" id="12_k8hfq"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wanderer"]
+atlas = ExtResource("9_wanderer_portrait")
+region = Rect2(0, 0, 96, 80)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_relation_background"]
+bg_color = Color(0.055, 0.058, 0.06, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.24, 0.22, 0.19, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_relation_fill"]
+bg_color = Color(0.74, 0.64, 0.29, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k8hfq"]
+atlas = ExtResource("12_k8hfq")
+region = Rect2(555, 400, 114, 146)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5jcod"]
+atlas = ExtResource("12_k8hfq")
+region = Rect2(1021, 407, 154, 140)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a1t2y"]
+atlas = ExtResource("12_k8hfq")
+region = Rect2(1952, 399, 129, 147)
+
+[node name="NPCDialoguePanel" type="Control" unique_id=577758656]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Shade" type="ColorRect" parent="." unique_id=1967129475]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.015, 0.018, 0.02, 0.78)
+
+[node name="PanelRoot" type="Control" parent="." unique_id=92265568]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -387.5
+offset_top = -243.5
+offset_right = 387.5
+offset_bottom = 243.5
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(387.5, 243.5)
+
+[node name="Frame" type="TextureRect" parent="PanelRoot" unique_id=861125920]
+layout_mode = 0
+offset_right = 775.0
+offset_bottom = 487.0
+mouse_filter = 2
+texture = ExtResource("2_frame")
+
+[node name="PortraitImage" type="TextureRect" parent="PanelRoot" unique_id=856103566]
+layout_mode = 0
+offset_left = 75.0
+offset_top = 78.0
+offset_right = 222.0
+offset_bottom = 214.0
+mouse_filter = 2
+texture = SubResource("AtlasTexture_wanderer")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PortraitFrame" type="TextureRect" parent="PanelRoot" unique_id=842496548]
+layout_mode = 0
+offset_left = 55.0
+offset_top = 53.0
+offset_right = 242.0
+offset_bottom = 239.0
+mouse_filter = 2
+texture = ExtResource("3_portrait_frame")
+expand_mode = 1
+
+[node name="NamePlate" type="TextureRect" parent="PanelRoot" unique_id=15909459]
+layout_mode = 0
+offset_left = 244.0
+offset_top = 51.0
+offset_right = 624.0
+offset_bottom = 145.0
+mouse_filter = 2
+texture = ExtResource("4_name_plate")
+expand_mode = 1
+
+[node name="TitleLabel" type="Label" parent="PanelRoot" unique_id=308811181]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 273.0
+offset_top = 63.0
+offset_right = 470.0
+offset_bottom = 94.0
+theme_override_colors/font_color = Color(0.08, 0.065, 0.05, 1)
+theme_override_colors/font_shadow_color = Color(1, 0.88, 0.68, 0.18)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 23
+text = "Марк"
+text_overrun_behavior = 3
+
+[node name="RoleLabel" type="Label" parent="PanelRoot" unique_id=4353791]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 274.0
+offset_top = 94.0
+offset_right = 454.0
+offset_bottom = 121.0
+theme_override_colors/font_color = Color(0.15, 0.12, 0.085, 1)
+theme_override_font_sizes/font_size = 16
+text = "Странник"
+
+[node name="RelationCaption" type="Label" parent="PanelRoot" unique_id=1652970993]
+layout_mode = 0
+offset_left = 430.0
+offset_top = 92.5
+offset_right = 508.0
+offset_bottom = 110.5
+theme_override_colors/font_color = Color(0.2, 0.16, 0.11, 1)
+theme_override_font_sizes/font_size = 13
+text = "Отношение"
+
+[node name="RelationBar" type="ProgressBar" parent="PanelRoot" unique_id=909709492]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 513.5
+offset_top = 93.5
+offset_right = 606.5
+offset_bottom = 108.5
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBox_relation_background")
+theme_override_styles/fill = SubResource("StyleBox_relation_fill")
+value = 50.0
+show_percentage = false
+
+[node name="RelationIcon" type="TextureRect" parent="PanelRoot" unique_id=631857028]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 575.0
+offset_top = 86.0
+offset_right = 620.0
+offset_bottom = 134.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ReplicaField" type="TextureRect" parent="PanelRoot" unique_id=1499464703]
+layout_mode = 0
+offset_left = 241.0
+offset_top = 145.0
+offset_right = 697.0
+offset_bottom = 272.0
+mouse_filter = 2
+texture = ExtResource("5_replica")
+expand_mode = 1
+
+[node name="BodyLabel" type="Label" parent="PanelRoot" unique_id=232589606]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 268.0
+offset_top = 165.0
+offset_right = 671.0
+offset_bottom = 219.0
+theme_override_colors/font_color = Color(0.93, 0.88, 0.78, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 17
+text = "Привет. Давно тебя тут не видел."
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="StockLabel" type="Label" parent="PanelRoot" unique_id=1558682406]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 269.0
+offset_top = 215.0
+offset_right = 670.0
+offset_bottom = 258.0
+theme_override_colors/font_color = Color(0.79, 0.72, 0.59, 1)
+theme_override_font_sizes/font_size = 12
+text = "Доступные припасы"
+autowrap_mode = 2
+
+[node name="RumorButton" type="TextureButton" parent="PanelRoot" unique_id=1588512702]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 177.0
+offset_top = 281.0
+offset_right = 687.0
+offset_bottom = 330.0
+focus_neighbor_bottom = NodePath("../TradeButton")
+texture_normal = ExtResource("6_button")
+texture_pressed = ExtResource("7_button_focus")
+texture_hover = ExtResource("7_button_focus")
+texture_disabled = ExtResource("8_button_disabled")
+texture_focused = ExtResource("7_button_focus")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="PanelRoot/RumorButton" unique_id=632669604]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 78.5
+offset_right = 9.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.95, 0.9, 0.81, 1)
+theme_override_fonts/font = ExtResource("10_5jcod")
+theme_override_font_sizes/font_size = 23
+text = "Что слышно?"
+vertical_alignment = 1
+
+[node name="Icon" type="TextureRect" parent="PanelRoot/RumorButton" unique_id=1638167129]
+layout_mode = 0
+offset_left = 25.5
+offset_top = 14.5
+offset_right = 68.5
+offset_bottom = 55.5
+scale = Vector2(0.6, 0.6)
+mouse_filter = 2
+texture = SubResource("AtlasTexture_k8hfq")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TradeButton" type="TextureButton" parent="PanelRoot" unique_id=865597023]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 177.0
+offset_top = 335.0
+offset_right = 687.0
+offset_bottom = 384.0
+focus_neighbor_top = NodePath("../RumorButton")
+focus_neighbor_bottom = NodePath("../CloseButton")
+texture_normal = ExtResource("6_button")
+texture_pressed = ExtResource("7_button_focus")
+texture_hover = ExtResource("7_button_focus")
+texture_disabled = ExtResource("8_button_disabled")
+texture_focused = ExtResource("7_button_focus")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="PanelRoot/TradeButton" unique_id=684629110]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 79.5
+offset_right = 10.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.95, 0.9, 0.81, 1)
+theme_override_fonts/font = ExtResource("10_5jcod")
+theme_override_font_sizes/font_size = 23
+text = "Показать припасы"
+vertical_alignment = 1
+
+[node name="Icon" type="TextureRect" parent="PanelRoot/TradeButton" unique_id=672958921]
+layout_mode = 0
+offset_left = 24.5
+offset_top = 14.5
+offset_right = 67.5
+offset_bottom = 55.5
+scale = Vector2(0.6, 0.6)
+mouse_filter = 2
+texture = SubResource("AtlasTexture_5jcod")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CloseButton" type="TextureButton" parent="PanelRoot" unique_id=1594145570]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 185.5
+offset_top = 389.0
+offset_right = 682.5
+offset_bottom = 438.0
+focus_neighbor_top = NodePath("../TradeButton")
+texture_normal = ExtResource("10_i3mkh")
+texture_pressed = ExtResource("7_button_focus")
+texture_hover = ExtResource("7_button_focus")
+texture_focused = ExtResource("7_button_focus")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="PanelRoot/CloseButton" unique_id=161946706]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 70.0
+offset_right = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.93, 0.6, 0.53, 1)
+theme_override_fonts/font = ExtResource("10_5jcod")
+theme_override_font_sizes/font_size = 23
+text = "Уйти"
+vertical_alignment = 1
+
+[node name="Icon" type="TextureRect" parent="PanelRoot/CloseButton" unique_id=165284024]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 12.5
+offset_right = 59.0
+offset_bottom = 53.5
+scale = Vector2(0.6, 0.6)
+mouse_filter = 2
+texture = SubResource("AtlasTexture_a1t2y")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ControlsHint" type="Label" parent="PanelRoot" unique_id=935697170]
+layout_mode = 0
+offset_left = 452.0
+offset_top = 447.0
+offset_right = 690.0
+offset_bottom = 474.0
+theme_override_colors/font_color = Color(0.62, 0.57, 0.48, 1)
+theme_override_font_sizes/font_size = 13
+text = "E — выбрать     Esc — выйти"
+horizontal_alignment = 2

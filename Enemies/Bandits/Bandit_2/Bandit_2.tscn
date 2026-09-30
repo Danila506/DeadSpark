@@ -16,6 +16,7 @@
 [ext_resource type="Script" uid="uid://beuiqqvbwiioj" path="res://Enemies/AI/states/stun_state.gd" id="13_roayy"]
 [ext_resource type="Script" uid="uid://cq6rpdmdlvah3" path="res://Enemies/AI/states/dead_state.gd" id="14_uaetj"]
 [ext_resource type="Script" uid="uid://k37q4y00kprv" path="res://Enemies/AI/states/house_search_state.gd" id="15_house"]
+[ext_resource type="PackedScene" uid="uid://c4e3xuoh0vdee" path="res://Enemies/AI/enemy_hurtbox.tscn" id="99_hurtbox"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_2hp2l"]
 atlas = ExtResource("2_defa6")
@@ -290,20 +291,8 @@ animations = [{
 radius = 14.705882
 height = 35.294117
 
-[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_alxwa"]
-radius = 7.0
-
 [sub_resource type="CircleShape2D" id="CircleShape2D_v5xt3"]
 radius = 200.15994
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_2hp2l"]
-radius = 5.0
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_a0u3s"]
-size = Vector2(11, 9)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_8mr2m"]
-size = Vector2(13.5, 5.5)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_h2sgm"]
 atlas = ExtResource("2_defa6")
@@ -313,6 +302,7 @@ region = Rect2(418, 143, 30, 18)
 script = ExtResource("1_wux5k")
 config = ExtResource("2_8tgve")
 patrol_points_root_path = NodePath("PatrolPoints")
+role_group = &"bandit"
 head_damage_multiplier = 0.5
 body_damage_multiplier = 0.25
 legs_damage_multiplier = 0.1
@@ -320,6 +310,8 @@ legs_damage_multiplier = 0.1
 [node name="BodySprite" type="AnimatedSprite2D" parent="." unique_id=1591675249]
 sprite_frames = SubResource("SpriteFrames_cjgwq")
 animation = &"Die"
+frame = 3
+frame_progress = 0.616846
 offset = Vector2(0, -15.105)
 metadata/_aseprite_wizard_interface_config_ = {
 "animation_section": true,
@@ -349,8 +341,10 @@ position = Vector2(0, -1.0000002)
 scale = Vector2(0.34, 0.055)
 shape = SubResource("CapsuleShape2D_1nf28")
 
+[node name="Hurtbox" parent="." unique_id=91246629 instance=ExtResource("99_hurtbox")]
+position = Vector2(0, -15)
+
 [node name="DetectionZone" type="Area2D" parent="." unique_id=664308499]
-visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionZone" unique_id=2094672523]
 shape = SubResource("CircleShape2D_v5xt3")
@@ -432,5 +426,5 @@ position = Vector2(-36, 17)
 position = Vector2(18, 43)
 
 [node name="DyingSprite" type="Sprite2D" parent="." unique_id=1991964796]
-position = Vector2(0, -2)
+position = Vector2(1, -7.075)
 texture = SubResource("AtlasTexture_h2sgm")

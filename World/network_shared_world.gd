@@ -54,6 +54,15 @@ func open_container(source: Node) -> void:
 	if NetworkManager.is_server(): _open_for_peer(1, String(source.get_path()))
 	else: rpc_id(1, "rpc_open", String(source.get_path()))
 
+func notify_container_refreshed(source: Node) -> void:
+	if not NetworkManager.is_server() or source == null or not source.has_method("get_network_loot_items"):
+		return
+	var path := String(source.get_path())
+	# A completed refill invalidates any transfer that started from the previous snapshot.
+	locks.erase(path)
+	for peer in subscribers.get(path, {}):
+		_send_state(int(peer), path, _encode(source.get_network_loot_items()))
+
 func drop_container_item(source: Node, slot_index: int) -> void:
 	if source == null or slot_index < 0: return
 	if NetworkManager.is_server(): _drop_container_item_for_peer(1, String(source.get_path()), slot_index)
@@ -83,6 +92,8 @@ func rpc_open(path: String) -> void:
 func _open_for_peer(peer: int, path: String) -> void:
 	var source := _source(path)
 	if source == null or not _can_access(peer, source): return
+	if source.has_method("mark_loot_opened"):
+		source.call("mark_loot_opened")
 	var peers: Dictionary = subscribers.get(path, {})
 	peers[peer] = true
 	subscribers[path] = peers

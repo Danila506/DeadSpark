@@ -14,7 +14,8 @@ Dead Spark — 2D survival-action в заснеженном постапокал
 
 - Главная сцена: `res://Menu/Menu.tscn`.
 - Одиночная игра: `res://level.tscn` + `res://level.gd`.
-- LAN-мир: `res://World/network_test_world.tscn`, инстанцирует основной уровень и добавляет сетевую координацию.
+- LAN-мир: `res://World/network_test_world.tscn`, инстанцирует `res://LanMap.tscn` (ручной статический наследник основного уровня без процедурной генерации, с посёлком, loot-домами, сохранёнными в сцене слоями и `NetworkSpawnPoints`) и добавляет сетевую координацию.
+- Dedicated server: headless-запуск главной сцены с аргументами `--dedicated-server --server-port=<port>`; `Menu/menu.gd` поднимает сервер через `NetworkManager.start_dedicated_server()` и открывает `res://World/network_test_world.tscn` без локального игрока peer 1.
 - Генерация мира: `res://World/world_generation.tscn`.
 - Игрок/UI: `res://Player/player.tscn`, `res://gui/GUI.tscn`, `res://HUD/hud.tscn`.
 
@@ -37,7 +38,7 @@ Dead Spark — 2D survival-action в заснеженном постапокал
 
 - `Menu` запускает/продолжает одиночную игру через `GameSaveManager`, а LAN — через `NetworkManager` и сетевой мир.
 - `level.tscn` композирует WorldGeneration, Player, HUD, GUI, ItemSpawner, биомы, дороги, фермерство и размещение построек.
-- `WorldGenerationOrchestrator` выполняет фазы: terrain → road graph → road raster → POI → environment → enemy population → legacy spawners. Общие занятость и конфликты размещения проходят через `WorldOccupancyMap`.
+- `WorldGenerationOrchestrator` выполняет фазы: terrain → water → POI → road graph → road raster → environment → enemy population → legacy spawners. `WaterGenerationPass` создаёт связные озёра, затем `PoiPlacementPass` детерминированно размещает и резервирует минимум две деревни с точками въезда, совпадающими с центрами ячеек `RoadLayer`; `RoadGraphPass` обязан провести через эти реальные коннекторы разнообразный seed-зависимый ортогональный замкнутый контур без тупиков, а не прямоугольную рамку. Общие занятость и конфликты размещения проходят через `WorldOccupancyMap`. Дорожный атлас и сетка `RoadLayer` используют исходный шаг 256 px, а узкий фактический коридор полотна проецируется в общую occupancy-сетку 60 px после растрирования дороги. Природные объекты могут занимать мягкий `ROAD_CLEARANCE`, но никогда `ROAD`.
 - `Player/player.gd` — координатор. Новую изолируемую логику размещай в существующих контроллерах `Player/*_controller.gd`, а не раздувай координатор без необходимости.
 - `WeaponController` координирует shooting/reload/melee/noise controllers и использует `InventoryManager`, `ProjectilePool` и `EffectPool`.
 - `InventoryManager` хранит экипировку и runtime-состояние предметов; `gui/scripts/inventory_root.gd` отвечает за UI, контейнеры, крафт и сетевые inventory actions.
@@ -49,20 +50,29 @@ Dead Spark — 2D survival-action в заснеженном постапокал
 Не создавай дублирующие менеджеры или альтернативные контракты, если задачу покрывают следующие системы:
 
 - Предметы: `ItemData` (`res://items/scripts/item_data.gd`) — definition; `ItemInstance` — runtime identity/state. Не хранить изменяемое состояние непосредственно в общих `.tres`.
+- Предметы, создаваемые внутренними `SpawnMarker` домов, получают через `ItemSpawner` visibility scope с якорем дома и номером этажа. `pickup_item.gd` скрывает их и исключает из `NearbyItemsManager` вне соответствующего дома/этажа; scope сохраняется в LAN pickup payload/snapshot.
+- Бункер детерминированно выбирает вариант с ящиком или без него. Ящик использует `bunker_loot_profile.tres` и содержит 1–3 предмета (патроны, оружейные модули, медицина), а внутренние `SpawnMarker` создают один предмет из того же профиля через `ItemSpawner`; вариант без ящика публикует `bunker_empty_loot_profile.tres`.
 - Инвентарь/экипировка/патроны/модули/прочность: только через `InventoryManager` и его сигналы `equipment_changed`, `ammo_state_changed`, `item_broken`.
 - Ближайшие предметы: `NearbyItemsManager`; UI слушает `nearby_items_changed`.
 - Взаимодействия: группа `primary_interactable` + `handle_primary_interaction`, либо `secondary_interactable` + `handle_secondary_interaction`. Выбор ближайшей цели делает `PlayerInteractionController`.
 - Persistence узла: стабильный `get_save_key()`, `get_save_data()`, `apply_save_data()`. Регистрация и сериализация — через `GameSaveManager`.
+- Обновление контейнеров: абсолютное время принадлежит `HUD`/группе `game_clock`; `LootContainerRestock` отсчитывает 24 игровых часа от открытия конкретного хранилища, активирует цикл только после изъятия предмета и дозаполняет лишь пустые слоты, сохраняя оставшийся лут. Новый лут детерминировать по world seed, stable container ID и времени цикла; в LAN обновляет только сервер.
 - Процедурные сохраняемые объекты: детерминированный stable ID, группа `generated_world_object` и существующий generation-state contract. Не использовать нестабильный NodePath как единственную идентичность.
 - Генерация: использовать `WorldGenerationOrchestrator`, passes, profiles, `WorldOccupancyMap`, `WorldSeedService`, generation hashes и `WorldGenerationScheduler`; сохранять детерминизм одного seed.
 - AI: расширять `EnemyAI`/`EnemyConfig`/`EnemyStateMachine` и существующие states. Общие враги должны использовать группы и сигналы `enemy`, `noise_listener`, `died/state_changed`.
+- Попадания по врагам: физическая `CollisionShape2D` персонажа отвечает только за движение; урон от снарядов принимают `Hurtbox`/`HitBoxes` (`Area2D`) на выделенном слое `DamageHurtbox` через существующий контракт `damage_hitbox` и `take_damage_from`.
 - Сеть: `NetworkManager`, `NetworkSessionNode/Coordinator` и `network_shared_world`; gameplay-решения на сервере, клиентские RPC валидировать. Клиент передаёт для движения только нормализованный input-вектор; позицию и столкновения authoritative-реплики сервер рассчитывает через `move_and_slide`, клиентская позиция сервером не принимается. HP, вода, еда, выносливость, радиация и status effects каждого LAN-игрока рассчитываются сервером и передаются в player snapshot; HUD всегда перепривязывается к локальной сетевой реплике. LAN-инвентарь после bootstrap-снимка хранится как server-owned per-peer state в `InventoryManager`; броня, её износ, крафт, расходники и боеприпасы мутируются для конкретного peer на сервере и возвращаются клиенту authoritative snapshot. Переносы между общим контейнером и инвентарём принимаются только как атомарная операция с сохранением полного набора runtime-предметов; world drop создаётся лишь из предмета, извлечённого сервером из authoritative слота. Host migration повышает уже синхронизированную клиентскую копию мира без перезагрузки сцены; изменяемое состояние процедурных узлов переносится через их `get_save_data()`/`apply_save_data()` в world snapshot. Не вводить второй сетевой singleton.
+- Смерть LAN-игрока обрабатывает сервер: `InventoryManager` атомарно извлекает server-owned экипировку и вложенные предметы peer, `ItemSpawner` создаёт синхронизированные pickups возле точки смерти, а мировая реплика персонажа скрывается и отключает коллизии до завершения клиентского death flow/отключения.
 - Пули/эффекты/удаление: `ProjectilePool`, `EffectPool`, `NodeCleanupQueue`; не создавать частые объекты в обход пулов без причины.
+- Костры используют общий `World/bonfire_light.gd`: сервер раз в секунду наносит игрокам в зоне ожога урон и через `Player.apply_clothing_endurance_percent_loss()`/`InventoryManager` снимает ровно 1,5% прочности с каждой надетой вещи; клиент не мутирует HP или экипировку самостоятельно.
 - UI состояния Player: `stats_changed` и `status_effects_changed` → HUD; не опрашивать дублирующее состояние отдельным глобальным менеджером.
+- Общая защита игрока от внедрения в мировые коллайдеры принадлежит `PlayerMovementController`: после authoritative/local `move_and_slide` он проверяет физическую форму, ищет ближайшую свободную точку и при необходимости использует последнюю безопасную позицию. Не добавлять разрозненные anti-stuck телепорты в кусты, деревья и другие отдельные объекты.
 
 ## Autoload
 
-Игровые Autoload: `InventoryManager`, `NearbyItemsManager`, `GameSaveManager`, `LocalizationManager`, `ProjectilePool`, `EffectPool`, `StutterMonitor`, `ChunkProfiler`, `WorldGenerationScheduler`, `NetworkManager`, `NodeCleanupQueue`, `FpsOverlay`.
+Игровые Autoload: `InventoryManager`, `NearbyItemsManager`, `GameSaveManager`, `NPCManager`, `LocalizationManager`, `ProjectilePool`, `EffectPool`, `StutterMonitor`, `ChunkProfiler`, `WorldGenerationScheduler`, `NetworkManager`, `NodeCleanupQueue`, `FpsOverlay`.
+
+`NPCManager` — реестр и координатор дружественных NPC: проверяет стабильные `npc_id`, маршрутизирует локальные/LAN-взаимодействия и владеет общим диалоговым UI. Движение, здоровье, state machine, отношения, ассортимент и persistence остаются на конкретном NPC; `GameSaveManager` остаётся владельцем сериализации.
 
 MCP bridge-autoload относятся к инструменту разработки, а не к gameplay API. При изменении списка или путей Autoload синхронно обновляй `project.godot` и этот файл.
 

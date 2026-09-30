@@ -3,25 +3,7 @@
 [ext_resource type="Script" path="res://World/chunk_world_generator.gd" id="1"]
 [ext_resource type="Script" path="res://World/chunk_tree_spawner.gd" id="2"]
 [ext_resource type="Resource" path="res://Resources/WorldGen/chunk_snow_layer.tres" id="3"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/chunk_biom1_layer.tres" id="4"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/chunk_biom2_layer.tres" id="5"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/chunk_road_layer.tres" id="6"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/chunk_lake_layer.tres" id="13"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom1_trees.tres" id="7"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom1_bushes.tres" id="8"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_trees.tres" id="9"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_stones.tres" id="10"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_puddles.tres" id="11"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_bandit_bases.tres" id="12"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_deadwood_trees.tres" id="14"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_biom2_berry_bushes.tres" id="15"]
 [ext_resource type="Script" path="res://World/world_generation_debug_overlay.gd" id="16"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_bunkers.tres" id="17"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_forester_houses.tres" id="18"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/chunk_xz_layer.tres" id="19"]
-[ext_resource type="Resource" path="res://Resources/WorldGen/spawner_deer.tres" id="20"]
-[ext_resource type="Script" path="res://World/roadside_house_spawner.gd" id="21"]
-[ext_resource type="Script" path="res://World/guaranteed_road_corridor.gd" id="22"]
 [ext_resource type="Script" path="res://World/Generation/world_generation_orchestrator.gd" id="23"]
 [ext_resource type="Script" path="res://World/Generation/road_graph_pass.gd" id="24"]
 [ext_resource type="Script" path="res://World/Generation/road_rasterization_pass.gd" id="25"]
@@ -33,26 +15,19 @@
 [ext_resource type="Script" path="res://World/Generation/deer_population_provider.gd" id="31"]
 [ext_resource type="Resource" path="res://Resources/WorldGen/EnemyPopulation/deer_population_profile.tres" id="32"]
 [ext_resource type="Resource" path="res://Resources/WorldGen/spawner_ruins.tres" id="33"]
+[ext_resource type="Script" path="res://World/Generation/water_generation_pass.gd" id="34"]
+[ext_resource type="Resource" path="res://Resources/WorldGen/water_generation_profile.tres" id="35"]
 
 [node name="WorldGeneration" type="Node"]
 script = ExtResource("23")
-
-[node name="GuaranteedRoadCorridor" type="Node2D" parent="."]
-script = ExtResource("22")
-enabled = false
-road_width_tiles = 1
 
 [node name="ChunkWorldGenerator" type="Node" parent="."]
 script = ExtResource("1")
 config = ExtResource("3")
 
-[node name="ChunkLayerGenerator_Lake" type="Node" parent="."]
-script = ExtResource("1")
-enabled = false
-
-[node name="ChunkLayerGenerator_Road" type="Node" parent="."]
-script = ExtResource("1")
-enabled = false
+[node name="WaterGenerationPass" type="Node" parent="."]
+script = ExtResource("34")
+profile = ExtResource("35")
 
 [node name="RoadGraphPass" type="Node" parent="."]
 script = ExtResource("24")
@@ -65,6 +40,8 @@ profile = ExtResource("26")
 [node name="PoiPlacementPass" type="Node" parent="."]
 script = ExtResource("27")
 template = ExtResource("28")
+minimum_accepted_pois = 2
+max_accepted_pois = 2
 
 [node name="EnvironmentGenerationPass" type="Node" parent="."]
 script = ExtResource("29")
@@ -74,74 +51,9 @@ profile = ExtResource("30")
 script = ExtResource("31")
 population_profile = ExtResource("32")
 
-[node name="ChunkLayerGenerator_Secondary" type="Node" parent="."]
-script = ExtResource("1")
-enabled = false
-
-[node name="ChunkLayerGenerator_Biom2" type="Node" parent="."]
-script = ExtResource("1")
-enabled = false
-
-[node name="ChunkLayerGenerator_Xz" type="Node" parent="."]
-script = ExtResource("1")
-enabled = false
-
-[node name="ChunkBanditBaseSpawner" type="Node2D" parent="."]
-script = ExtResource("2")
-enabled = false
-
-[node name="ChunkForesterHouseSpawner" type="Node2D" parent="."]
-script = ExtResource("2")
-enabled = false
-
-[node name="RoadsideHouseSpawner" type="Node2D" parent="."]
-script = ExtResource("21")
-enabled = false
-internal_margin_chunks = 0
-min_straight_segment_tiles = 4
-house_spacing_tiles = 3
-max_houses_to_spawn = 8
-debug_log = true
-
-[node name="ChunkBunkerSpawner" type="Node2D" parent="."]
-script = ExtResource("2")
-enabled = false
-
 [node name="ChunkRuinsSpawner" type="Node2D" parent="."]
 script = ExtResource("2")
 config = ExtResource("33")
-
-[node name="ChunkTreeSpawner" type="Node2D" parent="."]
-script = ExtResource("2")
-enabled = false
-
-[node name="ChunkBushSpawner_Biom1" type="Node2D" parent="."]
-script = ExtResource("2")
-enabled = false
-
-[node name="ChunkTreeSpawner_Biom2" type="Node2D" parent="."]
-script = ExtResource("2")
-enabled = false
-
-[node name="ChunkStoneSpawner_Biom2" type="Node2D" parent="."]
-script = ExtResource("2")
-enabled = false
-
-[node name="ChunkPuddleSpawner_Biom2" type="Node2D" parent="."]
-script = ExtResource("2")
-enabled = false
-
-[node name="ChunkDeadWoodSpawner_Biom2" type="Node2D" parent="."]
-script = ExtResource("2")
-enabled = false
-
-[node name="ChunkBerryBushSpawner_Biom2" type="Node2D" parent="."]
-script = ExtResource("2")
-enabled = false
-
-[node name="ChunkDeerSpawner" type="Node2D" parent="."]
-script = ExtResource("2")
-enabled = false
 
 [node name="WorldGenerationDebugOverlay" type="Node2D" parent="."]
 script = ExtResource("16")

@@ -88,6 +88,9 @@ region_rect = Rect2(0, 0, 83.2, 64)
 [node name="BunkerInside" type="Sprite2D" parent="." unique_id=308035847]
 texture = ExtResource("2_n77a4")
 
+[node name="SpawnMarker" type="Marker2D" parent="BunkerInside"]
+position = Vector2(-18, 9)
+
 [node name="BoxArea" type="Area2D" parent="BunkerInside" unique_id=1190401844]
 position = Vector2(16, 2)
 

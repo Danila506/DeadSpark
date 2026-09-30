@@ -2,6 +2,7 @@ extends Node2D
 const BuildingLoot = preload("res://World/Generation/building_loot_provider.gd")
 const BUNKER_EMPTY_PROFILE = preload("res://Resources/WorldGen/bunker_empty_loot_profile.tres")
 const LootPersistence = preload("res://World/Generation/loot_container_persistence.gd")
+const LootRestock = preload("res://World/Generation/loot_container_restock.gd")
 
 const INSIDE_HOUSE_GROUP: StringName = &"inside_house"
 const INSIDE_HOUSE_ANCHOR_META: StringName = &"inside_house_anchor"
@@ -10,6 +11,10 @@ const HOUSE_ENEMY_EJECT_MARGIN: float = 6.0
 const PLAYER_PRE_BUNKER_Z_INDEX_META: StringName = &"pre_bunker_z_index"
 const PLAYER_PRE_BUNKER_Z_AS_RELATIVE_META: StringName = &"pre_bunker_z_as_relative"
 const PLAYER_BUNKER_Z_INDEX: int = 2000
+const INSIDE_BUNKER_Z: int = -1
+const OUTSIDE_BUNKER_Z: int = 0
+const BUNKER_SPAWN_MARKER_PREFIX: String = "SpawnMarker"
+const ITEM_SPAWNER_GROUP: StringName = &"item_spawner_network"
 const WorldGenerationBlockerUtils = preload("res://World/world_generation_blocker_utils.gd")
 
 @onready var outside_sprite: Sprite2D = $BunkerOutside
@@ -29,7 +34,8 @@ const WorldGenerationBlockerUtils = preload("res://World/world_generation_blocke
 @export_range(0.0, 1.0, 0.01) var outside_alpha_when_inside: float = 0.28
 @export_range(0.0, 1.0, 0.01) var outside_alpha_when_shadowed: float = 1.0
 @export var interaction_distance: float = 50.0
-@export var box_slot_count: int = 8
+@export var box_slot_count: int = 3
+@export_range(0.0, 1.0, 0.01) var generated_box_chance: float = 0.5
 @export var box_spawn_min: int = 0
 @export var box_spawn_max: int = 0
 @export var guaranteed_items: Array[ItemData] = []
@@ -39,7 +45,7 @@ const WorldGenerationBlockerUtils = preload("res://World/world_generation_blocke
 @export var building_generated_object_id := ""
 @export var local_loot_container_id := "bunker_box_main"
 @export var loot_profile: LootProfile = preload("res://Resources/WorldGen/Loot/bunker_loot_profile.tres")
-@export var loot_slot_ids: Array[String] = ["slot_00", "slot_01", "slot_02", "slot_03", "slot_04", "slot_05", "slot_06", "slot_07"]
+@export var loot_slot_ids: Array[String] = ["slot_00", "slot_01", "slot_02"]
 
 var player_in_house: bool = false
 var player_in_shadow_zone: bool = false
@@ -51,6 +57,9 @@ var applied_loot_manifest: LootContainerManifest
 var _loot_persistence_state := LootPersistence.STATE_UNOPENED
 var _removed_loot_slot_ids: Array[String] = []
 var legacy_random_path_used := false
+var _loot_restock_state: Dictionary = {}
+var box_present: bool = true
+var _generated_content_seed: int = 0
 
 
 func _ready() -> void:
@@ -60,6 +69,8 @@ func _ready() -> void:
 	if house_area_collision == null:
 		house_area_collision = $HouseArea/CollisionShape2D
 	add_to_group("primary_interactable")
+	_configure_visual_layers()
+	_apply_box_presence()
 	house_area.body_entered.connect(_on_house_body_entered)
 	house_area.body_exited.connect(_on_house_body_exited)
 	shadow_area.body_entered.connect(_on_shadow_body_entered)
@@ -73,6 +84,8 @@ func _ready() -> void:
 	call_deferred("_eject_current_overlapping_enemies")
 	if GameSaveManager != null and GameSaveManager.has_method("register_persistent_node"):
 		GameSaveManager.register_persistent_node(self)
+	call_deferred("_restore_loot_restock_cycle")
+	call_deferred("_spawn_world_pickups_at_markers_if_needed")
 
 
 func _refresh_world_generation_blocker() -> void:
@@ -92,6 +105,8 @@ func _eject_current_overlapping_enemies() -> void:
 
 
 func handle_primary_interaction(interactor: Node) -> bool:
+	if not box_present:
+		return false
 	if interactor == null or not interactor.is_in_group("player"):
 		return false
 	if not player_near_box:
@@ -243,12 +258,28 @@ func _update_house_visual() -> void:
 		outside_sprite.modulate.a = outside_alpha_when_shadowed
 	else:
 		outside_sprite.modulate.a = 1.0
-	inside_sprite.visible = player_in_house
+	# The entrance is transparent in the exterior texture, so the authored
+	# interior must remain as an underlay even while the player is outside.
+	inside_sprite.visible = true
 	collision_outside.process_mode = Node.PROCESS_MODE_INHERIT
 	collision_inside.process_mode = Node.PROCESS_MODE_INHERIT
 
 
+func _configure_visual_layers() -> void:
+	inside_sprite.z_as_relative = true
+	inside_sprite.z_index = INSIDE_BUNKER_Z
+	outside_sprite.z_as_relative = true
+	outside_sprite.z_index = OUTSIDE_BUNKER_Z
+
+
 func _update_box_visual() -> void:
+	if not box_present:
+		box_closed_sprite.visible = false
+		box_closed_outline_sprite.visible = false
+		box_opened_sprite.visible = false
+		box_opened_outline_sprite.visible = false
+		interact_label.visible = false
+		return
 	if not box_opened:
 		box_closed_sprite.visible = true
 		box_closed_outline_sprite.visible = player_near_box
@@ -281,6 +312,11 @@ func _ensure_loot() -> void:
 	if multiplayer.multiplayer_peer != null and not NetworkManager.is_server():
 		return
 	if loot_initialized:
+		return
+	if not box_present:
+		loot_initialized = true
+		loot_slots.clear()
+		loot_slots.resize(maxi(box_slot_count, 0))
 		return
 	if world_generated_mode:
 		push_error("Bunker: world-generated box requires LootContainerManifest")
@@ -347,7 +383,7 @@ func _ensure_loot() -> void:
 		loot_slots[slot_index] = item_instance
 
 func get_loot_container_id() -> String: return BuildingLoot.derived_id(building_generated_object_id, local_loot_container_id) if world_generated_mode else ""
-func get_loot_profile() -> LootProfile: return loot_profile
+func get_loot_profile() -> LootProfile: return loot_profile if box_present else BUNKER_EMPTY_PROFILE
 func get_existing_loot_manifest() -> LootContainerManifest: return applied_loot_manifest
 func has_materialized_loot() -> bool: return loot_initialized
 func get_loot_slot_bindings() -> Dictionary:
@@ -355,10 +391,11 @@ func get_loot_slot_bindings() -> Dictionary:
 	for index in range(ids.size()): result[ids[index]] = index
 	return result
 func apply_loot_manifest(manifest: LootContainerManifest) -> Dictionary:
-	if not world_generated_mode or building_generated_object_id.is_empty() or local_loot_container_id.is_empty() or loot_profile == null: return {"valid":false,"errors":["INVALID_EMPTY_BUNKER_PROVIDER"]}
+	var active_profile := get_loot_profile()
+	if not world_generated_mode or building_generated_object_id.is_empty() or local_loot_container_id.is_empty() or active_profile == null: return {"valid":false,"errors":["INVALID_BUNKER_PROVIDER"]}
 	if applied_loot_manifest != null: return {"valid":applied_loot_manifest.manifest_hash()==manifest.manifest_hash(),"errors":[] if applied_loot_manifest.manifest_hash()==manifest.manifest_hash() else ["CONFLICTING_MANIFEST"]}
 	var result: Dictionary = BuildingLoot.materialize(self,manifest,box_slot_count,loot_slots)
-	if result.valid and loot_profile.explicit_empty and not loot_slots.filter(func(item): return item != null).is_empty(): return {"valid":false,"errors":["EMPTY_PROFILE_MATERIALIZED_LOOT"]}
+	if result.valid and active_profile.explicit_empty and not loot_slots.filter(func(item): return item != null).is_empty(): return {"valid":false,"errors":["EMPTY_PROFILE_MATERIALIZED_LOOT"]}
 	if result.valid: applied_loot_manifest=manifest; loot_initialized=true
 	return result
 
@@ -368,7 +405,9 @@ func set_loot_persistence_state(state: String) -> void: _loot_persistence_state 
 func get_removed_loot_slot_ids() -> Array[String]: return _removed_loot_slot_ids.duplicate()
 func serialize_loot_state() -> Dictionary: return LootPersistence.serialize_provider_state(self)
 func restore_loot_state(data: Dictionary) -> Dictionary: return LootPersistence.restore_provider_state(self, data)
-func mark_loot_opened() -> Dictionary: return LootPersistence.mark_opened(self)
+func mark_loot_opened() -> Dictionary:
+	LootRestock.begin_open_cycle(self, _loot_restock_state, loot_slots)
+	return LootPersistence.mark_opened(self)
 func record_loot_slot_removed(slot_id: String) -> Dictionary:
 	return LootPersistence.mark_slot_removed(self, slot_id)
 func record_persisted_loot_slot_removal(slot_id: String) -> Dictionary:
@@ -382,11 +421,76 @@ func record_persisted_loot_slot_removal(slot_id: String) -> Dictionary:
 	_loot_persistence_state = LootPersistence.STATE_PARTIALLY_EMPTIED
 	return {"valid": true, "errors": []}
 func restore_persisted_loot_state(manifest: LootContainerManifest, state: String, removed: Array[String]) -> Dictionary:
-	if state == LootPersistence.STATE_PARTIALLY_EMPTIED or not removed.is_empty(): return {"valid":false,"errors":["EMPTY_PROFILE_NO_REMOVABLE_SLOTS"]}
-	var result := BuildingLoot.restore_persisted_slots(self, applied_loot_manifest, manifest, box_slot_count, removed, loot_profile.explicit_empty)
+	var active_profile := get_loot_profile()
+	if active_profile.explicit_empty and (state == LootPersistence.STATE_PARTIALLY_EMPTIED or not removed.is_empty()): return {"valid":false,"errors":["EMPTY_PROFILE_NO_REMOVABLE_SLOTS"]}
+	var result := BuildingLoot.restore_persisted_slots(self, applied_loot_manifest, manifest, box_slot_count, removed, active_profile.explicit_empty)
 	if not result.valid: return result
-	loot_slots = result.slots; applied_loot_manifest = manifest; loot_initialized = true; _loot_persistence_state = state; box_opened = false
+	loot_slots = result.slots; applied_loot_manifest = manifest; loot_initialized = true; _removed_loot_slot_ids = removed.duplicate(); _loot_persistence_state = state; box_opened = false
 	_set_loot_panel_state(false); _update_box_visual(); return {"valid":true,"errors":[]}
+
+
+func configure_generated_content(master_seed: int) -> void:
+	_generated_content_seed = master_seed
+	var roll := posmod(
+		WorldSeedService.derive_seed(master_seed, "bunker/box-presence/%s" % building_generated_object_id),
+		1000000
+	)
+	box_present = roll < int(round(clampf(generated_box_chance, 0.0, 1.0) * 1000000.0))
+	if is_node_ready(): _apply_box_presence()
+
+
+func _apply_box_presence() -> void:
+	if box_area == null: return
+	box_area.monitoring = box_present
+	box_area.monitorable = box_present
+	var box_collision := box_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if box_collision != null: box_collision.set_deferred("disabled", not box_present)
+	var solid_box_collision: CollisionShape2D = null
+	if collision_inside != null:
+		solid_box_collision = collision_inside.get_node_or_null("Box") as CollisionShape2D
+	if solid_box_collision != null: solid_box_collision.set_deferred("disabled", not box_present)
+	if not box_present:
+		player_near_box = false
+		box_opened = false
+		_set_loot_panel_state(false)
+	_update_box_visual()
+
+
+func _spawn_world_pickups_at_markers_if_needed() -> void:
+	if Engine.is_editor_hint(): return
+	var item_spawner := _find_item_spawner()
+	if item_spawner == null or not item_spawner.has_method("spawn_world_pickup_at_position"): return
+	var seed := _generated_content_seed if world_generated_mode else LootRestock.world_seed(self)
+	for marker in _collect_spawn_markers(self):
+		var runtime_id := "%s:%s" % [_build_spawn_marker_seed_key(), String(get_path_to(marker))]
+		var item := LootPopulationPass.select_item_definition(loot_profile, seed, runtime_id)
+		if item == null: continue
+		item_spawner.call(
+			"spawn_world_pickup_at_position",
+			item,
+			marker.global_position,
+			runtime_id,
+			_build_pickup_visibility_scope()
+		)
+
+
+func _collect_spawn_markers(root: Node) -> Array[Marker2D]:
+	var markers: Array[Marker2D] = []
+	if root == null: return markers
+	for child in root.get_children():
+		if child is Marker2D and String(child.name).begins_with(BUNKER_SPAWN_MARKER_PREFIX):
+			markers.append(child as Marker2D)
+		markers.append_array(_collect_spawn_markers(child))
+	return markers
+
+
+func _build_spawn_marker_seed_key() -> String:
+	if has_meta("world_generation_id"): return str(get_meta("world_generation_id"))
+	return get_save_key()
+
+
+func _build_pickup_visibility_scope() -> Dictionary:
+	return {"anchor": {"x": global_position.x, "y": global_position.y}, "floor": 1}
 
 
 func _get_effective_loot_pool() -> Array[ItemData]:
@@ -412,7 +516,7 @@ func _find_item_spawner() -> Node:
 	var scene_tree := get_tree()
 	if scene_tree == null:
 		return null
-	for candidate in scene_tree.get_nodes_in_group("item_spawner_network"):
+	for candidate in scene_tree.get_nodes_in_group(ITEM_SPAWNER_GROUP):
 		var node := candidate as Node
 		if node != null and is_instance_valid(node):
 			return node
@@ -438,20 +542,41 @@ func _get_persistent_identity() -> String:
 	return "%s|%s" % [scene_path, local_path]
 
 
+func _restore_loot_restock_cycle() -> void:
+	_loot_restock_state = LootRestock.restore_cycle(self, _loot_restock_state)
+
+
+func update_loot_restock(total_minutes: float) -> void:
+	if not box_present: return
+	if not LootRestock.is_restock_due(self, _loot_restock_state, loot_slots, total_minutes): return
+	var stable_id := get_loot_container_id() if world_generated_mode else _get_persistent_identity()
+	LootRestock.top_up_empty_slots(self, loot_profile, loot_slots, box_slot_count, stable_id, total_minutes)
+	_removed_loot_slot_ids.clear(); _loot_persistence_state = LootPersistence.STATE_OPENED
+	LootRestock.finish_cycle(self, _loot_restock_state); LootRestock.notify_network_state(self)
+	var inventory_root := get_tree().get_first_node_in_group("inventory_root")
+	if inventory_root != null and inventory_root.has_method("refresh_ui"): inventory_root.call("refresh_ui")
+
+
 func get_save_data() -> Dictionary:
 	return {
+		"box_present": box_present,
 		"loot_initialized": loot_initialized,
-		"loot_slots": _serialize_item_array(loot_slots)
+		"loot_slots": _serialize_item_array(loot_slots),
+		"loot_restock_state": LootRestock.serialize_cycle(_loot_restock_state, loot_slots)
 	}
 
 
 func apply_save_data(save_data: Dictionary) -> void:
+	box_present = bool(save_data.get("box_present", box_present))
 	box_opened = false
 	loot_initialized = bool(save_data.get("loot_initialized", false))
 	loot_slots = _deserialize_item_array(save_data.get("loot_slots", []))
+	_loot_restock_state = save_data.get("loot_restock_state", {}).duplicate(true)
 	_set_loot_panel_state(false)
 	_update_house_visual()
+	_apply_box_presence()
 	_update_box_visual()
+	call_deferred("_restore_loot_restock_cycle")
 
 
 func _serialize_item_array(items: Array) -> Array:

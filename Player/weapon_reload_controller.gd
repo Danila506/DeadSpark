@@ -67,7 +67,13 @@ func start_reload(authoritative: bool = true) -> bool:
 	# A client prediction must not publish Player's generic timed-action state:
 	# it can arrive before the reload RPC and make the server reject its own action.
 	if authoritative and controller.can_use_local_timed_action_ui() and controller.player != null and controller.player.has_method("start_timed_action"):
-		if controller.player.start_timed_action(reload_timer, Callable(controller, "_finish_reload"), "Перезарядка", false):
+		if controller.player.start_timed_action(
+			reload_timer,
+			Callable(controller, "_finish_reload"),
+			"Перезарядка",
+			false,
+			PlayerTimedActionController.LOCOMOTION_ANIMATION
+		):
 			reload_uses_action_bar = true
 	return true
 

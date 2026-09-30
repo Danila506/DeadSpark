@@ -9,7 +9,8 @@ const MELEE_SWING_ANIMATION_RIGHT_LEGACY: String = "SwingAttackRight"
 const MELEE_SWING_ANIMATION_DOWN_LEGACY: String = "SwingAttackDown"
 const MELEE_SWING_ANIMATION_USING_FALLBACK: String = "Using"
 const MELEE_COOLDOWN: float = 0.45
-const GROUND_EFFECT_Z_INDEX: int = -1
+const BloodRenderOrder = preload("res://Effects/blood_render_order.gd")
+const GROUND_EFFECT_Z_INDEX: int = BloodRenderOrder.BLOOD_EFFECT_MAX_Z_INDEX
 
 var controller
 var attack_is_authoritative: bool = true

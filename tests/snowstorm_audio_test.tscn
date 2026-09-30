@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://tests/snowstorm_audio_test.gd" id="1"]
+[ext_resource type="Script" path="res://World/snowfall_layer.gd" id="2"]
+
+[node name="SnowstormAudioTest" type="Node"]
+script = ExtResource("1")
+
+[node name="Snowfall" type="CanvasLayer" parent="."]
+script = ExtResource("2")
+storm_intensity = 0.0

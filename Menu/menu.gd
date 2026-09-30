@@ -5,6 +5,8 @@ extends Node2D
 @export var save_file_path: String = "user://savegame.json"
 @export var legacy_save_file_path: String = "user://savegame.save"
 @export var soundtrack_stream_path: String = "res://Assets/AudioWaw/SoundTracks/DeadSparkMainTheme.wav"
+@export var button_press_stream_path: String = "res://Assets/AudioWaw/UI/pressButton.wav"
+@export_range(-40.0, 0.0, 0.5) var button_press_volume_db: float = -4.0
 @export var desktop_panel_width_ratio: float = 0.33
 @export var mobile_panel_width_ratio: float = 0.88
 @export var min_panel_width: float = 340.0
@@ -15,6 +17,8 @@ extends Node2D
 @export var button_font: Font
 
 const NETWORK_WORLD_PATH: String = "res://World/network_test_world.tscn"
+const LOADING_SCENE_PATH: String = "res://Menu/loading.tscn"
+const LOADING_REQUEST_META: StringName = &"dead_spark_loading_request"
 const DONATE_URL: String = "https://boosty.to/deadspark/donate"
 const BUTTON_ARROW_SUFFIX: String = "    >"
 const LAN_CONNECT_TIMEOUT_SEC: float = 10.0
@@ -45,11 +49,14 @@ var _is_connecting_lan: bool = false
 var _lan_reconnect_attempted: bool = false
 var _lan_discovery_hosts: Dictionary = {}
 var _lan_discovery_host_keys: Array[String] = []
+var _button_press_sfx: AudioStreamPlayer = null
 
 
 func _ready() -> void:
 	_disable_soundtrack_for_headless()
 	_setup_soundtrack_for_runtime()
+	_setup_button_press_sfx()
+	_connect_menu_button_sounds()
 	_apply_optional_fonts()
 	_setup_buttons()
 	_update_continue_button_state()
@@ -61,7 +68,31 @@ func _ready() -> void:
 	_apply_menu_texts()
 	_hide_lan_overlay()
 	_set_status("")
-	call_deferred("_start_lan_smoke_from_command_line")
+	call_deferred("_start_network_mode_from_command_line")
+
+
+func _start_network_mode_from_command_line() -> void:
+	if _has_cli_flag("dedicated-server"):
+		_start_dedicated_server_from_command_line()
+		return
+	_start_lan_smoke_from_command_line()
+
+
+func _start_dedicated_server_from_command_line() -> void:
+	if NetworkManager == null:
+		push_error("Dedicated server startup failed: NetworkManager is unavailable")
+		get_tree().quit(ERR_UNAVAILABLE)
+		return
+	var port_text := _get_cli_arg("server-port", str(DEFAULT_LAN_PORT))
+	if not port_text.is_valid_int():
+		push_error("Dedicated server startup failed: invalid --server-port value '%s'" % port_text)
+		get_tree().quit(ERR_INVALID_PARAMETER)
+		return
+	var port := int(port_text)
+	var result: int = NetworkManager.start_dedicated_server(port)
+	if result != OK:
+		push_error("Dedicated server startup failed on port %d (code=%d)" % [port, result])
+		get_tree().quit(result)
 
 
 func _start_lan_smoke_from_command_line() -> void:
@@ -92,6 +123,10 @@ func _get_cli_arg(key: String, default_value: String = "") -> String:
 	return default_value
 
 
+func _has_cli_flag(key: String) -> bool:
+	return OS.get_cmdline_user_args().has("--%s" % key)
+
+
 func _exit_tree() -> void:
 	if get_viewport() != null and get_viewport().size_changed.is_connected(update_layout_for_screen_size):
 		get_viewport().size_changed.disconnect(update_layout_for_screen_size)
@@ -101,6 +136,7 @@ func _exit_tree() -> void:
 		soundtrack_player.stop()
 	if soundtrack_player != null:
 		soundtrack_player.stream = null
+	_release_button_press_sfx()
 
 
 func update_layout_for_screen_size() -> void:
@@ -159,6 +195,59 @@ func _setup_buttons() -> void:
 		button.focus_entered.connect(_set_button_active.bind(button, true))
 		button.focus_exited.connect(_set_button_active.bind(button, false))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+
+func _setup_button_press_sfx() -> void:
+	_button_press_sfx = AudioStreamPlayer.new()
+	_button_press_sfx.name = "MenuButtonPressSFX"
+	_button_press_sfx.process_mode = Node.PROCESS_MODE_ALWAYS
+	_button_press_sfx.bus = &"Sounds" if AudioServer.get_bus_index(&"Sounds") >= 0 else &"Master"
+	_button_press_sfx.volume_db = button_press_volume_db
+	var stream := load(button_press_stream_path) as AudioStream
+	if stream != null:
+		_button_press_sfx.stream = stream
+	call_deferred("_attach_button_press_sfx")
+
+
+func _attach_button_press_sfx() -> void:
+	if _button_press_sfx == null or not is_instance_valid(_button_press_sfx):
+		return
+	if _button_press_sfx.get_parent() == null:
+		get_tree().root.add_child(_button_press_sfx)
+
+
+func _connect_menu_button_sounds() -> void:
+	var callback := Callable(self, "_play_button_press_sound")
+	for node in main_menu_root.find_children("*", "BaseButton", true, false):
+		var button := node as BaseButton
+		if button != null and not button.pressed.is_connected(callback):
+			button.pressed.connect(callback)
+
+
+func _play_button_press_sound() -> void:
+	if _button_press_sfx == null or _button_press_sfx.stream == null:
+		return
+	if DisplayServer.get_name() == "headless":
+		return
+	_button_press_sfx.stop()
+	_button_press_sfx.play()
+
+
+func _release_button_press_sfx() -> void:
+	if _button_press_sfx == null or not is_instance_valid(_button_press_sfx):
+		_button_press_sfx = null
+		return
+	if _button_press_sfx.get_parent() == null:
+		_button_press_sfx.free()
+		_button_press_sfx = null
+		return
+	if _button_press_sfx.playing:
+		var cleanup := Callable(_button_press_sfx, "queue_free")
+		if not _button_press_sfx.finished.is_connected(cleanup):
+			_button_press_sfx.finished.connect(cleanup, CONNECT_ONE_SHOT)
+	else:
+		_button_press_sfx.queue_free()
+	_button_press_sfx = null
 
 
 func _get_menu_buttons() -> Array[Button]:
@@ -252,14 +341,9 @@ func _has_valid_save() -> bool:
 
 
 func _on_continue_pressed() -> void:
-	if GameSaveManager != null and GameSaveManager.has_method("load_game"):
-		var load_result := int(GameSaveManager.load_game())
-		if load_result == OK:
-			return
-
 	var save_data := _read_save(save_file_path)
 	var scene_path := _sanitize_scene_path(String(save_data.get("scene_path", new_game_scene_path)))
-	_change_scene_if_exists(scene_path, "continue")
+	_open_loading_screen(scene_path, "continue")
 
 
 func _on_new_game_pressed() -> void:
@@ -269,7 +353,7 @@ func _on_new_game_pressed() -> void:
 		GameSaveManager.start_new_game(new_game_scene_path, save_file_path)
 	else:
 		_write_save(new_game_scene_path)
-	_change_scene_if_exists(new_game_scene_path, "new game")
+	_open_loading_screen(new_game_scene_path, "new_game")
 
 
 func _on_lan_pressed() -> void:
@@ -339,6 +423,26 @@ func _change_scene_if_exists(scene_path: String, action_name: String) -> void:
 		GameSaveManager.change_scene_with_cleanup(sanitized)
 		return
 	get_tree().change_scene_to_file(sanitized)
+
+
+func _open_loading_screen(scene_path: String, action: String) -> void:
+	var sanitized := _sanitize_scene_path(scene_path)
+	if sanitized.is_empty() or not ResourceLoader.exists(sanitized):
+		push_warning("MainMenu: cannot start %s, scene is missing: %s" % [action, scene_path])
+		_set_status("Сцена не настроена")
+		return
+	if not ResourceLoader.exists(LOADING_SCENE_PATH):
+		_change_scene_if_exists(sanitized, action)
+		return
+	get_tree().set_meta(LOADING_REQUEST_META, {
+		"scene_path": sanitized,
+		"action": action,
+		"save_path": save_file_path,
+	})
+	if GameSaveManager != null and GameSaveManager.has_method("change_scene_with_cleanup"):
+		GameSaveManager.change_scene_with_cleanup(LOADING_SCENE_PATH)
+		return
+	get_tree().change_scene_to_file(LOADING_SCENE_PATH)
 
 
 func _sanitize_scene_path(scene_path: String) -> String:

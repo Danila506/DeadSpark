@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="WaterGenerationProfile" format=3]
+
+[ext_resource type="Script" path="res://World/Generation/water_generation_profile.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+stable_id = "water_v1_default"
+revision = 1
+seed_domain = "water/v1"
+min_lakes = 1
+max_lakes = 2
+border_margin_cells = 13
+radius_min_cells = 5
+radius_max_cells = 11
+extra_lobes_min = 1
+extra_lobes_max = 3
+edge_jitter = 0.12
+lake_spacing_cells = 8
+player_clearance_cells = 7
+placement_attempts_per_lake = 24
+minimum_lake_cells = 48
+terrain_set_id = 0
+terrain_id = 0
+terrain_ignore_empty = false

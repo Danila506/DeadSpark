@@ -15,6 +15,7 @@
 [ext_resource type="Script" uid="uid://3uv07djx1bdg" path="res://Enemies/AI/states/return_state.gd" id="13_tnx0x"]
 [ext_resource type="Script" uid="uid://beuiqqvbwiioj" path="res://Enemies/AI/states/stun_state.gd" id="14_op5m5"]
 [ext_resource type="Script" uid="uid://cq6rpdmdlvah3" path="res://Enemies/AI/states/dead_state.gd" id="15_j86iq"]
+[ext_resource type="PackedScene" uid="uid://c4e3xuoh0vdee" path="res://Enemies/AI/enemy_hurtbox.tscn" id="99_hurtbox"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_iifgy"]
 atlas = ExtResource("1_7k104")
@@ -303,6 +304,10 @@ metadata/_aseprite_wizard_config_ = {
 position = Vector2(-10, 2.9999998)
 scale = Vector2(0.34, 0.055)
 shape = SubResource("CapsuleShape2D_wujgv")
+
+[node name="Hurtbox" parent="." unique_id=691669800 instance=ExtResource("99_hurtbox")]
+position = Vector2(-9.999999, -5)
+scale = Vector2(0.34, 0.54)
 
 [node name="DangeonZone" type="Area2D" parent="." unique_id=1404445525]
 

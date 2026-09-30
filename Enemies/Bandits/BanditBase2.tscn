@@ -76,11 +76,11 @@ polygon = PackedVector2Array(8, -11, 21, -7, 20, 14, 6, 10)
 polygon = PackedVector2Array(-13, -21, 13, -20, 11, -7, -12, -6)
 
 [node name="BanditBase2" type="Node2D" unique_id=1635600201]
-z_index = 6
+y_sort_enabled = true
 script = ExtResource("2_bandit_base_script")
 
 [node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=2131089792]
-z_index = 6
+y_sort_enabled = true
 tile_map_data = PackedByteArray("AAD///j/AAAjAAEAAAAJAAAAAAAdAAUAAAD0//v/AAAdAA4AAAABAAgAAAAHABAAAAAHAAUAAAAXAAkAAAD5//7/AAAOAAkAAADy/wMAAAALAAQAAAAHAPv/AAAGAAsAAAA=")
 tile_set = SubResource("TileSet_7cgkd")
 
@@ -106,40 +106,43 @@ position = Vector2(120, 72)
 script = ExtResource("5_marker")
 stable_marker_id = "guard_spawn_03"
 
-[node name="Bonfire" type="AnimatedSprite2D" parent="." unique_id=109413177]
-z_index = 7
+[node name="BonfireSortRoot" type="Node2D" parent="."]
+position = Vector2(0, 12)
+
+[node name="Bonfire" type="AnimatedSprite2D" parent="BonfireSortRoot" unique_id=109413177]
+position = Vector2(0, -12)
 sprite_frames = ExtResource("3_bonfire_frames")
 animation = &"bonfire"
 autoplay = "bonfire"
 script = ExtResource("4_bonfire_light_script")
 core_light_path = NodePath("CoreLight")
-medium_light_path = NodePath("SoftLight")
+medium_light_path = NodePath("MediumLight")
 halo_light_path = NodePath("HaloLight")
 
-[node name="SoftLight" type="PointLight2D" parent="Bonfire" unique_id=193430778]
+[node name="MediumLight" type="PointLight2D" parent="BonfireSortRoot/Bonfire" unique_id=193430778]
 z_index = 1
 offset = Vector2(0, 4)
 
-[node name="CoreLight" type="PointLight2D" parent="Bonfire" unique_id=193430779]
+[node name="CoreLight" type="PointLight2D" parent="BonfireSortRoot/Bonfire" unique_id=193430779]
 z_index = 2
 offset = Vector2(0, 4)
 
-[node name="HaloLight" type="PointLight2D" parent="Bonfire" unique_id=193430784]
+[node name="HaloLight" type="PointLight2D" parent="BonfireSortRoot/Bonfire" unique_id=193430784]
 offset = Vector2(0, 4)
 
-[node name="Occluders" type="Node2D" parent="Bonfire" unique_id=193430780]
+[node name="Occluders" type="Node2D" parent="BonfireSortRoot/Bonfire" unique_id=193430780]
 
-[node name="LeftCrateOccluder" type="LightOccluder2D" parent="Bonfire/Occluders" unique_id=193430781]
+[node name="LeftCrateOccluder" type="LightOccluder2D" parent="BonfireSortRoot/Bonfire/Occluders" unique_id=193430781]
 position = Vector2(-31, 11)
 occluder = SubResource("OccluderPolygon2D_near_left")
 occluder_light_mask = 2
 
-[node name="RightBarrelOccluder" type="LightOccluder2D" parent="Bonfire/Occluders" unique_id=193430782]
+[node name="RightBarrelOccluder" type="LightOccluder2D" parent="BonfireSortRoot/Bonfire/Occluders" unique_id=193430782]
 position = Vector2(30, 8)
 occluder = SubResource("OccluderPolygon2D_near_right")
 occluder_light_mask = 2
 
-[node name="TopTableOccluder" type="LightOccluder2D" parent="Bonfire/Occluders" unique_id=193430783]
+[node name="TopTableOccluder" type="LightOccluder2D" parent="BonfireSortRoot/Bonfire/Occluders" unique_id=193430783]
 position = Vector2(0, -14)
 occluder = SubResource("OccluderPolygon2D_far_top")
 occluder_light_mask = 2

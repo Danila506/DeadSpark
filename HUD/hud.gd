@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+signal game_day_changed(previous_day: int, current_day: int)
+
 @export var player_path: NodePath
 @export_range(0, 23, 1) var start_hour: int = 8
 @export_range(0, 59, 1) var start_minute: int = 0
@@ -76,6 +78,7 @@ var _clock_glyph_textures: Dictionary = {}
 var _clock_glyph_slots: Array[TextureRect] = []
 var _clock_glyph_container: HBoxContainer = null
 var _clock_glyphs_ready: bool = false
+var _observed_game_day: int = 0
 
 
 func _ready() -> void:
@@ -84,6 +87,7 @@ func _ready() -> void:
 	add_to_group("game_clock")
 	game_time_total_minutes = float(_resolve_start_time_minutes())
 	game_time_minutes = _normalize_time_minutes_float(game_time_total_minutes)
+	_observed_game_day = get_game_day()
 	_update_clock_label(true)
 	_update_temperature_bar(true)
 	_setup_status_icons()
@@ -287,8 +291,7 @@ func _update_status_icon_motion(delta: float) -> void:
 func _update_game_clock(delta: float) -> void:
 	if multiplayer.multiplayer_peer != null and not NetworkManager.is_server():
 		return
-	game_time_total_minutes += maxf(delta, 0.0) * game_minutes_per_real_second
-	game_time_minutes = _normalize_time_minutes_float(game_time_total_minutes)
+	_set_game_time_total_minutes(game_time_total_minutes + maxf(delta, 0.0) * game_minutes_per_real_second)
 	_update_clock_label()
 	_update_temperature_bar()
 
@@ -468,11 +471,10 @@ func get_save_data() -> Dictionary:
 
 
 func apply_save_data(save_data: Dictionary) -> void:
-	game_time_total_minutes = maxf(
+	_set_game_time_total_minutes(maxf(
 		float(save_data.get("game_time_total_minutes", save_data.get("game_time_minutes", game_time_total_minutes))),
 		0.0
-	)
-	game_time_minutes = _normalize_time_minutes_float(game_time_total_minutes)
+	))
 	_update_clock_label(true)
 	_update_temperature_bar(true)
 
@@ -480,15 +482,13 @@ func apply_save_data(save_data: Dictionary) -> void:
 func set_game_time_minutes_of_day(minutes_of_day: float) -> void:
 	var normalized_time := _normalize_time_minutes_float(minutes_of_day)
 	var current_day: float = floor(game_time_total_minutes / float(MINUTES_PER_DAY))
-	game_time_total_minutes = maxf(current_day * float(MINUTES_PER_DAY) + normalized_time, 0.0)
-	game_time_minutes = normalized_time
+	_set_game_time_total_minutes(current_day * float(MINUTES_PER_DAY) + normalized_time)
 	_update_clock_label(true)
 	_update_temperature_bar(true)
 
 
 func add_game_time_minutes(minutes_delta: float) -> void:
-	game_time_total_minutes = maxf(game_time_total_minutes + minutes_delta, 0.0)
-	game_time_minutes = _normalize_time_minutes_float(game_time_total_minutes)
+	_set_game_time_total_minutes(game_time_total_minutes + minutes_delta)
 	_update_clock_label(true)
 	_update_temperature_bar(true)
 
@@ -499,6 +499,21 @@ func get_game_time_total_minutes() -> float:
 
 func get_game_time_minutes_of_day() -> float:
 	return game_time_minutes
+
+
+func get_game_day() -> int:
+	return maxi(int(floor(game_time_total_minutes / float(MINUTES_PER_DAY))), 0)
+
+
+func _set_game_time_total_minutes(value: float) -> void:
+	var previous_day := _observed_game_day
+	game_time_total_minutes = maxf(value, 0.0)
+	game_time_minutes = _normalize_time_minutes_float(game_time_total_minutes)
+	var current_day := get_game_day()
+	_observed_game_day = current_day
+	if current_day > previous_day:
+		game_day_changed.emit(previous_day, current_day)
+	get_tree().call_group(&"loot_restock_pending", &"update_loot_restock", game_time_total_minutes)
 
 
 func _resolve_player_node() -> Node:

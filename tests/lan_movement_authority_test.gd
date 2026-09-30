@@ -41,6 +41,20 @@ func run() -> void:
 	check(actor._sanitize_network_input(Vector2(50.0, 0.0)).is_equal_approx(Vector2.RIGHT), "input magnitude must be clamped")
 	check(actor._sanitize_network_input(Vector2(NAN, 0.0)) == Vector2.ZERO, "non-finite input must be rejected")
 
+	var live_peer := CharacterBody2D.new()
+	live_peer.add_to_group("player")
+	players.add_child(live_peer)
+	actor.add_collision_exception_with(live_peer)
+	var excluded_rids: Array[RID] = actor.movement_controller._get_excluded_body_rids()
+	check(excluded_rids.has(live_peer.get_rid()), "live non-blocking peer must be excluded from overlap recovery")
+	actor.remove_collision_exception_with(live_peer)
+	live_peer.queue_free()
+	await get_tree().process_frame
+	check(
+		actor.movement_controller._get_excluded_body_rids().size() >= 1,
+		"freed LAN collision peers must not break overlap exclusions"
+	)
+
 	var now_ms: int = Time.get_ticks_msec()
 	actor._net_server_last_input_recv_ms = now_ms
 	actor._net_input_vector = Vector2.ZERO

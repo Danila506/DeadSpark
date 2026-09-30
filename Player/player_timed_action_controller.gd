@@ -1,6 +1,8 @@
 extends RefCounted
 class_name PlayerTimedActionController
 
+const LOCOMOTION_ANIMATION: String = "__locomotion__"
+
 var player
 var cancellation_callback := Callable()
 var cancel_hint: Label

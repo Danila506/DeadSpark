@@ -3,8 +3,9 @@ extends "res://level.gd"
 const PLAYER_SCENE: PackedScene = preload("res://Player/player.tscn")
 const NETWORK_SESSION_COORDINATOR_SCRIPT = preload("res://World/network_session_coordinator.gd")
 const NETWORK_SESSION_NODE_SCRIPT = preload("res://World/network_session_node.gd")
-const NETWORK_PROTOCOL_VERSION: int = 7
+const NETWORK_PROTOCOL_VERSION: int = 9
 const PLAYER_SPAWNER_NAME: String = "NetworkPlayerSpawner"
+const NETWORK_SPAWN_POINTS_PATH: NodePath = ^"NetworkSpawnPoints"
 const GENERATED_WORLD_OBJECT_GROUP: StringName = &"generated_world_object"
 const WORLD_GENERATION_OBJECT_ID_META: StringName = &"world_generation_id"
 const WORLD_GENERATION_SCENE_PATH_META: StringName = &"world_generation_scene_path"
@@ -48,6 +49,7 @@ var _receiving_world_snapshot_failed_paths: PackedStringArray = PackedStringArra
 var _world_snapshot_build_running: bool = false
 var _world_snapshot_building_peers: Dictionary = {}
 var _migration_local_player_position := Vector2(-464, 512)
+var _handled_player_deaths: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -80,6 +82,7 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	_configure_local_lan_ui()
 	if NetworkManager != null and multiplayer != null and multiplayer.multiplayer_peer != null and not NetworkManager.is_server():
 		# Client world state will come from host snapshots; skip expensive local generation preload.
 		startup_loading_enabled = false
@@ -107,8 +110,11 @@ func _ready() -> void:
 	_park_baked_level_player()
 
 	if NetworkManager.is_server():
-		print("LAN gameplay world initialized as server")
-		_spawn_network_player(local_peer_id, Vector2(-464, 512))
+		if NetworkManager.is_dedicated_server():
+			print("Dedicated gameplay world initialized as server")
+		else:
+			print("LAN gameplay world initialized as server")
+			_spawn_network_player(local_peer_id, _get_next_network_spawn_position())
 		_network_world_initialized = true
 		for pending_peer in _pending_client_ready:
 			var request: Array = _pending_client_ready[pending_peer]
@@ -122,6 +128,13 @@ func _ready() -> void:
 		if _session_node != null:
 			_session_node.send_client_ready()
 			_session_node.start_client_ready_flow()
+
+
+func _configure_local_lan_ui() -> void:
+	var ui := get_node_or_null("UI") as CanvasLayer
+	if ui == null:
+		return
+	ui.visible = NetworkManager == null or not NetworkManager.is_dedicated_server()
 
 
 func _exit_tree() -> void:
@@ -243,6 +256,22 @@ func _spawn_network_player(peer_id: int, spawn_position: Vector2) -> void:
 	})
 
 
+func _get_next_network_spawn_position() -> Vector2:
+	var spawn_root: Node = get_node_or_null(NETWORK_SPAWN_POINTS_PATH)
+	if spawn_root != null:
+		var spawn_markers: Array[Marker2D] = []
+		for child in spawn_root.get_children():
+			var marker := child as Marker2D
+			if marker != null:
+				spawn_markers.append(marker)
+		if not spawn_markers.is_empty():
+			var marker_index: int = players.size() % spawn_markers.size()
+			return spawn_markers[marker_index].global_position
+	if players.is_empty():
+		return Vector2(-464, 512)
+	return Vector2(100 + players.size() * 48, 100)
+
+
 func _spawn_player_from_data(spawn_data: Variant) -> Node:
 	if not (spawn_data is Dictionary):
 		push_error("Invalid player spawn data")
@@ -265,6 +294,8 @@ func _spawn_player_from_data(spawn_data: Variant) -> Node:
 	player.global_position = spawn_position
 	player.set_multiplayer_authority(spawned_peer_id)
 	players[spawned_peer_id] = player
+	if player.has_signal("died"):
+		player.connect("died", Callable(self, "_on_network_player_died"))
 	_set_peer_phase(spawned_peer_id, NetworkSessionCoordinator.PeerSessionPhase.PLAYER_SPAWNED)
 	player.tree_exiting.connect(_on_spawned_player_tree_exiting.bind(spawned_peer_id, player), CONNECT_ONE_SHOT)
 	_refresh_world_generation_player_paths()
@@ -293,6 +324,51 @@ func _on_spawned_player_tree_exiting(spawned_peer_id: int, player: Node2D) -> vo
 	if players.get(spawned_peer_id, null) == player:
 		players.erase(spawned_peer_id)
 	_refresh_world_generation_player_paths()
+
+
+func _on_network_player_died(dead_player: Node) -> void:
+	if NetworkManager == null or not NetworkManager.is_server():
+		return
+	if dead_player == null or not is_instance_valid(dead_player) or not (dead_player is Node2D):
+		return
+	var dead_peer_id: int = int(dead_player.get("peer_id"))
+	if dead_peer_id <= 0 or _handled_player_deaths.has(dead_peer_id):
+		return
+	var spawner := get_tree().get_first_node_in_group("item_spawner_network")
+	if spawner == null or not spawner.has_method("spawn_dropped_item"):
+		push_error("Cannot process player death for peer %d: network ItemSpawner is unavailable" % dead_peer_id)
+		return
+
+	_handled_player_deaths[dead_peer_id] = true
+	var dropped_items: Array[ItemData] = (
+		InventoryManager.drain_local_inventory_for_death()
+		if dead_peer_id == 1
+		else InventoryManager.drain_network_peer_inventory_for_death(dead_peer_id)
+	)
+	var death_position: Vector2 = (dead_player as Node2D).global_position
+	for index in range(dropped_items.size()):
+		var item: ItemData = dropped_items[index]
+		var offset := _get_player_death_drop_offset(index)
+		if not bool(spawner.call("spawn_dropped_item", item, death_position + offset)):
+			push_error("Failed to spawn death drop %d for peer %d" % [index, dead_peer_id])
+	rpc_apply_network_player_death.rpc(dead_peer_id)
+	print("LAN player death processed: peer=%d drops=%d" % [dead_peer_id, dropped_items.size()])
+
+
+func _get_player_death_drop_offset(index: int) -> Vector2:
+	var ring: int = int(index / 8)
+	var radius: float = 20.0 + float(ring) * 14.0
+	var angle: float = float(index) * 2.39996323
+	return Vector2.RIGHT.rotated(angle) * radius
+
+
+@rpc("authority", "call_local", "reliable")
+func rpc_apply_network_player_death(dead_peer_id: int) -> void:
+	var dead_player: Node2D = players.get(dead_peer_id, null)
+	if dead_player == null or not is_instance_valid(dead_player):
+		return
+	if dead_player.has_method("apply_network_death_world_state"):
+		dead_player.call("apply_network_death_world_state")
 
 
 func _update_local_references(local_player: Node2D) -> void:
@@ -396,11 +472,13 @@ func _on_peer_left(peer_id: int) -> void:
 	if not NetworkManager.is_server():
 		return
 	_clear_peer_session_tracking(peer_id)
+	_handled_player_deaths.erase(peer_id)
 	_despawn_network_player(peer_id)
 
 
 func _on_session_reset() -> void:
 	_cleanup_spawned_players()
+	_handled_player_deaths.clear()
 	_world_snapshot_cache.clear()
 	if _session != null:
 		_session.clear_all()
@@ -533,7 +611,7 @@ func _on_client_ready_received(peer_id: int, ready_seq: int, protocol_version: i
 	_peer_spawn_token[peer_id] = spawn_token
 	if _session_node != null:
 		_session_node.send_server_ready_ack(peer_id, peer_id, ready_seq, spawn_token)
-	var spawn_position: Vector2 = Vector2(100 + players.size() * 48, 100)
+	var spawn_position: Vector2 = _get_next_network_spawn_position()
 	_spawn_network_player(peer_id, spawn_position)
 	call_deferred("_sync_world_snapshot_to_peer", peer_id, true)
 
@@ -709,28 +787,7 @@ func _collect_world_snapshot_payload() -> Array:
 		if String(node.name).contains("@"):
 			node.name = "Replica_" + String(node.get_meta(WORLD_GENERATION_OBJECT_ID_META)).sha256_text().substr(0, 20)
 	for node_variant: Variant in nodes:
-		var node_2d: Node2D = node_variant as Node2D
-		if node_2d == null or not is_instance_valid(node_2d):
-			continue
-		var object_id: String = str(node_2d.get_meta(WORLD_GENERATION_OBJECT_ID_META, ""))
-		var scene_path: String = str(node_2d.get_meta(WORLD_GENERATION_SCENE_PATH_META, node_2d.scene_file_path))
-		if object_id.is_empty() or scene_path.is_empty():
-			continue
-		var parent: Node = node_2d.get_parent()
-		if parent == null:
-			continue
-		payload.append({
-			"id": object_id,
-			"scene": scene_path,
-			"node_name": String(node_2d.name),
-			"dynamic": node_2d.is_in_group("enemy"),
-			"population_id": String(node_2d.get_meta("population_id", "")),
-			"parent": str(parent.get_path()),
-			"position": {"x": node_2d.global_position.x, "y": node_2d.global_position.y},
-			"rotation": node_2d.global_rotation,
-			"scale": {"x": node_2d.global_scale.x, "y": node_2d.global_scale.y},
-			"state": _collect_network_persistence_state(node_2d)
-		})
+		_append_world_snapshot_entry(node_variant, payload)
 	return payload
 
 
@@ -759,34 +816,44 @@ func _collect_world_snapshot_payload_sliced() -> Array:
 				return []
 			slice_start = Time.get_ticks_usec()
 	for node_variant: Variant in nodes:
-		var node_2d: Node2D = node_variant as Node2D
-		if node_2d == null or not is_instance_valid(node_2d) or node_2d.is_queued_for_deletion():
-			continue
-		var object_id: String = str(node_2d.get_meta(WORLD_GENERATION_OBJECT_ID_META, ""))
-		var scene_path: String = str(node_2d.get_meta(WORLD_GENERATION_SCENE_PATH_META, node_2d.scene_file_path))
-		if object_id.is_empty() or scene_path.is_empty():
-			continue
-		var parent: Node = node_2d.get_parent()
-		if parent == null:
-			continue
-		payload.append({
-			"id": object_id,
-			"scene": scene_path,
-			"node_name": String(node_2d.name),
-			"dynamic": node_2d.is_in_group("enemy"),
-			"population_id": String(node_2d.get_meta("population_id", "")),
-			"parent": str(parent.get_path()),
-			"position": {"x": node_2d.global_position.x, "y": node_2d.global_position.y},
-			"rotation": node_2d.global_rotation,
-			"scale": {"x": node_2d.global_scale.x, "y": node_2d.global_scale.y},
-			"state": _collect_network_persistence_state(node_2d)
-		})
+		_append_world_snapshot_entry(node_variant, payload)
 		if Time.get_ticks_usec() - slice_start >= WORLD_SNAPSHOT_BUILD_BUDGET_USEC:
 			await get_tree().process_frame
 			if not is_inside_tree():
 				return []
 			slice_start = Time.get_ticks_usec()
 	return payload
+
+
+func _append_world_snapshot_entry(node_variant: Variant, payload: Array) -> bool:
+	# Snapshot collection yields between slices. Chunk streaming may free a node
+	# retained in the captured array before the next slice resumes, so validity
+	# must be checked before a typed cast or any property access.
+	if not is_instance_valid(node_variant):
+		return false
+	var node_2d: Node2D = node_variant as Node2D
+	if node_2d == null or node_2d.is_queued_for_deletion():
+		return false
+	var object_id: String = str(node_2d.get_meta(WORLD_GENERATION_OBJECT_ID_META, ""))
+	var scene_path: String = str(node_2d.get_meta(WORLD_GENERATION_SCENE_PATH_META, node_2d.scene_file_path))
+	if object_id.is_empty() or scene_path.is_empty():
+		return false
+	var parent: Node = node_2d.get_parent()
+	if parent == null or not is_instance_valid(parent):
+		return false
+	payload.append({
+		"id": object_id,
+		"scene": scene_path,
+		"node_name": String(node_2d.name),
+		"dynamic": node_2d.is_in_group("enemy"),
+		"population_id": String(node_2d.get_meta("population_id", "")),
+		"parent": str(parent.get_path()),
+		"position": {"x": node_2d.global_position.x, "y": node_2d.global_position.y},
+		"rotation": node_2d.global_rotation,
+		"scale": {"x": node_2d.global_scale.x, "y": node_2d.global_scale.y},
+		"state": _collect_network_persistence_state(node_2d)
+	})
+	return true
 
 
 func _collect_network_persistence_state(node: Node) -> Dictionary:

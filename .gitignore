@@ -10,6 +10,15 @@
 .godot-headless*.log
 .godot*headless*.log
 .godot*.log
+/build/
+/tmp_xz_crops/
+
+# Reproducible test output. Canonical JSON fixtures and Markdown reports remain tracked.
+/tests/artifacts/**/*.log
+/tests/artifacts/**/*.png
+/tests/artifacts/**/*.png.import
+/tests/artifacts/**/*.run*.json
+/tests/artifacts/**/*_run*.json
 
 # Export credentials are machine/user specific.
 export_credentials.cfg

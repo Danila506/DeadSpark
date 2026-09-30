@@ -16,6 +16,7 @@
 [ext_resource type="Script" uid="uid://beuiqqvbwiioj" path="res://Enemies/AI/states/stun_state.gd" id="12_607jf"]
 [ext_resource type="Script" uid="uid://k37q4y00kprv" path="res://Enemies/AI/states/house_search_state.gd" id="13_g4wa7"]
 [ext_resource type="Script" uid="uid://cq6rpdmdlvah3" path="res://Enemies/AI/states/dead_state.gd" id="14_eptpx"]
+[ext_resource type="PackedScene" uid="uid://c4e3xuoh0vdee" path="res://Enemies/AI/enemy_hurtbox.tscn" id="99_hurtbox"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_p6nq5"]
 atlas = ExtResource("1_03hvx")
@@ -283,20 +284,8 @@ animations = [{
 radius = 14.705882
 height = 35.294117
 
-[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_024ip"]
-radius = 7.0
-
 [sub_resource type="CircleShape2D" id="CircleShape2D_ph6vf"]
 radius = 200.15994
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_clx7s"]
-radius = 5.0
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_pdj45"]
-size = Vector2(11, 9)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_jh4fj"]
-size = Vector2(13.5, 5.5)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_2ndm3"]
 atlas = ExtResource("1_03hvx")
@@ -305,6 +294,7 @@ region = Rect2(356, 193, 25, 16)
 [node name="Bandit3" type="CharacterBody2D" unique_id=1719114354]
 script = ExtResource("2_ai_enemy")
 config = ExtResource("3_bandit_cfg")
+role_group = &"bandit"
 patrol_points_root_path = NodePath("PatrolPoints")
 head_damage_multiplier = 0.5
 body_damage_multiplier = 0.25
@@ -313,6 +303,8 @@ legs_damage_multiplier = 0.1
 [node name="BodySprite" type="AnimatedSprite2D" parent="." unique_id=1579008802]
 sprite_frames = SubResource("SpriteFrames_k3pep")
 animation = &"Die"
+frame = 2
+frame_progress = 0.45833337
 offset = Vector2(0, -15.105)
 metadata/_aseprite_wizard_interface_config_ = {
 "animation_section": true,
@@ -341,6 +333,9 @@ metadata/_aseprite_wizard_config_ = {
 position = Vector2(0, -1.0000002)
 scale = Vector2(0.34, 0.055)
 shape = SubResource("CapsuleShape2D_aio71")
+
+[node name="Hurtbox" parent="." unique_id=1882161345 instance=ExtResource("99_hurtbox")]
+position = Vector2(0, -15)
 
 [node name="DetectionZone" type="Area2D" parent="." unique_id=1834707492]
 
@@ -436,5 +431,5 @@ position = Vector2(-5, -116)
 position = Vector2(138, -66)
 
 [node name="DyingSprite" type="Sprite2D" parent="." unique_id=967774718]
-position = Vector2(0, -2)
+position = Vector2(-1.47, -7.065)
 texture = SubResource("AtlasTexture_2ndm3")

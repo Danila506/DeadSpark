@@ -25,6 +25,8 @@ static func prepare(instance: Node2D, owner: String, entry: EnvironmentEntry) ->
 static func materialize(instance: Node2D, seed: int) -> Dictionary:
 	var errors: Array[String] = []
 	var manifests: Array[Dictionary] = []
+	if instance.has_method("configure_generated_content"):
+		instance.call("configure_generated_content", seed)
 	if instance.has_method("get_loot_container_id"):
 		var pass_node := LootPopulationPass.new()
 		var result := pass_node.build_manifests(seed, [instance])

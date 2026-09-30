@@ -3,7 +3,7 @@ extends Node
 
 const PHASE := "environment"
 const GENERATED_GROUP := &"generated_environment_object"
-const FORBIDDEN := WorldOccupancyMap.ROAD | WorldOccupancyMap.ROAD_CLEARANCE | WorldOccupancyMap.WATER | WorldOccupancyMap.POI | WorldOccupancyMap.BUILDING | WorldOccupancyMap.RUIN | WorldOccupancyMap.NO_SPAWN
+const FOREST_FORBIDDEN := WorldOccupancyMap.ROAD | WorldOccupancyMap.WATER | WorldOccupancyMap.POI | WorldOccupancyMap.BUILDING | WorldOccupancyMap.RUIN | WorldOccupancyMap.NO_SPAWN
 
 @export var enabled := true
 @export var profile: EnvironmentGenerationProfile
@@ -212,7 +212,9 @@ func _resolve(candidate: Dictionary, occupancy: WorldOccupancyMap) -> void:
 		for tile_cell in tile_cells:
 			if not footprint.has(tile_cell): footprint.append(tile_cell)
 	if not _within_bounds(footprint, occupancy.bounds): _reject(candidate, "out_of_bounds"); return
-	if occupancy.has_flags(footprint, entry.blocked_occupancy_mask): _reject(candidate, _occupancy_reason(footprint, occupancy, entry)); return
+	var blocked_mask := entry.blocked_occupancy_mask
+	if entry.allow_road_clearance_overlap: blocked_mask &= ~WorldOccupancyMap.ROAD_CLEARANCE
+	if occupancy.has_flags(footprint, blocked_mask): _reject(candidate, _occupancy_reason(footprint, occupancy, entry)); return
 	var target := get_node_or_null(entry.target_path)
 	if target == null or (entry.kind == EnvironmentEntry.Kind.SCENE and entry.scene == null) or (entry.kind == EnvironmentEntry.Kind.TILE and not target is TileMapLayer): _reject(candidate, "invalid_resource"); return
 	if entry.kind == EnvironmentEntry.Kind.SCENE and not _scene_entry_is_node_2d(entry): _reject(candidate, "invalid_resource"); return
@@ -317,7 +319,7 @@ func _build_forest(occupancy: WorldOccupancyMap, master_seed: int) -> void:
 	for y in range(occupancy.bounds.position.y, occupancy.bounds.end.y):
 		for x in range(occupancy.bounds.position.x, occupancy.bounds.end.x):
 			var cell := Vector2i(x, y)
-			if occupancy.has_flags([cell], FORBIDDEN): continue
+			if occupancy.has_flags([cell], FOREST_FORBIDDEN): continue
 			ranked.append({"cell": cell, "score": noise.get_noise_2d(x, y)})
 	_forest_land_cells = ranked.size()
 	ranked.sort_custom(func(a, b):

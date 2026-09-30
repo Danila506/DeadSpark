@@ -5,6 +5,7 @@ signal generation_finished(report: Dictionary)
 
 @export var finite_world_required: bool = true
 @export_range(1, 512, 1) var default_step_budget: int = 24
+@export var water_source_path: NodePath = NodePath("WaterGenerationPass")
 @export var road_graph_source_path: NodePath = NodePath("RoadGraphPass")
 @export var road_raster_source_path: NodePath = NodePath("RoadRasterizationPass")
 @export var poi_source_path: NodePath = NodePath("PoiPlacementPass")
@@ -24,9 +25,11 @@ func generate_startup(step_budget: int = -1, max_frames: int = 420) -> Dictionar
 	blocking_errors.clear()
 	var budget := maxi(1, default_step_budget if step_budget <= 0 else step_budget)
 	var phases := _build_phases()
+	_validate_finite_world_source()
 	if not blocking_errors.is_empty():
 		_last_report = _build_report(phases)
 		_last_report["blocking_errors"] = blocking_errors.duplicate()
+		_last_report["valid"] = false
 		return _last_report.duplicate(true)
 	for phase in phases:
 		var sources: Array[Node] = phase.get("sources", [])
@@ -34,33 +37,39 @@ func generate_startup(step_budget: int = -1, max_frames: int = 420) -> Dictionar
 		for source in sources:
 			if source != null:
 				source.set_process(false)
-		if phase_id == "road_graph" or phase_id == "road_raster" or phase_id == "poi_placement" or phase_id == "environment":
+		if phase_id == "water" or phase_id == "road_graph" or phase_id == "road_raster" or phase_id == "poi_placement" or phase_id == "environment":
 			for source in sources:
 				if source != null and source.has_method("run_generation_pass_async"):
 					await source.call("run_generation_pass_async")
 				elif source != null and source.has_method("run_generation_pass"):
 					source.call("run_generation_pass")
 			if _has_pending(sources):
-				push_error("WorldGenerationOrchestrator: phase '%s' did not complete" % phase_id)
+				_record_blocking_error("PHASE_INCOMPLETE:%s" % phase_id)
+			if phase_id == "road_raster":
+				var poi_source := get_node_or_null(poi_source_path) as PoiPlacementPass
+				if poi_source != null:
+					poi_source.import_road_claims_after_raster()
+					var occupancy_sources: Array[Node] = [poi_source]
+					_collect_source_blocking_errors(phase_id, occupancy_sources)
+			_collect_source_blocking_errors(phase_id, sources)
+			if not blocking_errors.is_empty():
+				break
 			continue
 		if phase_id == "enemy_population":
 			_run_deer_population_phase(sources)
+			_collect_source_blocking_errors(phase_id, sources)
 			continue
-		var frames := 0
-		while _has_pending(sources) and frames < maxi(1, max_frames):
-			for source in sources:
-				if source != null and source.has_method("force_generate_step"):
-					source.call("force_generate_step", budget)
-			frames += 1
-			if _has_pending(sources):
-				await get_tree().process_frame
-		if _has_pending(sources):
-			push_error("WorldGenerationOrchestrator: phase '%s' did not finish within %d frames" % [phase.get("id", "unknown"), max_frames])
+		var drain_error := await _drain_incremental_phase(phase_id, sources, budget, max_frames)
+		if not drain_error.is_empty():
+			_record_blocking_error(drain_error)
+		_collect_source_blocking_errors(phase_id, sources)
 		for source in sources:
 			if source != null and bool(source.get("enabled")):
 				source.set_process(true)
 	_last_report = _build_report(phases)
-	if GameSaveManager != null and GameSaveManager.has_method("set_generation_contract"):
+	_last_report["blocking_errors"] = blocking_errors.duplicate()
+	_last_report["valid"] = blocking_errors.is_empty()
+	if blocking_errors.is_empty() and GameSaveManager != null and GameSaveManager.has_method("set_generation_contract"):
 		GameSaveManager.set_generation_contract(_last_report)
 	generation_finished.emit(_last_report.duplicate(true))
 	return _last_report.duplicate(true)
@@ -72,6 +81,7 @@ func get_generation_report() -> Dictionary:
 
 func _build_phases() -> Array[Dictionary]:
 	var terrain: Array[Node] = []
+	var water: Array[Node] = []
 	var legacy_spawners: Array[Node] = []
 	var road_graph: Array[Node] = []
 	var road_raster: Array[Node] = []
@@ -79,12 +89,13 @@ func _build_phases() -> Array[Dictionary]:
 	var environment: Array[Node] = []
 	var enemy_population: Array[Node] = []
 	var explicit := {
+		"water": _resolve_source(water_source_path, "water"),
 		"road_graph": _resolve_source(road_graph_source_path, "road_graph"),
 		"road_raster": _resolve_source(road_raster_source_path, "road_raster"),
 		"poi_placement": _resolve_source(poi_source_path, "poi_placement"),
 		"environment": _resolve_source(environment_source_path, "environment")
 	}
-	for phase_id in ["road_graph", "road_raster", "poi_placement", "environment"]:
+	for phase_id in ["water", "road_graph", "road_raster", "poi_placement", "environment"]:
 		if explicit[phase_id] == null:
 			blocking_errors.append("MISSING_REQUIRED_SOURCE:%s" % phase_id)
 	for child in get_children():
@@ -95,6 +106,9 @@ func _build_phases() -> Array[Dictionary]:
 			continue
 		var explicit_phase := String(child.call("get_generation_phase")) if child.has_method("get_generation_phase") else ""
 		if child in explicit.values():
+			continue
+		if explicit_phase == "water":
+			water.append(child)
 			continue
 		if explicit_phase == "road_graph":
 			road_graph.append(child)
@@ -115,6 +129,7 @@ func _build_phases() -> Array[Dictionary]:
 			legacy_spawners.append(child)
 		else:
 			terrain.append(child)
+	if explicit["water"] != null: water.append(explicit["water"])
 	if explicit["road_graph"] != null: road_graph.append(explicit["road_graph"])
 	if explicit["road_raster"] != null: road_raster.append(explicit["road_raster"])
 	if explicit["poi_placement"] != null: poi.append(explicit["poi_placement"])
@@ -124,9 +139,10 @@ func _build_phases() -> Array[Dictionary]:
 		enemy_population.append(deer_provider)
 	return [
 		{"id": "base_terrain", "sources": terrain},
+		{"id": "water", "sources": water},
+		{"id": "poi_placement", "sources": poi},
 		{"id": "road_graph", "sources": road_graph},
 		{"id": "road_raster", "sources": road_raster},
-		{"id": "poi_placement", "sources": poi},
 		{"id": "environment", "sources": environment},
 		{"id": "enemy_population", "sources": enemy_population},
 		# This phase preserves legacy behaviour.
@@ -184,6 +200,23 @@ func _resolve_source(path: NodePath, expected_phase: String) -> Node:
 	return source
 
 
+func _validate_finite_world_source() -> void:
+	if not finite_world_required:
+		return
+	var source := get_node_or_null(world_seed_source_path)
+	if source == null or not source.has_method("get_debug_world_generation_info"):
+		blocking_errors.append("MISSING_FINITE_WORLD_SOURCE")
+		return
+	var info: Dictionary = source.call("get_debug_world_generation_info")
+	if not info.has("world_min_chunk") or not info.has("world_max_chunk"):
+		blocking_errors.append("INVALID_FINITE_WORLD_BOUNDS")
+		return
+	var min_chunk: Vector2i = info.get("world_min_chunk", Vector2i.ZERO)
+	var max_chunk: Vector2i = info.get("world_max_chunk", Vector2i(-1, -1))
+	if max_chunk.x < min_chunk.x or max_chunk.y < min_chunk.y:
+		blocking_errors.append("INVALID_FINITE_WORLD_BOUNDS")
+
+
 func get_world_occupancy_context() -> WorldOccupancyMap:
 	var poi := get_node_or_null(poi_source_path) as PoiPlacementPass
 	return poi.occupancy if poi != null else null
@@ -194,6 +227,70 @@ func _has_pending(sources: Array[Node]) -> bool:
 		if source != null and source.has_method("has_generation_pending") and bool(source.call("has_generation_pending")):
 			return true
 	return false
+
+
+func _drain_incremental_phase(phase_id: String, sources: Array[Node], step_budget: int, max_stalled_frames: int) -> String:
+	# The serialized setting used to be a total-frame timeout. That rejected valid
+	# generation on slower machines even while chunks were still completing.
+	var stall_limit := maxi(1, max_stalled_frames)
+	var absolute_limit := maxi(1200, stall_limit * 8)
+	var stalled_frames := 0
+	var total_frames := 0
+	var previous_progress := _phase_progress_signature(sources)
+	while _has_pending(sources):
+		for source in sources:
+			if source != null and source.has_method("force_generate_step"):
+				source.call("force_generate_step", step_budget)
+		total_frames += 1
+		if not _has_pending(sources):
+			return ""
+		var current_progress := _phase_progress_signature(sources)
+		if current_progress == previous_progress:
+			stalled_frames += 1
+		else:
+			stalled_frames = 0
+			previous_progress = current_progress
+		if stalled_frames >= stall_limit:
+			return "PHASE_STALLED:%s:%d" % [phase_id, stalled_frames]
+		if total_frames >= absolute_limit:
+			return "PHASE_TIMEOUT:%s:%d" % [phase_id, absolute_limit]
+		await get_tree().process_frame
+	return ""
+
+
+func _phase_progress_signature(sources: Array[Node]) -> Array:
+	var signature: Array = []
+	for source in sources:
+		if source == null or not source.has_method("has_generation_pending"):
+			continue
+		var source_progress: Variant = bool(source.call("has_generation_pending"))
+		if source.has_method("get_chunk_generation_debug_snapshot"):
+			source_progress = source.call("get_chunk_generation_debug_snapshot")
+		elif source.has_method("get_pending_generation_chunk_count"):
+			source_progress = int(source.call("get_pending_generation_chunk_count"))
+		signature.append({
+			"source": source.get_instance_id(),
+			"progress": source_progress
+		})
+	return signature
+
+
+func _collect_source_blocking_errors(phase_id: String, sources: Array[Node]) -> void:
+	for source in sources:
+		if source == null:
+			continue
+		var source_errors: Variant = source.get("blocking_errors")
+		if not source_errors is Array:
+			continue
+		for error in source_errors:
+			_record_blocking_error("stage=%s source=%s reason=%s" % [phase_id, source.name, String(error)])
+
+
+func _record_blocking_error(message: String) -> void:
+	if blocking_errors.has(message):
+		return
+	blocking_errors.append(message)
+	push_error("WorldGenerationOrchestrator: " + message)
 
 
 func _build_report(phases: Array[Dictionary]) -> Dictionary:

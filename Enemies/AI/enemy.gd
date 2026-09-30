@@ -3,6 +3,7 @@ class_name EnemyAI
 
 const DamageZones = preload("res://Enemies/AI/damage_zones.gd")
 const ShellEjectionEffect = preload("res://Effects/shell_ejection_effect.gd")
+const BloodRenderOrder = preload("res://Effects/blood_render_order.gd")
 
 signal state_changed(from_state: StringName, to_state: StringName)
 signal animation_requested(animation_name: StringName)
@@ -71,7 +72,7 @@ const DEFAULT_BANDIT_MEDICAL_POOL: Array[ItemData] = [
 @export var hit_blood_fly_distance: float = 14.0
 @export var hit_blood_fly_duration_sec: float = 0.16
 @export var hit_blood_z_index: int = -1
-@export var dead_body_z_index: int = -1
+@export var dead_body_z_index: int = BloodRenderOrder.ACTOR_MIN_Z_INDEX
 @export_category("Bleeding")
 @export_range(0.0, 1.0, 0.01) var bleeding_chance_on_damage: float = 0.35
 @export var bleeding_damage_amount: float = 2.0
@@ -354,18 +355,15 @@ func _has_line_of_sight_to(target_position: Vector2, target_node: Node = null) -
 func _has_attack_line_of_sight() -> bool:
 	if current_target == null or not is_instance_valid(current_target):
 		return false
-	var target_position: Vector2 = current_target.global_position
+	var target_position: Vector2 = _resolve_ranged_target_position(current_target)
 	var cache_move_epsilon: float = max(config.min_target_move_distance * 0.5, 4.0)
 	if _attack_los_cache_left > 0.0 and _attack_los_cache_target_position.distance_to(target_position) <= cache_move_epsilon:
 		return _attack_los_cache_result
 
 	var origin: Vector2 = _resolve_projectile_origin() if is_ranged_enemy() else global_position
-	var query := PhysicsRayQueryParameters2D.create(origin, target_position)
-	query.exclude = [self]
-	query.collide_with_areas = false
-	query.collide_with_bodies = true
-	var hit: Dictionary = get_world_2d().direct_space_state.intersect_ray(query)
-	var result: bool = hit.is_empty() or hit.get("collider", null) == current_target
+	var hit: Dictionary = _raycast_ranged_trajectory(origin, target_position)
+	var collider: Variant = hit.get("collider", null)
+	var result: bool = hit.is_empty() or (collider is Node and _node_belongs_to(collider as Node, current_target))
 	_attack_los_cache_result = result
 	_attack_los_cache_target_position = target_position
 	_attack_los_cache_left = max(config.ai_update_interval_sec, 0.0)
@@ -376,16 +374,12 @@ func _would_ranged_attack_hit_ally() -> bool:
 	if not is_ranged_enemy() or current_target == null or not is_instance_valid(current_target):
 		return false
 	var origin: Vector2 = _resolve_projectile_origin()
-	var target_position: Vector2 = current_target.global_position
+	var target_position: Vector2 = _resolve_ranged_target_position(current_target)
 	var cache_move_epsilon: float = max(config.min_target_move_distance * 0.5, 4.0)
 	if _friendly_fire_cache_left > 0.0 and _friendly_fire_cache_target_position.distance_to(target_position) <= cache_move_epsilon:
 		return _friendly_fire_cache_result
 
-	var query := PhysicsRayQueryParameters2D.create(origin, target_position)
-	query.exclude = [self]
-	query.collide_with_areas = false
-	query.collide_with_bodies = true
-	var hit: Dictionary = get_world_2d().direct_space_state.intersect_ray(query)
+	var hit: Dictionary = _raycast_ranged_trajectory(origin, target_position)
 	if hit.is_empty():
 		_friendly_fire_cache_result = false
 		_friendly_fire_cache_target_position = target_position
@@ -416,6 +410,43 @@ func _is_ally_node(node: Node) -> bool:
 		if is_in_group(&"bandit") and candidate.is_in_group(&"bandit"):
 			return true
 		if is_in_group(&"wolf") and candidate.is_in_group(&"wolf"):
+			return true
+		candidate = candidate.get_parent()
+	return false
+
+
+func _raycast_ranged_trajectory(origin: Vector2, target_position: Vector2) -> Dictionary:
+	var world := get_world_2d()
+	if world == null:
+		return {}
+	var exclude: Array[RID] = [get_rid()]
+	for hitbox in _collect_damage_hitboxes():
+		exclude.append(hitbox.get_rid())
+
+	var world_query := PhysicsRayQueryParameters2D.create(origin, target_position)
+	world_query.exclude = exclude
+	world_query.collide_with_areas = false
+	world_query.collide_with_bodies = true
+	var world_hit: Dictionary = world.direct_space_state.intersect_ray(world_query)
+
+	var hurtbox_query := PhysicsRayQueryParameters2D.create(origin, target_position, DamageZones.HURTBOX_COLLISION_LAYER)
+	hurtbox_query.exclude = exclude
+	hurtbox_query.collide_with_areas = true
+	hurtbox_query.collide_with_bodies = false
+	var hurtbox_hit: Dictionary = world.direct_space_state.intersect_ray(hurtbox_query)
+	if hurtbox_hit.is_empty():
+		return world_hit
+	if world_hit.is_empty():
+		return hurtbox_hit
+	var world_distance_sq: float = origin.distance_squared_to(world_hit.get("position", target_position))
+	var hurtbox_distance_sq: float = origin.distance_squared_to(hurtbox_hit.get("position", target_position))
+	return hurtbox_hit if hurtbox_distance_sq <= world_distance_sq else world_hit
+
+
+func _node_belongs_to(node: Node, expected_ancestor: Node) -> bool:
+	var candidate: Node = node
+	while candidate != null:
+		if candidate == expected_ancestor:
 			return true
 		candidate = candidate.get_parent()
 	return false
@@ -926,7 +957,7 @@ func _setup_damage_hitboxes() -> void:
 	for hitbox_area in hitboxes:
 		hitbox_area.monitoring = false
 		hitbox_area.monitorable = true
-		hitbox_area.collision_layer = 1
+		hitbox_area.collision_layer = DamageZones.HURTBOX_COLLISION_LAYER
 		hitbox_area.collision_mask = 0
 		if not hitbox_area.is_in_group(&"damage_hitbox"):
 			hitbox_area.add_to_group(&"damage_hitbox")
@@ -949,6 +980,9 @@ func _disable_unused_passive_areas() -> void:
 
 func _collect_damage_hitboxes() -> Array[Area2D]:
 	var result: Array[Area2D] = []
+	var hurtbox: Area2D = get_node_or_null("Hurtbox") as Area2D
+	if hurtbox != null:
+		result.append(hurtbox)
 	var hitboxes_root: Node = get_node_or_null("HitBoxes")
 	if hitboxes_root == null:
 		hitboxes_root = get_node_or_null("Hitboxes")
@@ -1785,16 +1819,17 @@ func _on_state_changed(from_state: StringName, to_state: StringName) -> void:
 func _register_combat_groups() -> void:
 	add_to_group("enemy")
 
-	if not role_group.is_empty():
-		add_to_group(role_group)
-		return
-
-	var name_lower: String = name.to_lower()
-	if name_lower.contains("bandit"):
-		add_to_group("bandit")
+	var resolved_role: StringName = role_group
+	if resolved_role.is_empty():
+		var name_lower: String = name.to_lower()
+		if name_lower.contains("bandit"):
+			resolved_role = &"bandit"
+		elif name_lower.contains("wolf"):
+			resolved_role = &"wolf"
+	if not resolved_role.is_empty():
+		add_to_group(resolved_role)
+	if resolved_role == &"bandit":
 		add_to_group("primary_interactable")
-	elif name_lower.contains("wolf"):
-		add_to_group("wolf")
 
 
 func _play_builtin_animation(token: StringName) -> void:
@@ -1916,7 +1951,10 @@ func _apply_dead_render_state() -> void:
 
 	# Keep corpses under living actors so the player walks over them.
 	body_sprite.z_as_relative = true
-	body_sprite.z_index = dead_body_z_index
+	body_sprite.z_index = BloodRenderOrder.sanitize_actor_z_index(dead_body_z_index)
+	if dying_sprite != null:
+		dying_sprite.z_as_relative = true
+		dying_sprite.z_index = BloodRenderOrder.sanitize_actor_z_index(dying_sprite.z_index)
 
 
 func _apply_melee_damage_to_target() -> void:
@@ -1948,7 +1986,7 @@ func _fire_ranged_projectile() -> void:
 		root.add_child(projectile)
 
 	var origin: Vector2 = _resolve_projectile_origin()
-	var target_pos: Vector2 = current_target.global_position
+	var target_pos: Vector2 = _resolve_ranged_target_position(current_target)
 	var shoot_direction: Vector2 = (target_pos - origin).normalized()
 	if shoot_direction == Vector2.ZERO:
 		shoot_direction = get_facing_direction()
@@ -2009,6 +2047,21 @@ func _resolve_projectile_origin() -> Vector2:
 	if marker != null:
 		return marker.global_position
 	return global_position
+
+
+func _resolve_ranged_target_position(target: Node) -> Vector2:
+	if target == null or not is_instance_valid(target):
+		return get_target_position()
+	if target.has_method("get_projectile_aim_position"):
+		var explicit_position: Variant = target.call("get_projectile_aim_position")
+		if explicit_position is Vector2:
+			return explicit_position as Vector2
+	var hurtbox: Area2D = target.get_node_or_null("Hurtbox") as Area2D
+	if hurtbox != null:
+		return hurtbox.global_position
+	if target is Node2D:
+		return (target as Node2D).global_position
+	return get_target_position()
 
 
 func _update_health_bar_ui() -> void:
@@ -2101,7 +2154,7 @@ func _spawn_hit_blood(source: Node) -> void:
 	blood_sprite.animation = animation_name
 	blood_sprite.global_position = global_position + hit_blood_offset
 	blood_sprite.scale = hit_blood_effect_scale
-	blood_sprite.z_index = hit_blood_z_index
+	blood_sprite.z_index = BloodRenderOrder.sanitize_blood_z_index(hit_blood_z_index)
 	blood_sprite.flip_h = away_direction.x < 0.0
 	blood_sprite.flip_v = abs(away_direction.y) > abs(away_direction.x) and away_direction.y < 0.0
 	if blood_sprite.get_parent() == null:
@@ -2207,7 +2260,7 @@ func _spawn_bleeding_trail_mark() -> void:
 	blood_mark.z_as_relative = false
 	blood_mark.scale = bleeding_trail_scale
 	blood_mark.modulate = Color(1.0, 1.0, 1.0, 0.95)
-	blood_mark.z_index = bleeding_trail_z_index
+	blood_mark.z_index = BloodRenderOrder.sanitize_blood_z_index(bleeding_trail_z_index)
 	blood_mark.global_position = global_position + bleeding_trail_offset + Vector2(
 		randf_range(-bleeding_trail_random_radius, bleeding_trail_random_radius),
 		randf_range(-bleeding_trail_random_radius, bleeding_trail_random_radius)

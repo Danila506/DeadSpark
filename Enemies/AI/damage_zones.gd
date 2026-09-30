@@ -5,6 +5,10 @@ const ZONE_HEAD: StringName = &"head"
 const ZONE_BODY: StringName = &"body"
 const ZONE_LEGS: StringName = &"legs"
 
+# Dedicated physics layer for damage-only Area2D hitboxes. It must never be
+# included in CharacterBody2D movement masks.
+const HURTBOX_COLLISION_LAYER: int = 1 << 2
+
 const DIR_UP: StringName = &"up"
 const DIR_DOWN: StringName = &"down"
 const DIR_LEFT: StringName = &"left"

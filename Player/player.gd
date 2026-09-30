@@ -2,6 +2,7 @@ extends CharacterBody2D
 
 signal stats_changed
 signal status_effects_changed
+signal died(player: Node)
 
 @export var max_health: float = 100.0
 @export var max_water: float = 100.0
@@ -55,6 +56,13 @@ var disease_time_left: float = 0.0
 @export var incoming_melee_source_groups: Array[StringName] = [&"enemy"]
 @export var incoming_explosion_source_groups: Array[StringName] = []
 @export var incoming_default_damage_type: int = ItemData.DamageType.GENERIC
+
+@export_category("Damage Feedback")
+@export var damage_flash_color: Color = Color(1.0, 0.16, 0.03, 1.0)
+@export_range(0.05, 1.0, 0.01) var damage_flash_duration_sec: float = 0.22
+@export_range(0.0, 1.0, 0.01) var damage_flash_base_alpha: float = 0.14
+@export_range(0.0, 2.0, 0.01) var damage_flash_damage_alpha_scale: float = 0.9
+@export_range(0.0, 1.0, 0.01) var damage_flash_max_alpha: float = 0.32
 @export_category("Network Smoothing")
 @export_range(0.02, 0.30, 0.005) var net_snapshot_interp_delay_sec: float = 0.10
 @export_range(0.10, 1.00, 0.01) var net_snapshot_max_buffer_sec: float = 0.50
@@ -81,9 +89,16 @@ enum {
 @export var base_noise_level: float = 1.0
 @export_range(0.05, 1.0, 0.05) var stealth_noise_multiplier: float = 0.25
 @export var thermal_vision_action_name: StringName = &"toggle_thermal_vision"
+@export var grant_charged_thermal_vision_on_spawn: bool = true
 
 const WALK_SNOW_STREAM: AudioStream = preload("res://Assets/AudioWaw/WeaponSounds/WalkSnow.wav")
+const WALK_HOUSE_STREAM: AudioStream = preload("res://Assets/AudioWaw/Footsteps/house_fast_walk_loop.wav")
+const INSIDE_HOUSE_GROUP: StringName = &"inside_house"
+const WALK_SNOW_VOLUME_DB: float = -24.255
+const WALK_HOUSE_VOLUME_DB: float = 0.0
 const THERMAL_VISION_CONTROLLER = preload("res://Player/thermal_vision_controller.gd")
+const STARTER_THERMAL_VISION: ItemData = preload("res://Resources/Clothes/Teplovizor/IND_50_FA_TR.tres")
+const STARTER_THERMAL_BATTERY: ItemData = preload("res://Resources/Misc/batteries.tres")
 const BREATH_STEAM_TEXTURE: Texture2D = preload("res://Assets/Misc/par_iz_rta.png")
 const WALK_SNOW_MIN_MOVE_LENGTH: float = 0.1
 const WALK_SNOW_MIN_PLAY_SECONDS: float = 0.3
@@ -288,6 +303,7 @@ const PLAYER_TIMED_ACTION_CONTROLLER = preload("res://Player/player_timed_action
 const PLAYER_STATUS_HINT_CONTROLLER = preload("res://Player/player_status_hint_controller.gd")
 const PLAYER_DEATH_EFFECTS_CONTROLLER = preload("res://Player/player_death_effects_controller.gd")
 const PLAYER_BLOOD_EFFECTS_CONTROLLER = preload("res://Player/player_blood_effects_controller.gd")
+const PLAYER_DAMAGE_FEEDBACK_CONTROLLER = preload("res://Player/player_damage_feedback_controller.gd")
 
 var vitals_controller
 var interaction_controller
@@ -296,6 +312,7 @@ var timed_action_controller
 var status_hint_controller
 var death_effects_controller
 var blood_effects_controller
+var damage_feedback_controller
 var thermal_vision_controller: Node = null
 var thermal_vision_requested: bool = false
 var breath_steam_particles: GPUParticles2D = null
@@ -315,6 +332,7 @@ func _ready() -> void:
 	status_hint_controller = PLAYER_STATUS_HINT_CONTROLLER.new(self)
 	death_effects_controller = PLAYER_DEATH_EFFECTS_CONTROLLER.new(self)
 	blood_effects_controller = PLAYER_BLOOD_EFFECTS_CONTROLLER.new(self)
+	damage_feedback_controller = PLAYER_DAMAGE_FEEDBACK_CONTROLLER.new(self)
 	add_to_group("player")
 	_ensure_breath_steam_particles()
 	base_move_speed = max(max(base_move_speed, speed), 1.0)
@@ -326,6 +344,7 @@ func _ready() -> void:
 	stats_changed.emit()
 	_collect_equipment_visual_slots()
 	_connect_inventory_signals()
+	_grant_charged_thermal_vision_if_enabled()
 	_refresh_equipment_visuals()
 	_force_refresh_animation()
 	_hide_action_bar()
@@ -352,6 +371,15 @@ func _ready() -> void:
 		if not NetworkManager.network_tick.is_connected(_on_network_tick):
 			NetworkManager.network_tick.connect(_on_network_tick)
 	call_deferred("_refresh_non_blocking_collision_exceptions")
+
+
+func _grant_charged_thermal_vision_if_enabled() -> void:
+	if not grant_charged_thermal_vision_on_spawn or not _is_local_control_enabled():
+		return
+	InventoryManager.equip_charged_thermal_vision_if_cap_empty(
+		STARTER_THERMAL_VISION,
+		STARTER_THERMAL_BATTERY
+	)
 
 
 func _exit_tree() -> void:
@@ -490,6 +518,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if damage_feedback_controller != null:
+		damage_feedback_controller.update(delta)
 	_update_breath_steam_visual(delta)
 	var is_network_server: bool = _is_networked_game() and NetworkManager != null and NetworkManager.is_server()
 	if is_network_server:
@@ -766,13 +796,10 @@ func _refresh_equipment_visuals() -> void:
 			visual_slot.visible = false
 			continue
 
-		if _is_switchable_weapon_slot(visual_slot.item_type) and visual_slot.item_type != active_weapon_slot:
-			visual_slot.sprite_frames = equipped_frames
-			visual_slot.visible = false
-			continue
-
 		visual_slot.sprite_frames = equipped_frames
-		visual_slot.visible = true
+		visual_slot.visible = _should_show_equipment_visual_slot(visual_slot, active_weapon_slot, String(anim.animation))
+		if not visual_slot.visible:
+			continue
 
 		_apply_equipment_animation(visual_slot, String(anim.animation))
 
@@ -799,13 +826,11 @@ func _sync_equipment_animation(animation_name: String) -> void:
 		_last_equipment_active_weapon_slot = active_weapon_slot
 
 	for visual_slot in equipment_visual_slots:
-		if not visual_slot.visible:
-			continue
-
 		if visual_slot.sprite_frames == null:
 			continue
 
-		if _is_switchable_weapon_slot(visual_slot.item_type) and visual_slot.item_type != active_weapon_slot:
+		visual_slot.visible = _should_show_equipment_visual_slot(visual_slot, active_weapon_slot, animation_name)
+		if not visual_slot.visible:
 			continue
 
 		if melee_attack_active and visual_slot.item_type == ItemData.ItemType.MeleeWeapon:
@@ -935,6 +960,8 @@ func _play_body_animation_if_exists(animation_name: String) -> bool:
 func _play_action_animation_if_available() -> bool:
 	if current_action_animation.is_empty():
 		return false
+	if current_action_animation == PLAYER_TIMED_ACTION_CONTROLLER.LOCOMOTION_ANIMATION:
+		return false
 	if anim == null or anim.sprite_frames == null:
 		return false
 	var action_animation := _find_equipment_animation_case_insensitive(anim.sprite_frames, current_action_animation)
@@ -962,8 +989,22 @@ func _set_idle_dir_from_string(dir: String) -> void:
 func take_damage(amount: float, damage_type: int = ItemData.DamageType.GENERIC, apply_clothing_damage: bool = true) -> void:
 	if _is_networked_game() and (NetworkManager == null or not NetworkManager.is_server()):
 		return
+	var health_before: float = health
 	if vitals_controller != null:
 		vitals_controller.take_damage(amount, damage_type, apply_clothing_damage)
+	_play_damage_feedback_for_health_loss(health_before)
+
+
+func _play_damage_feedback_for_health_loss(previous_health: float) -> void:
+	var health_loss: float = previous_health - health
+	if health_loss <= 0.0 or damage_feedback_controller == null:
+		return
+	damage_feedback_controller.play(health_loss)
+
+
+func get_projectile_aim_position() -> Vector2:
+	var hurtbox: Area2D = get_node_or_null("Hurtbox") as Area2D
+	return hurtbox.global_position if hurtbox != null else global_position
 
 
 func take_damage_from(amount: float, source: Node, hit_context: Dictionary = {}) -> void:
@@ -1005,6 +1046,20 @@ func _apply_clothing_endurance_from_damage(amount: float, damage_type: int) -> v
 				shared_world.call("send_inventory_state", peer_id)
 		return
 	InventoryManager.apply_damage_to_equipped_clothing(amount, damage_type)
+
+
+func apply_clothing_endurance_percent_loss(percent_loss: float) -> void:
+	if InventoryManager == null or percent_loss <= 0.0:
+		return
+	if _is_networked_game() and (NetworkManager == null or not NetworkManager.is_server()):
+		return
+	if _is_networked_game() and peer_id > 1:
+		if InventoryManager.apply_endurance_percent_loss_to_network_peer_equipped_clothing(peer_id, percent_loss):
+			var shared_world: Node = get_tree().get_first_node_in_group("network_shared_world")
+			if shared_world != null and shared_world.has_method("send_inventory_state"):
+				shared_world.call("send_inventory_state", peer_id)
+		return
+	InventoryManager.apply_endurance_percent_loss_to_equipped_clothing(percent_loss)
 
 
 func get_incoming_damage_after_armor(amount: float, damage_type: int) -> float:
@@ -1051,23 +1106,55 @@ func die() -> void:
 		death_effects_controller.die()
 	if is_dead and _is_networked_game() and NetworkManager.is_server():
 		_broadcast_vitals_sync(peer_id, health, true)
+	if is_dead:
+		died.emit(self)
+
+
+func apply_network_death_world_state() -> void:
+	velocity = Vector2.ZERO
+	_stop_walk_snow_sfx()
+	set_physics_process(false)
+	if anim != null:
+		anim.visible = false
+	for visual_slot in equipment_visual_slots:
+		if visual_slot != null and is_instance_valid(visual_slot):
+			visual_slot.visible = false
+	if action_bar_root != null:
+		action_bar_root.visible = false
+	if status_hint_label != null:
+		status_hint_label.visible = false
+	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape != null:
+		collision_shape.set_deferred("disabled", true)
+	var hurtbox := get_node_or_null("Hurtbox") as Area2D
+	if hurtbox != null:
+		hurtbox.set_deferred("monitoring", false)
+		hurtbox.set_deferred("monitorable", false)
+	collision_layer = 0
+	collision_mask = 0
 
 
 func _setup_walk_snow_sfx() -> void:
-	if walk_snow_sfx == null:
+	_setup_walk_loop_player(walk_snow_sfx, WALK_SNOW_STREAM)
+	if walk_snow_sfx != null:
+		walk_snow_sfx.volume_db = WALK_SNOW_VOLUME_DB
+
+
+func _setup_walk_loop_player(audio_player: AudioStreamPlayer, fallback_stream: AudioStream) -> void:
+	if audio_player == null:
 		return
-
-	if walk_snow_sfx.stream == null:
-		walk_snow_sfx.stream = WALK_SNOW_STREAM
-
+	if audio_player.stream == null:
+		audio_player.stream = fallback_stream
 	if AudioServer.get_bus_index(&"Sounds") != -1:
-		walk_snow_sfx.bus = &"Sounds"
+		audio_player.bus = &"Sounds"
 	else:
-		walk_snow_sfx.bus = &"Master"
-
-	var wav_stream: AudioStreamWAV = walk_snow_sfx.stream as AudioStreamWAV
+		audio_player.bus = &"Master"
+	var wav_stream: AudioStreamWAV = audio_player.stream as AudioStreamWAV
 	if wav_stream != null:
 		wav_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		if wav_stream.loop_end <= wav_stream.loop_begin:
+			wav_stream.loop_begin = 0
+			wav_stream.loop_end = maxi(1, ceili(wav_stream.get_length() * float(wav_stream.mix_rate)))
 
 
 func _update_walk_snow_sfx(input_vector: Vector2, delta: float) -> void:
@@ -1080,6 +1167,14 @@ func _update_walk_snow_sfx(input_vector: Vector2, delta: float) -> void:
 	var should_play: bool = input_vector.length() > WALK_SNOW_MIN_MOVE_LENGTH and velocity.length() > WALK_SNOW_MIN_MOVE_LENGTH
 	if should_play:
 		walk_snow_min_play_time_left = WALK_SNOW_MIN_PLAY_SECONDS
+		var indoors := is_in_group(INSIDE_HOUSE_GROUP)
+		var desired_stream: AudioStream = WALK_HOUSE_STREAM if indoors else WALK_SNOW_STREAM
+		var desired_volume_db := WALK_HOUSE_VOLUME_DB if indoors else WALK_SNOW_VOLUME_DB
+		if walk_snow_sfx.stream != desired_stream:
+			walk_snow_sfx.stop()
+			walk_snow_sfx.stream = desired_stream
+			_setup_walk_loop_player(walk_snow_sfx, desired_stream)
+		walk_snow_sfx.volume_db = desired_volume_db
 		if not walk_snow_sfx.playing:
 			walk_snow_sfx.play()
 	else:
@@ -1623,6 +1718,20 @@ func _is_switchable_weapon_slot(slot_type: ItemData.ItemType) -> bool:
 	]
 
 
+func _should_show_equipment_visual_slot(visual_slot: EquipmentVisualSlot, active_weapon_slot: int, animation_name: String) -> bool:
+	if visual_slot == null or visual_slot.sprite_frames == null:
+		return false
+	if not _is_switchable_weapon_slot(visual_slot.item_type):
+		return true
+	if visual_slot.item_type != active_weapon_slot:
+		return false
+	return not _is_using_timed_action_animation(animation_name)
+
+
+func _is_using_timed_action_animation(animation_name: String) -> bool:
+	return action_in_progress and animation_name.strip_edges().to_lower() == "using"
+
+
 func _get_stamina_ratio() -> float:
 	if max_stamina <= 0.0:
 		return 1.0
@@ -1635,7 +1744,7 @@ func _get_current_speed_multiplier() -> float:
 	var stealth_multiplier: float = _get_stealth_movement_multiplier()
 	var carry_multiplier: float = _get_encumbrance_speed_multiplier()
 	if weapon_controller != null and weapon_controller.get_is_reloading():
-		carry_multiplier *= 0.5
+		carry_multiplier *= clamp(fracture_speed_multiplier, 0.0, 1.0)
 	if is_fractured:
 		return stamina_multiplier * stealth_multiplier * carry_multiplier * clamp(fracture_speed_multiplier, 0.0, 1.0)
 	return stamina_multiplier * stealth_multiplier * carry_multiplier
@@ -2276,6 +2385,7 @@ func _build_player_snapshot_payload(include_equipment: bool) -> Dictionary:
 
 
 func _apply_network_vitals_payload(payload: Dictionary) -> void:
+	var previous_health: float = health
 	var previous_bleeding: bool = is_bleeding
 	var previous_fractured: bool = is_fractured
 	var previous_diseased: bool = is_diseased
@@ -2288,6 +2398,7 @@ func _apply_network_vitals_payload(payload: Dictionary) -> void:
 	is_fractured = bool(payload.get("fr", is_fractured))
 	is_diseased = bool(payload.get("di", is_diseased))
 	disease_time_left = maxf(_dequantize_scalar(int(payload.get("dt", _quantize_scalar(disease_time_left, NET_SNAPSHOT_HEALTH_SCALE))), NET_SNAPSHOT_HEALTH_SCALE), 0.0)
+	_play_damage_feedback_for_health_loss(previous_health)
 	stats_changed.emit()
 	if previous_bleeding != is_bleeding or previous_fractured != is_fractured or previous_diseased != is_diseased:
 		status_effects_changed.emit()
@@ -2629,12 +2740,10 @@ func _apply_remote_equipment_visuals() -> void:
 			visual_slot.sprite_frames = null
 			visual_slot.visible = false
 			continue
-		if _is_switchable_weapon_slot(visual_slot.item_type) and visual_slot.item_type != _net_remote_active_weapon_slot:
-			visual_slot.sprite_frames = item.equipped_frames
-			visual_slot.visible = false
-			continue
 		visual_slot.sprite_frames = item.equipped_frames
-		visual_slot.visible = true
+		visual_slot.visible = _should_show_equipment_visual_slot(visual_slot, _net_remote_active_weapon_slot, String(anim.animation))
+		if not visual_slot.visible:
+			continue
 		_apply_equipment_animation(visual_slot, String(anim.animation))
 
 
@@ -2657,7 +2766,7 @@ func _apply_network_movement(delta: float, input_vector: Vector2) -> void:
 	var normalized_input: Vector2 = _sanitize_network_input(input_vector)
 	var move_speed: float = base_move_speed * _get_current_speed_multiplier()
 	velocity = normalized_input * move_speed
-	move_and_slide()
+	movement_controller.move_and_slide_safely()
 	if _is_local_control_enabled() and weapon_controller != null and weapon_controller.has_method("sync_aim_state_for_movement"):
 		weapon_controller.sync_aim_state_for_movement()
 	if _is_local_control_enabled() and weapon_controller != null and weapon_controller.is_in_aim_mode() and weapon_controller.has_weapon_equipped():
@@ -2684,6 +2793,12 @@ func _refresh_non_blocking_collision_exceptions() -> void:
 			continue
 		if enemy_node is PhysicsBody2D:
 			add_collision_exception_with(enemy_node as PhysicsBody2D)
+	for npc_variant: Variant in get_tree().get_nodes_in_group("friendly_npc"):
+		var npc_node: Node = npc_variant as Node
+		if npc_node == null or not is_instance_valid(npc_node):
+			continue
+		if npc_node is PhysicsBody2D:
+			add_collision_exception_with(npc_node as PhysicsBody2D)
 
 
 @rpc("any_peer", "reliable")
@@ -2700,7 +2815,9 @@ func rpc_sync_vitals(state_peer_id: int, server_health: float, server_is_dead: b
 			return
 	if is_dead:
 		return
+	var previous_health: float = health
 	health = clamp(server_health, 0.0, max_health)
+	_play_damage_feedback_for_health_loss(previous_health)
 	stats_changed.emit()
 	if server_is_dead and not is_dead:
 		if _is_local_network_player():
@@ -2832,7 +2949,12 @@ func _sync_timed_action_state() -> void:
 func rpc_submit_timed_action(revision: int, animation: String, blocks: bool) -> void:
 	if not NetworkManager.is_server() or multiplayer.get_remote_sender_id() != peer_id: return
 	if revision <= _net_action_revision or animation.length() > 64 or is_dead: return
-	if not animation.is_empty() and _find_equipment_animation_case_insensitive(anim.sprite_frames, animation).is_empty(): return
+	if (
+		not animation.is_empty()
+		and animation != PLAYER_TIMED_ACTION_CONTROLLER.LOCOMOTION_ANIMATION
+		and _find_equipment_animation_case_insensitive(anim.sprite_frames, animation).is_empty()
+	):
+		return
 	_receive_timed_action_state(revision, animation, blocks)
 	_broadcast_timed_action_state(animation, blocks)
 

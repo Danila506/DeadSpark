@@ -209,20 +209,8 @@ func _update_current_weapon() -> void:
 
 
 func _stop_weapon_audio() -> void:
-	var audio_root: Node = get_node_or_null("../Audio")
-	if audio_root != null:
-		for child in audio_root.get_children():
-			if not (child is AudioStreamPlayer):
-				continue
-
-			var stream_player: AudioStreamPlayer = child as AudioStreamPlayer
-			if stream_player.name == "SnowWalk":
-				continue
-			if stream_player.playing:
-				stream_player.stop()
-		return
-
-	# Fallback for old scene layouts without Audio root.
+	# Weapon state changes must not stop ambient/player-owned sounds sharing the
+	# Audio node (for example snow and indoor footsteps).
 	if weapon_shoot_sfx != null and weapon_shoot_sfx.playing:
 		weapon_shoot_sfx.stop()
 	if weapon_reload_sfx != null and weapon_reload_sfx.playing:

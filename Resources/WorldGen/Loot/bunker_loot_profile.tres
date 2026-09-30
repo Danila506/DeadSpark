@@ -2,116 +2,162 @@
 
 [ext_resource type="Script" uid="uid://bl87g8yri5ghs" path="res://World/Generation/loot_profile.gd" id="1"]
 [ext_resource type="Script" uid="uid://drt3avtqr1b4p" path="res://World/Generation/loot_entry.gd" id="2"]
-[ext_resource type="Resource" path="res://Resources/Food/tushenka.tres" id="item_0"]
-[ext_resource type="Resource" uid="uid://brhx7jeqn1s68" path="res://Resources/Food/apple.tres" id="item_1"]
-[ext_resource type="Resource" path="res://Resources/Food/konservirovannye_tomaty.tres" id="item_2"]
-[ext_resource type="Resource" path="res://Resources/Food/malinovaya_gazirovka.tres" id="item_3"]
-[ext_resource type="Resource" uid="uid://dvquglkn8pwxm" path="res://Resources/Medicine/bandage.tres" id="item_4"]
-[ext_resource type="Resource" uid="uid://bm6ii6ibhiafm" path="res://Resources/Medicine/antidote.tres" id="item_5"]
-[ext_resource type="Resource" uid="uid://diuk0looy07hv" path="res://Resources/Medicine/healthBox.tres" id="item_6"]
-[ext_resource type="Resource" uid="uid://3qy057u0b4wg" path="res://Resources/Medicine/splint.tres" id="item_7"]
-[ext_resource type="Resource" uid="uid://dthi7baabffud" path="res://Resources/Misc/batteries.tres" id="item_8"]
-[ext_resource type="Resource" uid="uid://3h7wstb74hel" path="res://Resources/Misc/matches.tres" id="item_9"]
-[ext_resource type="Resource" uid="uid://jngofc3t4qk7" path="res://Resources/Misc/rope.tres" id="item_10"]
-[ext_resource type="Resource" uid="uid://dh3vaa454s8yq" path="res://Resources/Misc/electrical_tape.tres" id="item_11"]
-[ext_resource type="Resource" uid="uid://c1f7yxn21thfu" path="res://Resources/Misc/sewing_kit.tres" id="item_12"]
-[ext_resource type="Resource" uid="uid://bo0tqlhnbx6la" path="res://Resources/Misc/weapon_cleaning_kit.tres" id="item_13"]
-[ext_resource type="Resource" uid="uid://dy2kaiwsfvgkl" path="res://Resources/Misc/wood.tres" id="item_14"]
+[ext_resource type="Resource" uid="uid://bel7dsmn1wbcy" path="res://Resources/AR_Weapons/akp_52/ammo_boxAkp52.tres" id="ammo_akp52"]
+[ext_resource type="Resource" uid="uid://d4grm42dru86r" path="res://Resources/Pistols/chizh_43/ammo_boxChizh.tres" id="ammo_chizh"]
+[ext_resource type="Resource" uid="uid://dnjgaxwwlen64" path="res://Resources/AR_Weapons/kar92l/ammo_boxKar92l.tres" id="ammo_kar92l"]
+[ext_resource type="Resource" uid="uid://bm6ii6ibhiafm" path="res://Resources/Medicine/antidote.tres" id="med_antidote"]
+[ext_resource type="Resource" uid="uid://dvquglkn8pwxm" path="res://Resources/Medicine/bandage.tres" id="med_bandage"]
+[ext_resource type="Resource" uid="uid://bsb84vtiv6bww" path="res://Resources/Medicine/bloodBag.tres" id="med_blood"]
+[ext_resource type="Resource" uid="uid://diuk0looy07hv" path="res://Resources/Medicine/healthBox.tres" id="med_healthbox"]
+[ext_resource type="Resource" uid="uid://ds3lkqq1aei3p" path="res://Resources/Medicine/hemostat.tres" id="med_hemostat"]
+[ext_resource type="Resource" uid="uid://bimabypk1unf" path="res://Resources/Medicine/improvised_splint.tres" id="med_improvised_splint"]
+[ext_resource type="Resource" uid="uid://dcm5npy6jv8ua" path="res://Resources/Medicine/potassium_iodide.tres" id="med_iodide"]
+[ext_resource type="Resource" uid="uid://bweuhguplltcv" path="res://Resources/Medicine/restorer.tres" id="med_restorer"]
+[ext_resource type="Resource" uid="uid://b5lcho6hxesjy" path="res://Resources/Medicine/saline.tres" id="med_saline"]
+[ext_resource type="Resource" uid="uid://3qy057u0b4wg" path="res://Resources/Medicine/splint.tres" id="med_splint"]
+[ext_resource type="Resource" uid="uid://bs7sffg60ghpv" path="res://Resources/AR_Weapons/akp_103/silencer.tres" id="module_akp103_silencer"]
+[ext_resource type="Resource" uid="uid://emq8u2plc5lj" path="res://Resources/Pistols/fn-s/fn-s_silencer.tres" id="module_fns_silencer"]
+[ext_resource type="Resource" uid="uid://shp2mqbh83ab" path="res://Resources/AR_Weapons/akp_103/handle.tres" id="module_handle"]
+[ext_resource type="Resource" uid="uid://2j5imsd7x5g5" path="res://Resources/AR_Weapons/akp_52/TS_39.tres" id="module_ts39"]
+[ext_resource type="Resource" uid="uid://dx65g0m8pb2h7" path="res://Resources/AR_Weapons/akp_103/VX_25.tres" id="module_vx25"]
+[ext_resource type="Resource" uid="uid://de78r2udd1nj0" path="res://Resources/AR_Weapons/kar92l/ZF_43.tres" id="module_zf43"]
 
-[sub_resource type="Resource" id="entry_0"]
+[sub_resource type="Resource" id="entry_ammo_akp52"]
 script = ExtResource("2")
-entry_id = "food_tushenka"
-item = ExtResource("item_0")
+entry_id = "ammo_akp52"
+item = ExtResource("ammo_akp52")
+weight = 3.0
 unique = true
 
-[sub_resource type="Resource" id="entry_1"]
+[sub_resource type="Resource" id="entry_ammo_kar92l"]
 script = ExtResource("2")
-entry_id = "food_apple"
-item = ExtResource("item_1")
+entry_id = "ammo_kar92l"
+item = ExtResource("ammo_kar92l")
+weight = 3.0
 unique = true
 
-[sub_resource type="Resource" id="entry_2"]
+[sub_resource type="Resource" id="entry_ammo_chizh"]
 script = ExtResource("2")
-entry_id = "food_konservirovannye_tomaty"
-item = ExtResource("item_2")
+entry_id = "ammo_chizh"
+item = ExtResource("ammo_chizh")
+weight = 3.0
 unique = true
 
-[sub_resource type="Resource" id="entry_3"]
+[sub_resource type="Resource" id="entry_module_handle"]
 script = ExtResource("2")
-entry_id = "food_malinovaya_gazirovka"
-item = ExtResource("item_3")
+entry_id = "module_akp103_handle"
+item = ExtResource("module_handle")
+weight = 1.5
 unique = true
 
-[sub_resource type="Resource" id="entry_4"]
+[sub_resource type="Resource" id="entry_module_akp103_silencer"]
 script = ExtResource("2")
-entry_id = "medicine_bandage"
-item = ExtResource("item_4")
+entry_id = "module_akp103_silencer"
+item = ExtResource("module_akp103_silencer")
+weight = 1.5
 unique = true
 
-[sub_resource type="Resource" id="entry_5"]
+[sub_resource type="Resource" id="entry_module_vx25"]
+script = ExtResource("2")
+entry_id = "module_vx25"
+item = ExtResource("module_vx25")
+weight = 1.5
+unique = true
+
+[sub_resource type="Resource" id="entry_module_ts39"]
+script = ExtResource("2")
+entry_id = "module_ts39"
+item = ExtResource("module_ts39")
+weight = 1.5
+unique = true
+
+[sub_resource type="Resource" id="entry_module_zf43"]
+script = ExtResource("2")
+entry_id = "module_zf43"
+item = ExtResource("module_zf43")
+weight = 1.5
+unique = true
+
+[sub_resource type="Resource" id="entry_module_fns_silencer"]
+script = ExtResource("2")
+entry_id = "module_fns_silencer"
+item = ExtResource("module_fns_silencer")
+weight = 1.5
+unique = true
+
+[sub_resource type="Resource" id="entry_med_antidote"]
 script = ExtResource("2")
 entry_id = "medicine_antidote"
-item = ExtResource("item_5")
-weight = 0.4
+item = ExtResource("med_antidote")
+weight = 0.9
 unique = true
 
-[sub_resource type="Resource" id="entry_6"]
+[sub_resource type="Resource" id="entry_med_bandage"]
+script = ExtResource("2")
+entry_id = "medicine_bandage"
+item = ExtResource("med_bandage")
+weight = 0.9
+unique = true
+
+[sub_resource type="Resource" id="entry_med_blood"]
+script = ExtResource("2")
+entry_id = "medicine_blood_bag"
+item = ExtResource("med_blood")
+weight = 0.9
+unique = true
+
+[sub_resource type="Resource" id="entry_med_healthbox"]
 script = ExtResource("2")
 entry_id = "medicine_healthbox"
-item = ExtResource("item_6")
-weight = 0.4
+item = ExtResource("med_healthbox")
+weight = 0.9
 unique = true
 
-[sub_resource type="Resource" id="entry_7"]
+[sub_resource type="Resource" id="entry_med_hemostat"]
+script = ExtResource("2")
+entry_id = "medicine_hemostat"
+item = ExtResource("med_hemostat")
+weight = 0.9
+unique = true
+
+[sub_resource type="Resource" id="entry_med_improvised_splint"]
+script = ExtResource("2")
+entry_id = "medicine_improvised_splint"
+item = ExtResource("med_improvised_splint")
+weight = 0.9
+unique = true
+
+[sub_resource type="Resource" id="entry_med_iodide"]
+script = ExtResource("2")
+entry_id = "medicine_potassium_iodide"
+item = ExtResource("med_iodide")
+weight = 0.9
+unique = true
+
+[sub_resource type="Resource" id="entry_med_restorer"]
+script = ExtResource("2")
+entry_id = "medicine_restorer"
+item = ExtResource("med_restorer")
+weight = 0.9
+unique = true
+
+[sub_resource type="Resource" id="entry_med_saline"]
+script = ExtResource("2")
+entry_id = "medicine_saline"
+item = ExtResource("med_saline")
+weight = 0.9
+unique = true
+
+[sub_resource type="Resource" id="entry_med_splint"]
 script = ExtResource("2")
 entry_id = "medicine_splint"
-item = ExtResource("item_7")
-unique = true
-
-[sub_resource type="Resource" id="entry_8"]
-script = ExtResource("2")
-entry_id = "misc_batteries"
-item = ExtResource("item_8")
-unique = true
-
-[sub_resource type="Resource" id="entry_9"]
-script = ExtResource("2")
-entry_id = "misc_matches"
-item = ExtResource("item_9")
-unique = true
-
-[sub_resource type="Resource" id="entry_10"]
-script = ExtResource("2")
-entry_id = "misc_rope"
-item = ExtResource("item_10")
-unique = true
-
-[sub_resource type="Resource" id="entry_11"]
-script = ExtResource("2")
-entry_id = "misc_electrical_tape"
-item = ExtResource("item_11")
-unique = true
-
-[sub_resource type="Resource" id="entry_12"]
-script = ExtResource("2")
-entry_id = "misc_sewing_kit"
-item = ExtResource("item_12")
-unique = true
-
-[sub_resource type="Resource" id="entry_13"]
-script = ExtResource("2")
-entry_id = "misc_weapon_cleaning_kit"
-item = ExtResource("item_13")
-unique = true
-
-[sub_resource type="Resource" id="entry_14"]
-script = ExtResource("2")
-entry_id = "misc_wood"
-item = ExtResource("item_14")
+item = ExtResource("med_splint")
+weight = 0.9
 unique = true
 
 [resource]
 script = ExtResource("1")
-profile_id = "bunker_supplies"
-slot_ids = Array[String](["slot_00", "slot_01", "slot_02", "slot_03"])
-entries = Array[ExtResource("2")]([SubResource("entry_0"), SubResource("entry_1"), SubResource("entry_2"), SubResource("entry_3"), SubResource("entry_4"), SubResource("entry_5"), SubResource("entry_6"), SubResource("entry_7"), SubResource("entry_8"), SubResource("entry_9"), SubResource("entry_10"), SubResource("entry_11"), SubResource("entry_12"), SubResource("entry_13"), SubResource("entry_14")])
+profile_id = "bunker_military_supplies"
+slot_ids = Array[String](["slot_00", "slot_01", "slot_02"])
+slot_count_weights = Array[float]([0.0, 45.0, 40.0, 15.0])
+entries = Array[ExtResource("2")]([SubResource("entry_ammo_akp52"), SubResource("entry_ammo_kar92l"), SubResource("entry_ammo_chizh"), SubResource("entry_module_handle"), SubResource("entry_module_akp103_silencer"), SubResource("entry_module_vx25"), SubResource("entry_module_ts39"), SubResource("entry_module_zf43"), SubResource("entry_module_fns_silencer"), SubResource("entry_med_antidote"), SubResource("entry_med_bandage"), SubResource("entry_med_blood"), SubResource("entry_med_healthbox"), SubResource("entry_med_hemostat"), SubResource("entry_med_improvised_splint"), SubResource("entry_med_iodide"), SubResource("entry_med_restorer"), SubResource("entry_med_saline"), SubResource("entry_med_splint")])

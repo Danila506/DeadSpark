@@ -6,6 +6,7 @@ const BLOCKER_GROUP: StringName = &"world_generation_blocker"
 const GENERATED_CELLS_META: StringName = &"world_generation_generated_cells"
 const PROTECTED_CELLS_META: StringName = &"world_generation_protected_cells"
 const PRESERVE_EDITOR_TILES_META: StringName = &"world_generation_preserve_editor_tiles"
+const PRESERVE_UNDER_BLOCKERS_META: StringName = &"world_generation_preserve_under_blockers"
 
 
 static func configure_blocker(node: Node2D, area: Area2D, clear_generated_tiles: bool = true) -> void:
@@ -81,6 +82,8 @@ static func _collect_tile_layers(root: Node, out: Array[TileMapLayer]) -> void:
 
 static func _clear_generated_tiles_from_layer(layer: TileMapLayer, world_rect: Rect2) -> void:
 	if layer == null:
+		return
+	if bool(layer.get_meta(PRESERVE_UNDER_BLOCKERS_META, false)):
 		return
 	var generated_cells_variant: Variant = layer.get_meta(GENERATED_CELLS_META, {})
 	var generated_cells: Dictionary = generated_cells_variant as Dictionary if generated_cells_variant is Dictionary else {}

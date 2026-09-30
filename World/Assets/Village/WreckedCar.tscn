@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://World/Assets/Village/villageObjects.png" id="1_atlas"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_car"]
+atlas = ExtResource("1_atlas")
+region = Rect2(12, 322, 126, 75)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_car"]
+size = Vector2(112, 42)
+
+[node name="WreckedCar" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, -37.5)
+texture = SubResource("AtlasTexture_car")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D"]
+position = Vector2(0, -22)
+shape = SubResource("RectangleShape2D_car")

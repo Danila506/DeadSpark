@@ -1,11 +1,15 @@
 extends Node2D
 const BuildingLoot = preload("res://World/Generation/building_loot_provider.gd")
 const LootPersistence = preload("res://World/Generation/loot_container_persistence.gd")
+const LootRestock = preload("res://World/Generation/loot_container_restock.gd")
 
 const INSIDE_HOUSE_GROUP: StringName = &"inside_house"
 const INSIDE_HOUSE_ANCHOR_META: StringName = &"inside_house_anchor"
+const INSIDE_HOUSE_FLOOR_META: StringName = &"inside_house_floor"
+const HOUSE_SCOPED_PICKUP_GROUP: StringName = &"house_scoped_pickup"
 const ENEMY_GROUP: StringName = &"enemy"
 const HOUSE_ENEMY_EJECT_MARGIN: float = 6.0
+const HOUSE_EXIT_FAILSAFE_MARGIN: float = 12.0
 const FLOOR_ONE: int = 1
 const FLOOR_TWO: int = 2
 const PLAYER_PRE_HOUSE_Z_INDEX_META: StringName = &"pre_house_z_index"
@@ -13,6 +17,7 @@ const PLAYER_PRE_HOUSE_Z_AS_RELATIVE_META: StringName = &"pre_house_z_as_relativ
 const PLAYER_HOUSE_Z_INDEX: int = 2000
 const INSIDE_HOUSE_Z: int = -1
 const OUTSIDE_HOUSE_Z: int = 0
+const OUTSIDE_HOUSE_OCCLUSION_Z: int = 10
 const DOOR_Z_INSIDE: int = 1
 const DOOR_Z_OUTSIDE: int = 0
 const HOUSE_SPAWN_MARKER_PREFIX: String = "SpawnMarker"
@@ -46,7 +51,7 @@ const WorldGenerationBlockerUtils = preload("res://World/world_generation_blocke
 @onready var interact_label: Label = $InteractLabel
 
 @export_range(0.01, 1.0, 0.01) var fade_duration_sec: float = 0.12
-@export_range(0.0, 1.0, 0.01) var outside_alpha_when_shadowed: float = 0.9
+@export_range(0.0, 1.0, 0.01) var outside_alpha_when_shadowed: float = 1.0
 @export_range(0.0, 128.0, 1.0) var interaction_distance: float = 52.0
 @export var bedside_slot_count: int = 2
 @export var bedside_spawn_min: int = 1
@@ -84,9 +89,11 @@ var applied_loot_manifest: LootContainerManifest
 var _loot_persistence_state := LootPersistence.STATE_UNOPENED
 var _removed_loot_slot_ids: Array[String] = []
 var legacy_random_path_used := false
+var _loot_restock_state: Dictionary = {}
 var _is_floor_transition_active: bool = false
 var _fade_layer: CanvasLayer = null
 var _fade_rect: ColorRect = null
+var _inside_player_ref: WeakRef = null
 
 
 func _ready() -> void:
@@ -116,6 +123,7 @@ func _ready() -> void:
 	var game_save_manager := _get_game_save_manager()
 	if game_save_manager != null and game_save_manager.has_method("register_persistent_node"):
 		game_save_manager.register_persistent_node(self)
+	call_deferred("_restore_loot_restock_cycle")
 
 
 func _refresh_world_generation_blocker() -> void:
@@ -168,6 +176,7 @@ func handle_primary_interaction(interactor: Node) -> bool:
 func _transition_floor() -> void:
 	await _play_floor_transition_fade(1.0)
 	current_floor = FLOOR_TWO if current_floor == FLOOR_ONE else FLOOR_ONE
+	_sync_inside_player_floor_state()
 	_update_floor_visual()
 	_update_door_visual()
 	_update_bedside_visual()
@@ -212,15 +221,51 @@ func _eject_current_overlapping_enemies() -> void:
 		_try_eject_enemy_from_house(body)
 
 
+func _physics_process(_delta: float) -> void:
+	if not player_in_house or _inside_player_ref == null:
+		return
+	var player_node := _inside_player_ref.get_ref() as Node2D
+	if player_node == null or not is_instance_valid(player_node):
+		_inside_player_ref = null
+		set_physics_process(false)
+		return
+	if not _is_point_inside_house_area(player_node.global_position):
+		_on_house_body_exited(player_node)
+
+
+func _is_point_inside_house_area(global_point: Vector2) -> bool:
+	for child in house_area.get_children():
+		var collision_shape := child as CollisionShape2D
+		if collision_shape == null or collision_shape.disabled or collision_shape.shape == null:
+			continue
+		var local_point := collision_shape.to_local(global_point)
+		if collision_shape.shape is RectangleShape2D:
+			var half_size := (collision_shape.shape as RectangleShape2D).size * 0.5
+			half_size += Vector2.ONE * HOUSE_EXIT_FAILSAFE_MARGIN
+			if Rect2(-half_size, half_size * 2.0).has_point(local_point):
+				return true
+	return false
+
+
 func _on_house_body_entered(body: Node) -> void:
 	_try_eject_enemy_from_house(body)
 	if not body.is_in_group("player"):
 		return
 
-	player_in_house = true
 	if not body.is_in_group(INSIDE_HOUSE_GROUP):
 		body.add_to_group(INSIDE_HOUSE_GROUP)
 	body.set_meta(INSIDE_HOUSE_ANCHOR_META, global_position)
+	body.set_meta(INSIDE_HOUSE_FLOOR_META, FLOOR_ONE)
+	# Every peer keeps replicas for every player, but house visuals and controls
+	# belong only to this machine's player. A remote replica entering the area
+	# must never replace the local player's current floor.
+	if not LootContainerProviderContract.is_local_interactor(body):
+		return
+
+	player_in_house = true
+	current_floor = FLOOR_ONE
+	_inside_player_ref = weakref(body)
+	set_physics_process(true)
 	if body is CanvasItem:
 		(body as CanvasItem).modulate = Color(0.72, 0.72, 0.72, 1.0)
 	if body is Node2D:
@@ -230,19 +275,36 @@ func _on_house_body_entered(body: Node) -> void:
 	_update_door_visual()
 	_update_bedside_visual()
 	_update_stairs_visual()
+	_refresh_house_pickups()
 
 
 func _on_house_body_exited(body: Node) -> void:
 	if not body.is_in_group("player"):
 		return
+	# The exterior doorway exists only on floor one. Floor two is a separate
+	# interior plane and must be left through the stairs, never through HouseArea.
+	var body_floor: int = int(body.get_meta(INSIDE_HOUSE_FLOOR_META, FLOOR_ONE))
+	if body_floor != FLOOR_ONE:
+		if LootContainerProviderContract.is_local_interactor(body):
+			player_near_door = false
+			_update_door_visual()
+			_update_stairs_visual()
+		return
 
-	player_in_house = false
-	player_near_floor_indicator = false
-	player_near_bedside = false
 	if body.is_in_group(INSIDE_HOUSE_GROUP):
 		body.remove_from_group(INSIDE_HOUSE_GROUP)
 	if body.has_meta(INSIDE_HOUSE_ANCHOR_META):
 		body.remove_meta(INSIDE_HOUSE_ANCHOR_META)
+	if body.has_meta(INSIDE_HOUSE_FLOOR_META):
+		body.remove_meta(INSIDE_HOUSE_FLOOR_META)
+	if not LootContainerProviderContract.is_local_interactor(body):
+		return
+
+	player_in_house = false
+	_inside_player_ref = null
+	set_physics_process(false)
+	player_near_floor_indicator = false
+	player_near_bedside = false
 	if body is CanvasItem:
 		(body as CanvasItem).modulate = Color.WHITE
 	if body is Node2D:
@@ -253,6 +315,7 @@ func _on_house_body_exited(body: Node) -> void:
 	_update_door_visual()
 	_update_bedside_visual()
 	_update_stairs_visual()
+	_refresh_house_pickups()
 
 
 func _force_player_visible_in_house(player_node: Node2D) -> void:
@@ -278,28 +341,28 @@ func _restore_player_visibility_state(player_node: Node2D) -> void:
 
 
 func _on_shadow_body_entered(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not LootContainerProviderContract.is_local_interactor(body):
 		return
 	player_in_shadow_zone = true
 	_update_house_visual()
 
 
 func _on_shadow_body_exited(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not LootContainerProviderContract.is_local_interactor(body):
 		return
 	player_in_shadow_zone = false
 	_update_house_visual()
 
 
 func _on_floor_indicator_body_entered(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not LootContainerProviderContract.is_local_interactor(body):
 		return
 	player_near_floor_indicator = true
 	_update_stairs_visual()
 
 
 func _on_floor_indicator_body_exited(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not LootContainerProviderContract.is_local_interactor(body):
 		return
 	player_near_floor_indicator = false
 	_update_stairs_visual()
@@ -324,7 +387,7 @@ func _on_bedside_area_body_exited(body: Node) -> void:
 
 
 func _on_door_area_body_entered(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not LootContainerProviderContract.is_local_interactor(body):
 		return
 	player_near_door = true
 	_update_door_visual()
@@ -332,7 +395,7 @@ func _on_door_area_body_entered(body: Node) -> void:
 
 
 func _on_door_area_body_exited(body: Node) -> void:
-	if not body.is_in_group("player"):
+	if not LootContainerProviderContract.is_local_interactor(body):
 		return
 	player_near_door = false
 	_update_door_visual()
@@ -343,20 +406,24 @@ func _update_house_visual() -> void:
 	outside_sprite.visible = not player_in_house
 	if outside_sprite.visible:
 		outside_sprite.modulate.a = outside_alpha_when_shadowed if player_in_shadow_zone else 1.0
-	collision_outside.process_mode = Node.PROCESS_MODE_INHERIT
+		outside_sprite.z_index = OUTSIDE_HOUSE_OCCLUSION_Z if player_in_shadow_zone else OUTSIDE_HOUSE_Z
+	collision_outside.process_mode = Node.PROCESS_MODE_INHERIT if not player_in_house else Node.PROCESS_MODE_DISABLED
 	_update_door_draw_order()
 
 
 func _update_floor_visual() -> void:
-	var show_floor1: bool = player_in_house and current_floor == FLOOR_ONE
+	# Floor one doubles as the underlay for the facade's transparent doorway.
+	# Its interactive children manage their own visibility and its collisions stay
+	# disabled until the player actually enters the house.
+	var show_floor1: bool = current_floor == FLOOR_ONE
 	var show_floor2: bool = player_in_house and current_floor == FLOOR_TWO
 
 	floor1_root.visible = show_floor1
 	floor1_sprite.visible = show_floor1
 	floor2_root.visible = show_floor2
 	floor2_sprite.visible = show_floor2
-	collision_floor1.process_mode = Node.PROCESS_MODE_INHERIT if current_floor == FLOOR_ONE else Node.PROCESS_MODE_DISABLED
-	collision_floor2.process_mode = Node.PROCESS_MODE_INHERIT if current_floor == FLOOR_TWO else Node.PROCESS_MODE_DISABLED
+	collision_floor1.process_mode = Node.PROCESS_MODE_INHERIT if player_in_house and current_floor == FLOOR_ONE else Node.PROCESS_MODE_DISABLED
+	collision_floor2.process_mode = Node.PROCESS_MODE_INHERIT if show_floor2 else Node.PROCESS_MODE_DISABLED
 
 
 func _update_door_visual() -> void:
@@ -515,7 +582,9 @@ func set_loot_persistence_state(state: String) -> void: _loot_persistence_state 
 func get_removed_loot_slot_ids() -> Array[String]: return _removed_loot_slot_ids.duplicate()
 func serialize_loot_state() -> Dictionary: return LootPersistence.serialize_provider_state(self)
 func restore_loot_state(data: Dictionary) -> Dictionary: return LootPersistence.restore_provider_state(self, data)
-func mark_loot_opened() -> Dictionary: return LootPersistence.mark_opened(self)
+func mark_loot_opened() -> Dictionary:
+	LootRestock.begin_open_cycle(self, _loot_restock_state, bedside_loot_slots)
+	return LootPersistence.mark_opened(self)
 func record_loot_slot_removed(slot_id: String) -> Dictionary: return LootPersistence.mark_slot_removed(self, slot_id)
 func record_persisted_loot_slot_removal(slot_id: String) -> Dictionary:
 	var bindings := get_loot_slot_bindings()
@@ -546,8 +615,58 @@ func _spawn_world_pickups_at_markers_if_needed() -> void:
 		item_spawner.call(
 			"spawn_random_world_pickup_at_position",
 			marker.global_position,
-			_build_spawn_marker_runtime_id(marker)
+			_build_spawn_marker_runtime_id(marker),
+			_build_pickup_visibility_scope(marker)
 		)
+
+
+func _build_pickup_visibility_scope(marker: Marker2D) -> Dictionary:
+	return {
+		"anchor": {"x": global_position.x, "y": global_position.y},
+		"floor": FLOOR_TWO if floor2_root.is_ancestor_of(marker) else FLOOR_ONE
+	}
+
+
+func _sync_inside_player_floor_state() -> void:
+	var local_player: Node = _inside_player_ref.get_ref() as Node if _inside_player_ref != null else null
+	if local_player != null and is_instance_valid(local_player):
+		local_player.set_meta(INSIDE_HOUSE_FLOOR_META, current_floor)
+		if NetworkManager != null and NetworkManager.is_client():
+			rpc_id(1, "rpc_set_peer_floor", current_floor)
+	_refresh_house_pickups()
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_set_peer_floor(requested_floor: int) -> void:
+	if NetworkManager == null or not NetworkManager.is_server():
+		return
+	if requested_floor != FLOOR_ONE and requested_floor != FLOOR_TWO:
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	var actor: Node2D = _find_player_by_peer_id(sender_id)
+	if actor == null or not actor.is_in_group(INSIDE_HOUSE_GROUP):
+		return
+	var anchor: Variant = actor.get_meta(INSIDE_HOUSE_ANCHOR_META, null)
+	if not (anchor is Vector2) or not (anchor as Vector2).is_equal_approx(global_position):
+		return
+	if not _is_point_inside_house_area(actor.global_position):
+		return
+	actor.set_meta(INSIDE_HOUSE_FLOOR_META, requested_floor)
+
+
+func _find_player_by_peer_id(target_peer_id: int) -> Node2D:
+	if target_peer_id <= 0:
+		return null
+	for candidate in get_tree().get_nodes_in_group(&"player"):
+		if candidate is Node2D and int(candidate.get("peer_id")) == target_peer_id:
+			return candidate as Node2D
+	return null
+
+
+func _refresh_house_pickups() -> void:
+	for pickup in get_tree().get_nodes_in_group(HOUSE_SCOPED_PICKUP_GROUP):
+		if pickup != null and pickup.has_method("refresh_visibility_scope"):
+			pickup.call("refresh_visibility_scope")
 
 
 func _collect_spawn_markers(root: Node) -> Array[Marker2D]:
@@ -651,11 +770,26 @@ func _get_persistent_identity() -> String:
 	return "%s|%s" % [scene_path, local_path]
 
 
+func _restore_loot_restock_cycle() -> void:
+	_loot_restock_state = LootRestock.restore_cycle(self, _loot_restock_state)
+
+
+func update_loot_restock(total_minutes: float) -> void:
+	if not LootRestock.is_restock_due(self, _loot_restock_state, bedside_loot_slots, total_minutes): return
+	var stable_id := get_loot_container_id() if world_generated_mode else _get_persistent_identity()
+	LootRestock.top_up_empty_slots(self, loot_profile, bedside_loot_slots, bedside_slot_count, stable_id, total_minutes)
+	_removed_loot_slot_ids.clear(); _loot_persistence_state = LootPersistence.STATE_OPENED
+	LootRestock.finish_cycle(self, _loot_restock_state); LootRestock.notify_network_state(self)
+	var inventory_root := get_tree().get_first_node_in_group("inventory_root")
+	if inventory_root != null and inventory_root.has_method("refresh_ui"): inventory_root.call("refresh_ui")
+
+
 func get_save_data() -> Dictionary:
 	return {
 		"door_opened": door_opened,
 		"bedside_loot_initialized": bedside_loot_initialized,
-		"bedside_loot_slots": _serialize_item_array(bedside_loot_slots)
+		"bedside_loot_slots": _serialize_item_array(bedside_loot_slots),
+		"loot_restock_state": LootRestock.serialize_cycle(_loot_restock_state, bedside_loot_slots)
 	}
 
 
@@ -664,11 +798,13 @@ func apply_save_data(save_data: Dictionary) -> void:
 	bedside_opened = false
 	bedside_loot_initialized = bool(save_data.get("bedside_loot_initialized", false))
 	bedside_loot_slots = _deserialize_item_array(save_data.get("bedside_loot_slots", []))
+	_loot_restock_state = save_data.get("loot_restock_state", {}).duplicate(true)
 	_set_bedside_loot_panel_state(false)
 	_update_house_visual()
 	_update_floor_visual()
 	_update_door_visual()
 	_update_bedside_visual()
+	call_deferred("_restore_loot_restock_cycle")
 	_update_stairs_visual()
 
 

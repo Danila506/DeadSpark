@@ -8,6 +8,9 @@ var _panel: Panel
 var _label: Label
 var _update_timer: float = 0.0
 
+const FPS_PANEL_SIZE := Vector2(132.0, 38.0)
+const NETWORK_PANEL_SIZE := Vector2(258.0, 38.0)
+
 
 func _ready() -> void:
 	layer = 110
@@ -42,7 +45,7 @@ func _build_ui() -> void:
 	_panel = Panel.new()
 	_panel.name = "Panel"
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel.custom_minimum_size = Vector2(132.0, 38.0)
+	_panel.custom_minimum_size = FPS_PANEL_SIZE
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.02, 0.025, 0.03, 0.72)
 	style.border_color = Color(0.85, 0.9, 0.95, 0.28)
@@ -77,4 +80,22 @@ func _refresh_text() -> void:
 		return
 	var fps := Engine.get_frames_per_second()
 	var frame_ms := 1000.0 / maxf(float(maxi(fps, 1)), 1.0)
-	_label.text = "FPS %d  %.1fms" % [fps, frame_ms]
+	var network_active: bool = (
+		NetworkManager != null
+		and (NetworkManager.is_client() or NetworkManager.is_server())
+	)
+	if network_active:
+		var rtt_ms: float = NetworkManager.get_rtt_ms()
+		var ping_text: String = "%dms" % int(round(rtt_ms)) if rtt_ms >= 0.0 else "--"
+		_label.text = "FPS %d  %.1fms   PING %s" % [fps, frame_ms, ping_text]
+		_set_panel_size(NETWORK_PANEL_SIZE)
+	else:
+		_label.text = "FPS %d  %.1fms" % [fps, frame_ms]
+		_set_panel_size(FPS_PANEL_SIZE)
+
+
+func _set_panel_size(target_size: Vector2) -> void:
+	if _panel == null or _panel.custom_minimum_size == target_size:
+		return
+	_panel.custom_minimum_size = target_size
+	_layout_ui()

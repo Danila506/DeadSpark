@@ -8,7 +8,6 @@ atlas = ExtResource("1_xcyl2")
 region = Rect2(149, 13, 60, 87)
 
 [node name="Ruins2" type="Node2D" unique_id=1764542813]
-scale = Vector2(2, 2)
 script = ExtResource("2_ruins_loot")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=459095358]

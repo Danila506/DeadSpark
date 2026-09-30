@@ -94,6 +94,7 @@ const DEFAULT_WORLD_CHUNKS_AXIS: int = 6
 @export var blocked_node_paths: Array[NodePath] = []
 @export var blocker_group_name: StringName = &"world_generation_blocker"
 @export var blocked_node_radius_px: float = 120.0
+@export var preserve_tiles_under_world_generation_blockers: bool = false
 @export var avoid_physics_collision: bool = false
 @export var physics_collision_padding_px: float = 0.0
 @export var avoid_layer_path: NodePath

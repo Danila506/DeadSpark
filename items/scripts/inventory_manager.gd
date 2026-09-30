@@ -57,6 +57,35 @@ func set_equipped(slot_type: int, item: ItemData) -> void:
 	equipment_changed.emit(slot_type, item)
 
 
+func equip_charged_thermal_vision_if_cap_empty(
+	provider_definition: ItemData,
+	battery_definition: ItemData
+) -> bool:
+	if get_equipped(ItemData.ItemType.Cap) != null:
+		return false
+	if (
+		provider_definition == null
+		or not provider_definition.enables_thermal_vision
+		or not provider_definition.accepts_thermal_battery
+		or battery_definition == null
+		or not battery_definition.is_battery_item
+	):
+		return false
+	var provider: ItemData = provider_definition.create_instance(1, provider_definition.endurance)
+	var battery: ItemData = battery_definition.create_instance(1, battery_definition.endurance)
+	if provider == null or battery == null:
+		return false
+	provider.runtime_storage_items.resize(maxi(provider.runtime_storage_items.size(), 1))
+	battery.battery_max_charge_seconds = maxf(
+		battery.battery_max_charge_seconds,
+		battery_definition.battery_max_charge_seconds
+	)
+	battery.battery_charge_seconds = battery.battery_max_charge_seconds
+	provider.runtime_storage_items[0] = battery
+	set_equipped(ItemData.ItemType.Cap, provider)
+	return true
+
+
 func apply_endurance_percent_loss_to_equipped(slot_type: int, percent_loss: float) -> bool:
 	var item: ItemData = get_equipped(slot_type)
 	if item == null:
@@ -100,6 +129,27 @@ func apply_damage_to_equipped_clothing(damage_amount: float, damage_type: int = 
 		set_equipped(slot_type, null)
 		item_broken.emit(slot_type, clothing_item)
 		endurance_loss_remainder_by_item_id.erase(_get_runtime_item_key(clothing_item))
+
+
+func apply_endurance_percent_loss_to_equipped_clothing(percent_loss: float) -> bool:
+	var safe_percent_loss := maxf(percent_loss, 0.0)
+	if safe_percent_loss <= 0.0:
+		return false
+	var changed := false
+	for slot_type in _get_clothing_slot_types():
+		var clothing_item: ItemData = get_equipped(slot_type)
+		if not _is_valid_equipped_clothing(clothing_item):
+			continue
+		if not _consume_item_endurance_percent(clothing_item, safe_percent_loss):
+			continue
+		changed = true
+		if clothing_item.endurance > 0:
+			equipment_changed.emit(slot_type, clothing_item)
+			continue
+		set_equipped(slot_type, null)
+		item_broken.emit(slot_type, clothing_item)
+		endurance_loss_remainder_by_item_id.erase(_get_runtime_item_key(clothing_item))
+	return changed
 
 
 func get_equipped_clothing_warmth() -> float:
@@ -303,6 +353,56 @@ func clear_network_peer_inventory(peer_id: int) -> void:
 	network_inventory_by_peer.erase(peer_id)
 
 
+func drain_network_peer_inventory_for_death(peer_id: int) -> Array[ItemData]:
+	if peer_id <= 1 or not network_inventory_by_peer.has(peer_id):
+		return []
+	var state: Dictionary = network_inventory_by_peer.get(peer_id, {})
+	var peer_equipped: Dictionary = state.get("equipped", {})
+	var drops: Array[ItemData] = []
+	var seen: Dictionary = {}
+	var slot_types: Array = peer_equipped.keys()
+	slot_types.sort()
+	for raw_slot_type in slot_types:
+		_detach_item_tree_for_death_drop(peer_equipped.get(raw_slot_type, null) as ItemData, drops, seen)
+	network_inventory_by_peer.erase(peer_id)
+	return drops
+
+
+func drain_local_inventory_for_death() -> Array[ItemData]:
+	var drops: Array[ItemData] = []
+	var seen: Dictionary = {}
+	var slot_types: Array = equipped.keys()
+	slot_types.sort()
+	for raw_slot_type in slot_types:
+		_detach_item_tree_for_death_drop(equipped.get(raw_slot_type, null) as ItemData, drops, seen)
+	equipped.clear()
+	weapon_runtime_state.clear()
+	active_weapon_slot = ItemData.ItemType.AR_Weapon
+	endurance_loss_remainder_by_item_id.clear()
+	for slot_type in range(ItemData.ItemType.size()):
+		equipment_changed.emit(slot_type, null)
+	return drops
+
+
+func _detach_item_tree_for_death_drop(
+	item: ItemData,
+	drops: Array[ItemData],
+	seen: Dictionary
+) -> void:
+	if item == null:
+		return
+	var instance_id: int = item.get_instance_id()
+	if seen.has(instance_id):
+		return
+	seen[instance_id] = true
+	var stored_items: Array[ItemData] = item.runtime_storage_items.duplicate()
+	for index in range(item.runtime_storage_items.size()):
+		item.runtime_storage_items[index] = null
+	drops.append(item)
+	for stored_item in stored_items:
+		_detach_item_tree_for_death_drop(stored_item, drops, seen)
+
+
 func has_network_peer_inventory(peer_id: int) -> bool:
 	return network_inventory_by_peer.has(peer_id)
 
@@ -357,6 +457,32 @@ func apply_damage_to_network_peer_equipped_clothing(peer_id: int, damage_amount:
 			state["active_weapon_slot"] = _resolve_active_weapon_slot(peer_equipped, int(state.get("active_weapon_slot", slot_type)))
 			network_inventory_by_peer[peer_id] = state
 			endurance_loss_remainder_by_item_id.erase(_get_runtime_item_key(clothing_item))
+	return changed
+
+
+func apply_endurance_percent_loss_to_network_peer_equipped_clothing(peer_id: int, percent_loss: float) -> bool:
+	if not network_inventory_by_peer.has(peer_id):
+		return false
+	var safe_percent_loss := maxf(percent_loss, 0.0)
+	if safe_percent_loss <= 0.0:
+		return false
+	var state: Dictionary = network_inventory_by_peer.get(peer_id, {})
+	var peer_equipped: Dictionary = state.get("equipped", {})
+	var changed := false
+	for slot_type in _get_clothing_slot_types():
+		var clothing_item := peer_equipped.get(slot_type, null) as ItemData
+		if not _is_valid_equipped_clothing(clothing_item):
+			continue
+		if not _consume_item_endurance_percent(clothing_item, safe_percent_loss):
+			continue
+		changed = true
+		if clothing_item.endurance <= 0:
+			peer_equipped[slot_type] = null
+			endurance_loss_remainder_by_item_id.erase(_get_runtime_item_key(clothing_item))
+	if changed:
+		state["equipped"] = peer_equipped
+		state["active_weapon_slot"] = _resolve_active_weapon_slot(peer_equipped, int(state.get("active_weapon_slot", ItemData.ItemType.AR_Weapon)))
+		network_inventory_by_peer[peer_id] = state
 	return changed
 
 

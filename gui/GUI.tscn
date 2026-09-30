@@ -281,9 +281,8 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_i5qfe")
 [node name="EverythingCategory" type="TextureButton" parent="InventoryRoot/InventoryContent/NavCraft/CategoryPanel" unique_id=2121018462]
 layout_mode = 0
 offset_left = 4.0
-offset_top = 4.0
 offset_right = 36.0
-offset_bottom = 32.0
+offset_bottom = 28.0
 scale = Vector2(2, 2)
 texture_normal = SubResource("AtlasTexture_u1048")
 texture_pressed = SubResource("AtlasTexture_yj5lj")
@@ -291,9 +290,8 @@ texture_pressed = SubResource("AtlasTexture_yj5lj")
 [node name="BuildCategory" type="TextureButton" parent="InventoryRoot/InventoryContent/NavCraft/CategoryPanel" unique_id=1587748476]
 layout_mode = 0
 offset_left = 72.0
-offset_top = 4.0
 offset_right = 116.0
-offset_bottom = 32.0
+offset_bottom = 28.0
 scale = Vector2(2, 2)
 texture_normal = SubResource("AtlasTexture_0ssh3")
 texture_pressed = SubResource("AtlasTexture_vuuul")
@@ -301,9 +299,8 @@ texture_pressed = SubResource("AtlasTexture_vuuul")
 [node name="WeaponCategory" type="TextureButton" parent="InventoryRoot/InventoryContent/NavCraft/CategoryPanel" unique_id=879877245]
 layout_mode = 0
 offset_left = 164.0
-offset_top = 4.0
 offset_right = 208.0
-offset_bottom = 32.0
+offset_bottom = 28.0
 scale = Vector2(2, 2)
 texture_normal = SubResource("AtlasTexture_avtpy")
 texture_pressed = SubResource("AtlasTexture_4wehr")
@@ -311,14 +308,14 @@ texture_pressed = SubResource("AtlasTexture_4wehr")
 [node name="MedicineCategory" type="TextureButton" parent="InventoryRoot/InventoryContent/NavCraft/CategoryPanel" unique_id=925010608]
 layout_mode = 0
 offset_left = 256.0
-offset_top = 4.0
 offset_right = 300.0
-offset_bottom = 32.0
+offset_bottom = 28.0
 scale = Vector2(2, 2)
 texture_normal = SubResource("AtlasTexture_emul6")
 texture_pressed = SubResource("AtlasTexture_cqpw8")
 
 [node name="NavInv" type="Control" parent="InventoryRoot/InventoryContent" unique_id=790611624]
+visible = false
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
@@ -732,6 +729,7 @@ offset_right = 325.0
 offset_bottom = 479.0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_me6xb")
 slot_type = 3
+
 [node name="TextureRect" type="TextureRect" parent="InventoryRoot/InventoryContent/NavInv/Jacket" unique_id=1551631605]
 visible = false
 layout_mode = 0
@@ -1084,6 +1082,7 @@ texture_normal = SubResource("AtlasTexture_5srsr")
 texture_pressed = SubResource("AtlasTexture_ns5j5")
 
 [node name="NavMap" type="Control" parent="InventoryRoot/InventoryContent" unique_id=1374612296]
+visible = false
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
@@ -1113,12 +1112,12 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_op05d")
 
 [node name="BoxLutPanel" type="TextureRect" parent="InventoryRoot/InventoryContent/Lut/Lut" unique_id=993013691]
 layout_mode = 0
-mouse_filter = 2
 offset_left = -24.0
 offset_top = -20.0
 offset_right = 89.0
 offset_bottom = 178.0
 scale = Vector2(2, 2)
+mouse_filter = 2
 texture = SubResource("AtlasTexture_wuh21")
 
 [node name="CenterContainer" type="CenterContainer" parent="InventoryRoot/InventoryContent/Lut/Lut" unique_id=455976980]
@@ -1140,12 +1139,12 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_mhyt1")
 
 [node name="BanditLutPanel" type="TextureRect" parent="InventoryRoot/InventoryContent/Lut/BanditLut" unique_id=1096830120]
 layout_mode = 0
-mouse_filter = 2
 offset_left = -376.88574
 offset_top = -16.0
 offset_right = -263.88574
 offset_bottom = 182.0
 scale = Vector2(2, 2)
+mouse_filter = 2
 texture = SubResource("AtlasTexture_5nu5h")
 
 [node name="CenterContainer" type="CenterContainer" parent="InventoryRoot/InventoryContent/Lut/BanditLut" unique_id=349083188]

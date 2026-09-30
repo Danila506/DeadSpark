@@ -9,6 +9,9 @@ extends Resource
 ## entries or slots. Bunker content uses this rather than a bunker special case.
 @export var explicit_empty := false
 @export var slot_ids: Array[String] = []
+## Optional weight per populated slot count (index 0 means zero items).  An
+## empty array preserves the legacy behavior and fills every authored slot.
+@export var slot_count_weights: Array[float] = []
 @export var entries: Array[LootEntry] = []
 
 func validate() -> Dictionary:
@@ -20,6 +23,17 @@ func validate() -> Dictionary:
 		if slot_id.is_empty(): errors.append("MISSING_SLOT_ID")
 		elif slot_seen.has(slot_id): errors.append("DUPLICATE_SLOT_ID:%s" % slot_id)
 		slot_seen[slot_id] = true
+	if not slot_count_weights.is_empty():
+		if slot_count_weights.size() != slot_ids.size() + 1:
+			errors.append("INVALID_SLOT_COUNT_WEIGHTS_SIZE")
+		var has_positive_weight := false
+		for count in range(slot_count_weights.size()):
+			var weight := slot_count_weights[count]
+			if weight < 0.0: errors.append("NEGATIVE_SLOT_COUNT_WEIGHT:%d" % count)
+			if weight > 0.0: has_positive_weight = true
+		if not has_positive_weight: errors.append("SLOT_COUNT_WEIGHTS_REQUIRE_POSITIVE_WEIGHT")
+		if not allow_empty and slot_count_weights[0] > 0.0:
+			errors.append("ZERO_SLOT_COUNT_REQUIRES_ALLOW_EMPTY")
 	for entry in entries:
 		if entry == null:
 			errors.append("MISSING_ENTRY")
@@ -45,4 +59,8 @@ func canonical_record() -> Dictionary:
 	for entry in entries:
 		if entry != null: canonical_entries.append(entry.canonical_record())
 	canonical_entries.sort_custom(func(a: Dictionary, b: Dictionary): return String(a.entry_id) < String(b.entry_id))
-	return {"profile_id": profile_id, "enabled": enabled, "allow_empty": allow_empty, "explicit_empty": explicit_empty, "slot_ids": canonical_slots, "entries": canonical_entries}
+	var result := {"profile_id": profile_id, "enabled": enabled, "allow_empty": allow_empty, "explicit_empty": explicit_empty, "slot_ids": canonical_slots, "entries": canonical_entries}
+	# Keep hashes of legacy profiles stable when they do not opt into variable
+	# item counts.
+	if not slot_count_weights.is_empty(): result["slot_count_weights"] = slot_count_weights.duplicate()
+	return result

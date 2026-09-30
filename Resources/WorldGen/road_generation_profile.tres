@@ -1,40 +1,6 @@
-[gd_resource type="Resource" script_class="RoadGenerationProfile" format=3]
+[gd_resource type="Resource" script_class="RoadGenerationProfile" format=3 uid="uid://oauluwdgmqtx"]
 
-[ext_resource type="Script" path="res://World/Generation/road_generation_profile.gd" id="1"]
+[ext_resource type="Script" uid="uid://dsotjhe2tk82d" path="res://World/Generation/road_generation_profile.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
-stable_id = "road_v1_default"
-revision = 2
-road_seed_domain = "roads/v1_1"
-primary_anchor_count = 2
-boundary_margin_cells = 4
-minimum_anchor_spacing_cells = 24
-primary_anchor_pair_modes = ["west:east", "north:south", "west:north", "west:south", "east:north", "east:south", "north:east", "south:west"]
-min_primary_bends = 2
-max_primary_bends = 4
-min_segment_length = 8
-max_segment_length = 36
-turn_spacing = 8
-max_route_attempts = 8
-min_branches = 1
-max_branches = 3
-branch_attempts = 16
-branch_length_min_cells = 8
-branch_length_max_cells = 18
-branch_junction_buffer_cells = 5
-branch_border_buffer_cells = 5
-branch_start_spacing_cells = 10
-max_route_search_cells = 24000
-source_id = 0
-vertical_atlas = Vector2i(0, 0)
-horizontal_atlas = Vector2i(0, 1)
-corner_up_left_atlas = Vector2i(3, 1)
-corner_up_right_atlas = Vector2i(2, 1)
-corner_down_left_atlas = Vector2i(1, 1)
-corner_down_right_atlas = Vector2i(4, 1)
-t_missing_up_atlas = Vector2i(5, 0)
-t_missing_down_atlas = Vector2i(2, 0)
-t_missing_left_atlas = Vector2i(4, 0)
-t_missing_right_atlas = Vector2i(3, 0)
-cross_atlas = Vector2i(1, 0)

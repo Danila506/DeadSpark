@@ -1,5 +1,8 @@
 extends Node2D
 
+signal startup_loading_progress(progress: float, status: String)
+signal startup_loading_finished
+
 const MOBILE_CONTROLS_SCENE: PackedScene = preload("res://Smartphone/mobile_controls.tscn")
 const MOBILE_PROFILER_OVERLAY_SCRIPT = preload("res://Autoloads/mobile_profiler_overlay.gd")
 const MAX_GENERATION_DRAIN_ROUNDS: int = 64
@@ -60,6 +63,8 @@ const PARACHUTE_SPAWN_NODE_NAME: StringName = &"ParachuteSpawn"
 @export var show_mobile_profiler_overlay: bool = false
 @export var world_generation_root_path: NodePath = NodePath("WorldGeneration")
 @export_range(1, 512, 1) var startup_preload_chunk_budget: int = 24
+# Kept under its serialized name for scene compatibility; the orchestrator now
+# treats this as the maximum consecutive frames without generation progress.
 @export_range(30, 2000, 1) var startup_preload_max_frames: int = 420
 @export_range(1, 420, 1) var startup_spawner_preload_max_frames: int = 120
 @export_range(1.0, 33.0, 0.5) var startup_preload_frame_time_budget_ms: float = 7.0
@@ -81,11 +86,11 @@ const PARACHUTE_SPAWN_NODE_NAME: StringName = &"ParachuteSpawn"
 var _player: Node2D
 var _cached_world_bounds: Rect2 = Rect2()
 var _layer_max_tile_span_by_id := {}
-var _loading_canvas: CanvasLayer
-var _loading_label: Label
 var _startup_paused_generators: Array[Node] = []
 var _startup_gameplay_process_modes: Dictionary = {}
 var _startup_is_continue_load: bool = false
+var _startup_loading_progress_value: float = 0.0
+var _startup_loading_is_finished: bool = false
 var _mobile_controls: MobileControls
 var _mobile_profiler_overlay: MobileProfilerOverlay
 var _day_night_canvas_modulate: CanvasModulate
@@ -96,7 +101,7 @@ var _day_night_update_timer: float = 0.0
 func _ready() -> void:
 	_startup_is_continue_load = _consume_continue_load_hint()
 	if startup_loading_enabled:
-		_create_loading_overlay()
+		_set_startup_loading_progress(0.0, "Загрузка мира...")
 		_set_startup_world_visible(false)
 		_set_startup_gameplay_processing(false)
 		await _preload_world_generation()
@@ -113,63 +118,16 @@ func _ready() -> void:
 
 	if startup_loading_enabled:
 		_set_startup_world_visible(true)
-		_destroy_loading_overlay()
 
 	_setup_mobile_controls()
 	_setup_mobile_profiler_overlay()
+	_startup_loading_is_finished = true
+	_set_startup_loading_progress(1.0, "Готово")
+	startup_loading_finished.emit()
 
 
 func _process(delta: float) -> void:
 	_update_day_night_cycle(delta)
-
-
-func _create_loading_overlay() -> void:
-	if _loading_canvas != null:
-		return
-	_loading_canvas = CanvasLayer.new()
-	_loading_canvas.name = "StartupLoadingLayer"
-	_loading_canvas.layer = 120
-	add_child(_loading_canvas)
-
-	var root := Control.new()
-	root.name = "Root"
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.offset_left = 0.0
-	root.offset_top = 0.0
-	root.offset_right = 0.0
-	root.offset_bottom = 0.0
-	_loading_canvas.add_child(root)
-
-	var shade := ColorRect.new()
-	shade.name = "Shade"
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shade.offset_left = 0.0
-	shade.offset_top = 0.0
-	shade.offset_right = 0.0
-	shade.offset_bottom = 0.0
-	shade.color = Color(0.02, 0.02, 0.03, 1.0)
-	root.add_child(shade)
-
-	_loading_label = Label.new()
-	_loading_label.name = "LoadingLabel"
-	_loading_label.text = "Загрузка мира..."
-	_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_loading_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_loading_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_loading_label.offset_left = 0.0
-	_loading_label.offset_top = 0.0
-	_loading_label.offset_right = 0.0
-	_loading_label.offset_bottom = 0.0
-	_loading_label.add_theme_font_size_override("font_size", 30)
-	_loading_label.add_theme_color_override("font_color", Color(0.92, 0.93, 0.96, 1.0))
-	root.add_child(_loading_label)
-
-
-func _destroy_loading_overlay() -> void:
-	if _loading_canvas != null and is_instance_valid(_loading_canvas):
-		_loading_canvas.queue_free()
-	_loading_canvas = null
-	_loading_label = null
 
 
 ## Generation now yields frames; hidden gameplay must not advance during loading.
@@ -197,9 +155,20 @@ func _set_startup_world_visible(is_visible: bool) -> void:
 
 
 func _set_loading_status(text: String) -> void:
-	if _loading_label == null:
-		return
-	_loading_label.text = text
+	startup_loading_progress.emit(_startup_loading_progress_value, text)
+
+
+func _set_startup_loading_progress(progress: float, status: String) -> void:
+	_startup_loading_progress_value = clampf(progress, 0.0, 1.0)
+	startup_loading_progress.emit(_startup_loading_progress_value, status)
+
+
+func is_startup_loading_finished() -> bool:
+	return _startup_loading_is_finished
+
+
+func get_startup_loading_progress() -> float:
+	return _startup_loading_progress_value
 
 
 func _preload_world_generation() -> void:
@@ -212,7 +181,7 @@ func _preload_world_generation() -> void:
 		scheduler_was_enabled = bool(generation_scheduler.get("enabled"))
 		generation_scheduler.set("enabled", false)
 	if world_generation_root.has_method("generate_startup"):
-		_set_loading_status("Генерация мира...")
+		_set_startup_loading_progress(0.08, "Генерация мира...")
 		await world_generation_root.call(
 			"generate_startup",
 			startup_preload_chunk_budget,
@@ -220,6 +189,7 @@ func _preload_world_generation() -> void:
 		)
 		if generation_scheduler != null and is_instance_valid(generation_scheduler):
 			generation_scheduler.set("enabled", scheduler_was_enabled)
+		_set_startup_loading_progress(0.94, "Подготовка игрового мира...")
 		return
 
 	var tile_sources: Array[Node] = []
@@ -243,6 +213,7 @@ func _preload_world_generation() -> void:
 		-1,
 		_startup_is_continue_load
 	)
+	_set_startup_loading_progress(0.68, "Размещение объектов...")
 	_resume_world_generation_processing_for(tile_sources)
 	if not (_startup_is_continue_load and startup_fast_continue_loading_enabled):
 		await _drain_world_generation_sources_in_order(
@@ -262,6 +233,7 @@ func _preload_world_generation() -> void:
 		if spawner.has_method("revalidate_loaded_spawns"):
 			spawner.call("revalidate_loaded_spawns", false)
 	_resume_world_generation_processing()
+	_set_startup_loading_progress(0.94, "Подготовка игрового мира...")
 	if generation_scheduler != null and is_instance_valid(generation_scheduler):
 		generation_scheduler.set("enabled", scheduler_was_enabled)
 

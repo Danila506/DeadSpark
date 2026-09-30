@@ -56,6 +56,12 @@ size = Vector2(26.247147, 1.2902527)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_rjjr1"]
 size = Vector2(41.68712, 20.915178)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_floor2_horizontal_boundary"]
+size = Vector2(121, 3)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_floor2_vertical_boundary"]
+size = Vector2(3, 75)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_h2fw3"]
 atlas = ExtResource("1_4pgvp")
 region = Rect2(200, 325, 163, 158)
@@ -201,6 +207,7 @@ shape = SubResource("RectangleShape2D_bedside_area")
 position = Vector2(31.389076, 47.18895)
 
 [node name="floor2" type="Node2D" parent="." unique_id=374441211]
+visible = false
 
 [node name="HouseInside2floor" type="Sprite2D" parent="floor2" unique_id=805829250]
 position = Vector2(5.849716, 18.014595)
@@ -231,6 +238,22 @@ shape = SubResource("RectangleShape2D_3dpuo")
 [node name="CollisionShape2D5" type="CollisionShape2D" parent="floor2/StaticBody2D" unique_id=1876566122]
 position = Vector2(-31.863964, 9.650239)
 shape = SubResource("RectangleShape2D_rjjr1")
+
+[node name="ExitBoundaryTop" type="CollisionShape2D" parent="floor2/StaticBody2D"]
+position = Vector2(6.5, -1.5)
+shape = SubResource("RectangleShape2D_floor2_horizontal_boundary")
+
+[node name="ExitBoundaryBottom" type="CollisionShape2D" parent="floor2/StaticBody2D"]
+position = Vector2(6.5, 73)
+shape = SubResource("RectangleShape2D_floor2_horizontal_boundary")
+
+[node name="ExitBoundaryLeft" type="CollisionShape2D" parent="floor2/StaticBody2D"]
+position = Vector2(-54, 35.75)
+shape = SubResource("RectangleShape2D_floor2_vertical_boundary")
+
+[node name="ExitBoundaryRight" type="CollisionShape2D" parent="floor2/StaticBody2D"]
+position = Vector2(67, 35.75)
+shape = SubResource("RectangleShape2D_floor2_vertical_boundary")
 
 [node name="SpawnMarker" type="Marker2D" parent="floor2" unique_id=170306725]
 position = Vector2(28.861107, 26.122452)

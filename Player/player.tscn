@@ -21,6 +21,7 @@
 [ext_resource type="AudioStream" uid="uid://b8cli6q0vscgi" path="res://Assets/AudioWaw/WeaponSounds/akp_52/akp_52.wav" id="18_b1ygp"]
 [ext_resource type="AudioStream" uid="uid://dcg2ab33xh1pt" path="res://Assets/AudioWaw/WeaponSounds/Kar92LReload.wav" id="18_n471f"]
 [ext_resource type="AudioStream" uid="uid://bt8yqg5v0uh7g" path="res://Assets/AudioWaw/WeaponSounds/akp_52/akp_52_reload.wav" id="19_o28un"]
+[ext_resource type="PackedScene" uid="uid://c4e3xuoh0vdee" path="res://Enemies/AI/enemy_hurtbox.tscn" id="99_hurtbox"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_hhxpw"]
 atlas = ExtResource("2_btcbx")
@@ -2491,13 +2492,14 @@ script = ExtResource("1_onrkg")
 passive_regen_per_sec = 3.0
 bleeding_damage_amount = 3.0
 bleeding_damage_interval = 3.0
+speed = 90.0
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2077669749]
 zoom = Vector2(2, 2)
 
 [node name="BodySprite" type="AnimatedSprite2D" parent="." unique_id=175970804]
 sprite_frames = SubResource("SpriteFrames_1jxqw")
-animation = &"Left"
+animation = &"Using"
 offset = Vector2(0, -15.105)
 metadata/_aseprite_wizard_interface_config_ = {
 "animation_section": true,
@@ -2602,6 +2604,9 @@ position = Vector2(0, -2)
 scale = Vector2(0.395, 0.165)
 shape = SubResource("CircleShape2D_lfmf2")
 
+[node name="Hurtbox" parent="." unique_id=87098797 instance=ExtResource("99_hurtbox")]
+position = Vector2(0, -15)
+
 [node name="BulletSpawnSFX" type="AudioStreamPlayer2D" parent="." unique_id=527102165]
 
 [node name="Muzzles" type="Node2D" parent="." unique_id=1626668458]
@@ -2627,12 +2632,12 @@ offset_right = 16.0
 offset_bottom = -29.0
 
 [node name="ActionBarFill" type="TextureProgressBar" parent="ActionBarRoot" unique_id=1762220649]
-step = 0.0
 layout_mode = 0
 offset_left = 4.0
 offset_top = 6.5
 offset_right = 35.0
 offset_bottom = 9.5
+step = 0.0
 texture_under = ExtResource("13_gu6f8")
 texture_progress = ExtResource("14_dkpta")
 texture_progress_offset = Vector2(1, 1)

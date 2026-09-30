@@ -8,27 +8,32 @@ const POI_SCRIPT := preload("res://World/Generation/poi_placement_pass.gd")
 const ROAD_TILESET := preload("res://Assets/World/Roads/RoadTileSet.tres")
 const SEEDS := [1337, 7331, 15885, 1001, 2026, 99999]
 const BOUNDS := Rect2i(Vector2i(-48, -48), Vector2i(96, 96))
+const ROAD_BOUNDS := Rect2i(Vector2i(-11, -11), Vector2i(23, 23))
 const DIRECTORY := "res://tests/artifacts/block_c"
+
+class SeedSource extends Node:
+	var seed := 0
+	func get_debug_world_generation_info() -> Dictionary: return {"seed":seed,"chunk_size_tiles":16,"world_min_chunk":Vector2i(-3,-3),"world_max_chunk":Vector2i(2,2)}
 
 func _ready() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIRECTORY))
-	var first := await _collect_run()
-	var second := await _collect_run()
+	var first := await _collect_run(true)
+	var second := await _collect_run(false)
 	_assert(GenerationHashes.sha256_of(first) == GenerationHashes.sha256_of(second), "two fixed-seed matrix runs must match")
 	var file := FileAccess.open(ProjectSettings.globalize_path(DIRECTORY + "/fixed_seed_matrix.json"), FileAccess.WRITE)
 	file.store_string(JSON.stringify(first, "\t"))
 	print("BLOCK_C_MATRIX=PASS rows=%d hash=%s" % [first.size(), GenerationHashes.sha256_of(first)])
 	get_tree().quit(0)
 
-func _collect_run() -> Array[Dictionary]:
+func _collect_run(export_previews: bool) -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
 	for seed in SEEDS:
 		var row := await _generate_seed(seed)
 		rows.append(row)
-		_export_preview(seed, row)
+		if export_previews and seed == SEEDS[0]: _export_preview(seed, row)
 	return rows
 
 func _generate_seed(seed: int) -> Dictionary:
@@ -45,6 +50,10 @@ func _generate_seed(seed: int) -> Dictionary:
 	var generation := Node.new()
 	generation.name = "Generation"
 	world.add_child(generation)
+	var source := SeedSource.new()
+	source.name = "ChunkWorldGenerator"
+	source.seed = seed
+	generation.add_child(source)
 	var road := ROAD_PASS_SCRIPT.new() as RoadGraphPass
 	road.name = "RoadGraphPass"
 	road.profile = PROFILE
@@ -58,12 +67,17 @@ func _generate_seed(seed: int) -> Dictionary:
 	poi.template = TEMPLATE
 	generation.add_child(poi)
 	await get_tree().process_frame
-	road.build_graph_for_inputs(BOUNDS, seed)
+	poi.run_generation_pass()
+	var connector_cells: Array[Vector2i] = []
+	for connector_world in poi.get_connector_world_positions(): connector_cells.append(road_layer.local_to_map(connector_world))
+	road.build_graph_for_inputs(road._resolve_world_cell_bounds(), seed, {}, connector_cells)
+	_assert(road.graph != null and road.graph.primary_bend_count > 4, "seed %d must use an irregular village road loop" % seed)
 	road.graph_hash = GenerationHashes.sha256_of(road.graph.canonical_manifest())
 	raster.run_generation_pass()
-	poi.run_generation_pass()
+	poi.import_road_claims_after_raster()
 	await get_tree().process_frame
 	var output := poi.get_generation_output_manifest()
+	_assert((output.accepted as Array).size() >= PROFILE.minimum_village_count, "seed %d must place at least two connected villages" % seed)
 	var selected := {}
 	for child in ysort.get_children():
 		if child is VillageGenerator:
@@ -89,13 +103,17 @@ func _export_preview(seed: int, row: Dictionary) -> void:
 	image.fill(Color("172027"))
 	for road_cell in row.road_cells:
 		var cell := road_cell as Vector2i
-		image.fill_rect(Rect2i((cell - BOUNDS.position) * scale, Vector2i(scale, scale)), Color("6c8fb3"))
+		var world_center := Vector2(cell * 256) + Vector2.ONE * 128.0
+		var occupancy_cell := Vector2i((world_center / 60.0).floor())
+		image.fill_rect(Rect2i((occupancy_cell - BOUNDS.position) * scale, Vector2i(scale, scale)), Color("6c8fb3"))
 	for candidate in row.candidates:
 		var data := candidate as Dictionary
 		var cell: Vector2i = data.road_cell
+		var world_center := Vector2(cell * 256) + Vector2.ONE * 128.0
+		var occupancy_cell := Vector2i((world_center / 60.0).floor())
 		var status := String(data.status)
 		var color := Color("e0a13b") if status == PoiPlacementPass.ACCEPTED else Color("b85a58")
-		image.fill_rect(Rect2i((cell - BOUNDS.position) * scale, Vector2i(scale, scale)), color)
+		image.fill_rect(Rect2i((occupancy_cell - BOUNDS.position) * scale, Vector2i(scale, scale)), color)
 	for accepted in row.accepted:
 		var pos: Vector2 = (accepted as Dictionary).world_position
 		var top_left := Vector2i(floori(pos.x / 60.0), floori(pos.y / 60.0)) - BOUNDS.position
@@ -104,7 +122,7 @@ func _export_preview(seed: int, row: Dictionary) -> void:
 		image.fill_rect(Rect2i(rect.position + Vector2i(0, rect.size.y - 1), Vector2i(rect.size.x, 1)), Color("68d391"))
 		image.fill_rect(Rect2i(rect.position, Vector2i(1, rect.size.y)), Color("68d391"))
 		image.fill_rect(Rect2i(rect.position + Vector2i(rect.size.x - 1, 0), Vector2i(1, rect.size.y)), Color("68d391"))
-	image.save_png(ProjectSettings.globalize_path("%s/block_c_%d.png" % [DIRECTORY, seed]))
+	image.save_png(ProjectSettings.globalize_path("%s/village_loop_v2_%d.png" % [DIRECTORY, seed]))
 
 func _assert(condition: bool, message: String) -> void:
 	if not condition:

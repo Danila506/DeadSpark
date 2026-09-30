@@ -2,6 +2,7 @@ extends RefCounted
 class_name PlayerBloodEffectsController
 
 const BLEEDING_EFFECT_FRAMES: SpriteFrames = preload("res://Resources/Effects/Bloody.tres")
+const BloodRenderOrder = preload("res://Effects/blood_render_order.gd")
 
 var player
 
@@ -52,7 +53,7 @@ func spawn_bleeding_trail_mark() -> void:
 	blood_mark.z_as_relative = false
 	blood_mark.scale = player.bleeding_trail_scale
 	blood_mark.modulate = Color(1.0, 1.0, 1.0, 0.95)
-	blood_mark.z_index = player.bleeding_trail_z_index
+	blood_mark.z_index = BloodRenderOrder.sanitize_blood_z_index(player.bleeding_trail_z_index)
 	blood_mark.global_position = player.global_position + player.bleeding_trail_offset + Vector2(
 		randf_range(-player.bleeding_trail_random_radius, player.bleeding_trail_random_radius),
 		randf_range(-player.bleeding_trail_random_radius, player.bleeding_trail_random_radius)
@@ -107,7 +108,7 @@ func spawn_hit_blood(source: Node, hit_context: Dictionary = {}) -> void:
 	blood_sprite.animation = animation_name
 	blood_sprite.global_position = hit_position
 	blood_sprite.scale = player.hit_blood_effect_scale
-	blood_sprite.z_index = player.hit_blood_z_index
+	blood_sprite.z_index = BloodRenderOrder.sanitize_blood_z_index(player.hit_blood_z_index)
 	blood_sprite.flip_h = away_direction.x < 0.0
 	blood_sprite.flip_v = abs(away_direction.y) > abs(away_direction.x) and away_direction.y < 0.0
 	if blood_sprite.get_parent() == null:

@@ -5,10 +5,17 @@ extends Area2D
 
 const BELOW_PLAYER_Z_INDEX: int = -1
 const NETWORK_PICKUP_DISTANCE_MAX: float = 96.0
+const INSIDE_HOUSE_GROUP: StringName = &"inside_house"
+const INSIDE_HOUSE_ANCHOR_META: StringName = &"inside_house_anchor"
+const INSIDE_HOUSE_FLOOR_META: StringName = &"inside_house_floor"
+const HOUSE_SCOPED_PICKUP_GROUP: StringName = &"house_scoped_pickup"
 
 var player_in_range: bool = false
 var _network_pickup_locked: bool = false
 var _removed_from_world: bool = false
+var _visibility_scope_enabled: bool = false
+var _visibility_scope_anchor: Vector2 = Vector2.ZERO
+var _visibility_scope_floor: int = 0
 
 @onready var sprite: Sprite2D = $Sprite2D
 
@@ -28,10 +35,15 @@ func _ready() -> void:
 	if item_data != null:
 		sprite.texture = item_data.world_icon
 		sprite.scale = world_sprite_scale * max(item_data.world_icon_scale, 0.1)
+	if _visibility_scope_enabled:
+		add_to_group(HOUSE_SCOPED_PICKUP_GROUP)
+		refresh_visibility_scope.call_deferred()
 
 
 func _on_body_entered(body: Node) -> void:
 	if not LootContainerProviderContract.is_local_interactor(body):
+		return
+	if not _is_player_in_visibility_scope(body):
 		return
 
 	player_in_range = true
@@ -73,6 +85,68 @@ func setup_from_item_data(data: ItemData) -> void:
 	_update_prompt_visibility()
 
 
+func configure_visibility_scope(scope: Dictionary) -> void:
+	var anchor_data: Variant = scope.get("anchor", {})
+	var floor_number: int = int(scope.get("floor", 0))
+	if not (anchor_data is Dictionary) or floor_number <= 0:
+		_visibility_scope_enabled = false
+		_visibility_scope_floor = 0
+		return
+
+	var anchor := anchor_data as Dictionary
+	_visibility_scope_enabled = true
+	_visibility_scope_anchor = Vector2(
+		float(anchor.get("x", 0.0)),
+		float(anchor.get("y", 0.0))
+	)
+	_visibility_scope_floor = floor_number
+	if is_inside_tree():
+		add_to_group(HOUSE_SCOPED_PICKUP_GROUP)
+		refresh_visibility_scope()
+
+
+func get_visibility_scope_payload() -> Dictionary:
+	if not _visibility_scope_enabled:
+		return {}
+	return {
+		"anchor": {"x": _visibility_scope_anchor.x, "y": _visibility_scope_anchor.y},
+		"floor": _visibility_scope_floor
+	}
+
+
+func refresh_visibility_scope() -> void:
+	if not _visibility_scope_enabled or _removed_from_world:
+		return
+
+	var should_be_available := false
+	var scene_tree := get_tree()
+	if scene_tree != null:
+		for candidate in scene_tree.get_nodes_in_group(&"player"):
+			if LootContainerProviderContract.is_local_interactor(candidate) and _is_player_in_visibility_scope(candidate):
+				should_be_available = true
+				break
+
+	visible = should_be_available
+	set_deferred("monitoring", should_be_available)
+	if not should_be_available:
+		player_in_range = false
+		NearbyItemsManager.remove_item(self)
+	_update_prompt_visibility()
+
+
+func _is_player_in_visibility_scope(player_node: Node) -> bool:
+	if not _visibility_scope_enabled:
+		return true
+	if player_node == null or not player_node.is_in_group(INSIDE_HOUSE_GROUP):
+		return false
+	if not player_node.has_meta(INSIDE_HOUSE_ANCHOR_META):
+		return false
+	var player_anchor: Variant = player_node.get_meta(INSIDE_HOUSE_ANCHOR_META)
+	if not (player_anchor is Vector2) or not (player_anchor as Vector2).is_equal_approx(_visibility_scope_anchor):
+		return false
+	return int(player_node.get_meta(INSIDE_HOUSE_FLOOR_META, 1)) == _visibility_scope_floor
+
+
 func _apply_render_order() -> void:
 	z_index = BELOW_PLAYER_Z_INDEX
 
@@ -96,7 +170,7 @@ func _update_prompt_visibility() -> void:
 		return
 
 	prompt_label.text = _get_prompt_text()
-	prompt_label.visible = player_in_range
+	prompt_label.visible = player_in_range and visible
 
 
 func _get_prompt_text() -> String:
@@ -152,6 +226,8 @@ func _can_authorize_pickup_for_peer(peer_id: int) -> bool:
 		return false
 	var player_node: Node2D = _find_player_by_peer_id(peer_id)
 	if player_node == null:
+		return false
+	if not _is_player_in_visibility_scope(player_node):
 		return false
 	return player_node.global_position.distance_to(global_position) <= NETWORK_PICKUP_DISTANCE_MAX
 

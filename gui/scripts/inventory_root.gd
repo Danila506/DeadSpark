@@ -1,6 +1,8 @@
 extends Control
 
 const SLOT_SCENE = preload("res://gui/slots/InventorySlot.tscn")
+const CONTAINER_OPEN_SOUND: AudioStream = preload("res://Assets/AudioWaw/EnvSound/boxOpening.wav")
+const INVENTORY_OPEN_SOUND: AudioStream = preload("res://Assets/AudioWaw/UI/inventoryOpen.wav")
 const LOOT_PROVIDER_SLOT_TYPE: int = 999
 const THERMAL_BATTERY_PROVIDER_SLOT_TYPE: int = 998
 const WEAPON_ATTACHMENT_PROVIDER_SLOT_TYPE: int = 997
@@ -56,11 +58,9 @@ const TWO_CRAFT_TEXTURE: Texture2D = preload("res://gui/Craft/twoCraft.png")
 const THREE_CRAFT_TEXTURE: Texture2D = preload("res://gui/Craft/threeCraft.png")
 const TWO_CRAFT_OUTLINE_TEXTURE: Texture2D = preload("res://gui/Craft/twoCraftOutline.png")
 const THREE_CRAFT_OUTLINE_TEXTURE: Texture2D = preload("res://gui/Craft/threeCraftoutline.png")
-const CRAFT_BUTTON_WIDTH: float = 28.0
-const CRAFT_RESULT_SLOT_POSITION: Vector2 = Vector2(230.0, 9.0)
+const CRAFT_RESULT_SLOT_POSITION: Vector2 = Vector2(238.0, 9.0)
 const CRAFT_PREVIEW_SLOT_SIZE: Vector2 = Vector2(60.0, 60.0)
-const CRAFT_INGREDIENT_ICON_SIZE: Vector2 = Vector2(42.0, 42.0)
-const CRAFT_RESULT_ICON_SIZE: Vector2 = Vector2(38.0, 38.0)
+const CRAFT_PREVIEW_ICON_SIZE: Vector2 = Vector2(48.0, 48.0)
 const CRAFT_CATEGORY_ALL: StringName = &"all"
 const CRAFT_CATEGORY_MEDICAL: StringName = &"medical"
 const CRAFT_CATEGORY_FOOD: StringName = &"food"
@@ -118,6 +118,7 @@ const NETWORK_ALLOWED_INVENTORY_ACTIONS: Array[StringName] = [
 @export_range(0.5, 1.0, 0.01) var mobile_min_inventory_scale: float = 0.72
 @export_range(0.2, 1.0, 0.05) var mobile_long_press_seconds: float = 0.45
 @export var mobile_touch_drag_cancel_distance: float = 18.0
+@export_range(-40.0, 0.0, 0.5) var inventory_open_sound_volume_db: float = -4.0
 
 @onready var inventory_content: Control = $InventoryContent
 @onready var nav_inv: Control = $InventoryContent/NavInv
@@ -170,6 +171,8 @@ var loot_context_active: bool = false
 var active_loot_context: StringName = LOOT_CONTEXT_WARDROBE
 var active_bandit_loot_source_id: int = 0
 var active_container_source_id: int = 0
+var _container_open_sfx: AudioStreamPlayer
+var _inventory_open_sfx: AudioStreamPlayer
 var loot_slots: Array[InventorySlot] = []
 var loot_provider: ItemData = null
 
@@ -276,6 +279,8 @@ var _dev_console_aliases: Dictionary = {
 
 func _ready() -> void:
 	add_to_group("inventory_root")
+	_setup_container_open_sfx()
+	_setup_inventory_open_sfx()
 	loot_provider = ItemData.new()
 	inventory_content.visible = false
 	_setup_loot_grids()
@@ -361,6 +366,9 @@ func _input(event: InputEvent) -> void:
 			return
 
 	if event.is_action_pressed("inventory_toggle"):
+		if not is_inventory_open and NPCManager.is_dialogue_open():
+			get_viewport().set_input_as_handled()
+			return
 		toggle_inventory()
 		get_viewport().set_input_as_handled()
 		return
@@ -461,8 +469,11 @@ func toggle_inventory() -> void:
 
 func open_inventory() -> void:
 	if not _pending_consumable.is_empty(): return
+	var was_open: bool = is_inventory_open
 	is_inventory_open = true
 	inventory_content.visible = true
+	if not was_open:
+		_play_inventory_open_sound()
 	_apply_mobile_inventory_layout()
 	_clamp_inventory_content_to_viewport()
 	_set_active_nav_button(inv_btn)
@@ -499,12 +510,44 @@ func set_loot_context_active(active: bool, context: StringName = &"") -> void:
 
 func open_loot_slots(slot_items: Array[ItemData], source: Node = null) -> void:
 	active_container_source_id = source.get_instance_id() if source != null else 0
+	if source != null and source.has_method("get_loot_container_id"):
+		_play_container_open_sound()
 	if source != null and _shared_world() != null:
 		active_loot_context = LOOT_CONTEXT_WARDROBE
 		_network_loot_open_pending = true
 		_shared_world().open_container(source)
 		return
 	_open_loot_slots(slot_items, LOOT_CONTEXT_WARDROBE)
+
+
+func _setup_container_open_sfx() -> void:
+	_container_open_sfx = AudioStreamPlayer.new()
+	_container_open_sfx.name = "ContainerOpenSFX"
+	_container_open_sfx.stream = CONTAINER_OPEN_SOUND
+	_container_open_sfx.bus = &"Sounds" if AudioServer.get_bus_index(&"Sounds") >= 0 else &"Master"
+	add_child(_container_open_sfx)
+
+
+func _play_container_open_sound() -> void:
+	if _container_open_sfx == null:
+		return
+	_container_open_sfx.play()
+
+
+func _setup_inventory_open_sfx() -> void:
+	_inventory_open_sfx = AudioStreamPlayer.new()
+	_inventory_open_sfx.name = "InventoryOpenSFX"
+	_inventory_open_sfx.stream = INVENTORY_OPEN_SOUND
+	_inventory_open_sfx.volume_db = inventory_open_sound_volume_db
+	_inventory_open_sfx.bus = &"Sounds" if AudioServer.get_bus_index(&"Sounds") >= 0 else &"Master"
+	add_child(_inventory_open_sfx)
+
+
+func _play_inventory_open_sound() -> void:
+	if _inventory_open_sfx == null or DisplayServer.get_name() == "headless":
+		return
+	_inventory_open_sfx.stop()
+	_inventory_open_sfx.play()
 
 
 func open_bandit_loot_slots(slot_items: Array[ItemData], source: Node = null) -> void:
@@ -960,8 +1003,8 @@ func _create_craft_recipe_row(recipe: Dictionary, recipe_index: int) -> void:
 	button.focus_mode = Control.FOCUS_NONE
 	button.text = ""
 	button.tooltip_text = "Создать"
-	button.position = Vector2(max(row_size.x - CRAFT_BUTTON_WIDTH, 0.0), 0.0)
-	button.size = Vector2(CRAFT_BUTTON_WIDTH, row_size.y)
+	button.position = Vector2.ZERO
+	button.size = row_size
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.pressed.connect(_select_craft_recipe.bind(recipe_index))
 	button.mouse_entered.connect(_set_craft_row_outline.bind(background, row_outline_texture))
@@ -1206,18 +1249,17 @@ func _get_craft_slot_positions(ingredient_count: int) -> Array[Vector2]:
 	return [Vector2(38, 9), Vector2(100, 9)]
 
 
-func _add_craft_preview_slot(parent: Control, position: Vector2, item: ItemData, count: int, is_result: bool = false) -> void:
+func _add_craft_preview_slot(parent: Control, position: Vector2, item: ItemData, count: int, _is_result: bool = false) -> void:
 	var slot: InventorySlot = SLOT_SCENE.instantiate()
 	slot.slot_mode = InventorySlot.SlotMode.CONTAINER
 	slot.position = position
 	slot.custom_minimum_size = Vector2(30, 30)
 	slot.size = CRAFT_PREVIEW_SLOT_SIZE
-	slot.icon_size = CRAFT_RESULT_ICON_SIZE if is_result else CRAFT_INGREDIENT_ICON_SIZE
+	slot.fixed_icon_visual_size = CRAFT_PREVIEW_ICON_SIZE
 	slot.icon_rotation_degrees = 0.0
 	slot.show_name = false
 	slot.show_endurance = false
-	slot.stretch_icon_to_slot = true
-	slot.icon_padding = 1.0
+	slot.stretch_icon_to_slot = false
 	slot.show_background_in_container = false
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(slot)
@@ -5145,7 +5187,7 @@ func _ensure_dev_console() -> void:
 	_dev_console_panel.add_child(root_vbox)
 
 	var title_label := Label.new()
-	title_label.text = "Developer Console (`): help | list_items | give | status | god | speed | history"
+	title_label.text = "Developer Console (` / Ё): help | list_items | give | status | god | speed | history"
 	root_vbox.add_child(title_label)
 
 	_dev_console_output = RichTextLabel.new()
@@ -5177,7 +5219,7 @@ func _ensure_dev_console() -> void:
 func _handle_dev_console_input(event: InputEvent) -> bool:
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
-		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_QUOTELEFT:
+		if key_event.pressed and not key_event.echo and _is_dev_console_toggle_key(key_event):
 			_set_dev_console_open(not _dev_console_open)
 			return true
 		if _dev_console_open and key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
@@ -5215,6 +5257,17 @@ func _handle_dev_console_input(event: InputEvent) -> bool:
 			return true
 
 	return false
+
+
+func _is_dev_console_toggle_key(key_event: InputEventKey) -> bool:
+	# The key left of 1 reports Ё/ё as its logical value on a Russian layout,
+	# while physical_keycode remains KEY_QUOTELEFT on desktop keyboards.
+	return (
+		key_event.physical_keycode == KEY_QUOTELEFT
+		or key_event.keycode == KEY_QUOTELEFT
+		or key_event.unicode == 0x0401
+		or key_event.unicode == 0x0451
+	)
 
 
 func _set_dev_console_open(should_open: bool) -> void:

@@ -85,27 +85,14 @@ func save_game_if_possible(path: String = SAVE_FILE_PATH) -> int:
 
 
 func load_game(path: String = SAVE_FILE_PATH) -> int:
-	var save_payload_result: Variant = _read_json_file(path)
-	if save_payload_result is int:
-		return int(save_payload_result)
-	if not (save_payload_result is Dictionary):
-		return ERR_PARSE_ERROR
+	var preparation := prepare_load_game(path)
+	var preparation_error := int(preparation.get("error", FAILED))
+	if preparation_error != OK:
+		return preparation_error
 
-	var save_payload: Dictionary = save_payload_result as Dictionary
-	var scene_path: String = String(save_payload.get("scene_path", FALLBACK_LEVEL_PATH))
-	if scene_path.is_empty():
-		scene_path = FALLBACK_LEVEL_PATH
-	if scene_path == NETWORK_WORLD_PATH:
-		return ERR_INVALID_DATA
-	if not ResourceLoader.exists(scene_path):
-		return ERR_FILE_NOT_FOUND
-
-	var schema_version: int = int(save_payload.get("schema_version", 0))
-	var has_runtime_state: bool = schema_version >= 2
-	_startup_is_continue_load = has_runtime_state
-	var reload_same_scene_for_generation: bool = _should_reload_same_scene_for_generation(save_payload)
-	if has_runtime_state:
-		_queue_runtime_state(save_payload)
+	var scene_path := String(preparation.get("scene_path", FALLBACK_LEVEL_PATH))
+	var has_runtime_state := bool(preparation.get("has_runtime_state", false))
+	var reload_same_scene_for_generation := bool(preparation.get("reload_same_scene_for_generation", false))
 
 	var current_scene_path: String = ""
 	var current_scene: Node = get_tree().current_scene
@@ -121,6 +108,39 @@ func load_game(path: String = SAVE_FILE_PATH) -> int:
 
 	change_scene_with_cleanup(scene_path)
 	return OK
+
+
+## Reads and queues a save without changing scenes. Loading screens use this to
+## keep ownership of the visual transition while the regular scene_changed hook
+## still applies the queued runtime state to the destination scene.
+func prepare_load_game(path: String = SAVE_FILE_PATH) -> Dictionary:
+	var save_payload_result: Variant = _read_json_file(path)
+	if save_payload_result is int:
+		return {"error": int(save_payload_result)}
+	if not (save_payload_result is Dictionary):
+		return {"error": ERR_PARSE_ERROR}
+
+	var save_payload: Dictionary = save_payload_result as Dictionary
+	var scene_path: String = String(save_payload.get("scene_path", FALLBACK_LEVEL_PATH))
+	if scene_path.is_empty():
+		scene_path = FALLBACK_LEVEL_PATH
+	if scene_path == NETWORK_WORLD_PATH:
+		return {"error": ERR_INVALID_DATA}
+	if not ResourceLoader.exists(scene_path):
+		return {"error": ERR_FILE_NOT_FOUND}
+
+	var schema_version: int = int(save_payload.get("schema_version", 0))
+	var has_runtime_state: bool = schema_version >= 2
+	_startup_is_continue_load = has_runtime_state
+	var reload_same_scene_for_generation: bool = _should_reload_same_scene_for_generation(save_payload)
+	if has_runtime_state:
+		_queue_runtime_state(save_payload)
+	return {
+		"error": OK,
+		"scene_path": scene_path,
+		"has_runtime_state": has_runtime_state,
+		"reload_same_scene_for_generation": reload_same_scene_for_generation,
+	}
 
 
 func change_scene_with_cleanup(scene_path: String, deferred: bool = false) -> int:

@@ -28,6 +28,8 @@ const KNOWN_CATEGORIES := [&"biom1_static_tiles", &"biom2_static_tiles", &"xz_st
 @export_range(0, 16, 1) var minimum_spacing_cells := 1
 @export var footprint_size := Vector2i.ONE
 @export var blocked_occupancy_mask := WorldOccupancyMap.ROAD | WorldOccupancyMap.ROAD_CLEARANCE | WorldOccupancyMap.WATER | WorldOccupancyMap.POI | WorldOccupancyMap.BUILDING | WorldOccupancyMap.RUIN | WorldOccupancyMap.NO_SPAWN
+## Natural props may use the soft roadside clearance while ROAD itself remains blocked.
+@export var allow_road_clearance_overlap := false
 @export var occupancy_flags := WorldOccupancyMap.STATIC_PROP
 @export var enabled := true
 ## Probability that this entry is considered in a chunk. Zero disables spawning.
@@ -65,7 +67,7 @@ func validate() -> Dictionary:
 	return {"valid": errors.is_empty(), "errors": errors}
 
 func fingerprint() -> Dictionary:
-	return {"entry_id": entry_id, "category": category, "kind": kind, "target": target_path, "scene_uid": GenerationHashes.resource_uid(scene), "position_jitter_cells": position_jitter_cells, "source_id": source_id, "atlas": atlas_coords, "atlas_variants": atlas_variants, "atlas_weights": atlas_variant_weights, "density": density, "min_per_chunk": min_instances_per_chunk, "max_per_chunk": max_instances_per_chunk_value(), "budget_per_chunk": candidate_budget_per_chunk_value(), "spacing": minimum_spacing_cells, "footprint": footprint_size, "blocked": blocked_occupancy_mask, "flags": occupancy_flags, "enabled": enabled, "chunk_probability": chunk_spawn_probability, "near_structure_radius": near_structure_radius_cells, "max_per_world": max_instances_per_world, "footprint_offset": footprint_offset, "loot": loot_profile.canonical_record() if loot_profile != null else {}}
+	return {"entry_id": entry_id, "category": category, "kind": kind, "target": target_path, "scene_uid": GenerationHashes.resource_uid(scene), "position_jitter_cells": position_jitter_cells, "source_id": source_id, "atlas": atlas_coords, "atlas_variants": atlas_variants, "atlas_weights": atlas_variant_weights, "density": density, "min_per_chunk": min_instances_per_chunk, "max_per_chunk": max_instances_per_chunk_value(), "budget_per_chunk": candidate_budget_per_chunk_value(), "spacing": minimum_spacing_cells, "footprint": footprint_size, "blocked": blocked_occupancy_mask, "allow_road_clearance_overlap": allow_road_clearance_overlap, "flags": occupancy_flags, "enabled": enabled, "chunk_probability": chunk_spawn_probability, "near_structure_radius": near_structure_radius_cells, "max_per_world": max_instances_per_world, "footprint_offset": footprint_offset, "loot": loot_profile.canonical_record() if loot_profile != null else {}}
 
 func max_instances_per_chunk_value() -> int:
 	return max_instances_per_chunk if max_instances_per_chunk > 0 else max_instances

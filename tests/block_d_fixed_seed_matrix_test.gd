@@ -2,6 +2,7 @@ extends Node
 
 const SEEDS := [1337, 7331, 15885, 1001, 2026, 99999]
 const BOUNDS := Rect2i(Vector2i(-48, -48), Vector2i(96, 96))
+const ROAD_BOUNDS := Rect2i(Vector2i(-11, -11), Vector2i(23, 23))
 const DIR := "res://tests/artifacts/block_d"
 const ROAD_PROFILE = preload("res://Resources/WorldGen/road_generation_profile.tres")
 const ENV_PROFILE = preload("res://Resources/WorldGen/environment_generation_profile.tres")
@@ -13,7 +14,7 @@ const POI = preload("res://World/Generation/poi_placement_pass.gd")
 const ENV = preload("res://World/Generation/environment_generation_pass.gd")
 class SeedSource extends Node:
 	var seed := 0
-	func get_debug_world_generation_info() -> Dictionary: return {"seed":seed,"chunk_size_tiles":16}
+	func get_debug_world_generation_info() -> Dictionary: return {"seed":seed,"chunk_size_tiles":16,"world_min_chunk":Vector2i(-3,-3),"world_max_chunk":Vector2i(2,2)}
 func _ready() -> void: call_deferred("_run")
 func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
@@ -30,8 +31,8 @@ func _run() -> void:
 	var content_hashes := {}
 	for row in rows: content_hashes[String(row.environment_content_hash)] = true
 	_assert(content_hashes.size() > 1, "different seeds vary environment content")
-	_assert(String(rows[0].road_graph_hash) == "75916414acdf7aef1502e082bcc72bd976b5b24f8b7aca5a4177e4d5e48d49f7", "RoadGraph baseline")
-	_assert(String(rows[0].road_raster_hash) == "0c17ddbedde7fdf8c6e98690b73cba62dc100d15231ee2a4f4dc59827ed2dcb8", "RoadRaster baseline")
+	_assert(String(rows[0].road_graph_hash) == "90da14ac18c5b3932b62eff55c99d354d8ee1b2599fed67b4705057436fa135b", "RoadGraph closed-village-loop baseline")
+	_assert(String(rows[0].road_raster_hash) == "0dcc51b822edc206578d34e375261ad729431a922a49c9c46fb8184756168621", "RoadRaster closed-village-loop baseline")
 	var matrix := {"id":"block_d_fixed_seed_environment_matrix_v1", "seeds":rows}
 	var digest := GenerationHashes.sha256_of(matrix); matrix["matrix_digest"] = digest
 	var file := FileAccess.open(ProjectSettings.globalize_path(DIR + "/fixed_seed_environment_matrix.json"), FileAccess.WRITE)
@@ -65,8 +66,12 @@ func _row(seed: int, reverse_entries := false, reverse_chunks := false) -> Dicti
 	if reverse_entries: env.profile.entries.reverse()
 	env.set_chunk_enumeration_reversed_for_test(reverse_chunks)
 	gen.add_child(env)
-	await get_tree().process_frame; road.build_graph_for_inputs(BOUNDS, seed); road.graph_hash=GenerationHashes.sha256_of(road.graph.canonical_manifest()); raster.run_generation_pass(); poi.run_generation_pass()
+	await get_tree().process_frame; poi.run_generation_pass()
+	var connector_cells: Array[Vector2i]=[];for connector_world in poi.get_connector_world_positions():connector_cells.append(road_layer.local_to_map(connector_world))
+	road.build_graph_for_inputs(road._resolve_world_cell_bounds(), seed, {}, connector_cells); road.graph_hash=GenerationHashes.sha256_of(road.graph.canonical_manifest()); raster.run_generation_pass(); poi.import_road_claims_after_raster()
 	var available_chunks := _chunks_with_available_environment(env, poi.occupancy)
+	_assert(poi.accepted.size() >= ROAD_PROFILE.minimum_village_count, "at least two villages seed %d" % seed)
+	for cell_variant in road.graph.cells.keys(): _assert(road.graph.neighbors(cell_variant as Vector2i).size() >= 2, "no road dead ends seed %d" % seed)
 	env.run_generation_pass(); await get_tree().process_frame
 	_assert(env.blocking_errors.is_empty(), "environment blocking seed %d" % seed)
 	var out:=env.get_generation_output_manifest(); var categories := {}; var scenes:=0; var tiles:=0; var ids:Array[String]=[]

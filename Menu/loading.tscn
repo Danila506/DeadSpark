@@ -1,0 +1,163 @@
+[gd_scene format=3 uid="uid://b24vpvytgx51u"]
+
+[ext_resource type="Script" uid="uid://b1o0ev7mqe05c" path="res://Menu/loading_screen.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://bjxe2hgvu8ak6" path="res://Assets/LoadingBG.png" id="2_background"]
+[ext_resource type="Texture2D" uid="uid://cnvqbwf65hhfn" path="res://Menu/loadingBarFrame.png" id="3_frame"]
+
+[sub_resource type="SystemFont" id="SystemFont_loading"]
+font_names = PackedStringArray("Georgia", "Times New Roman", "Noto Serif", "serif")
+font_weight = 600
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_bar_background"]
+bg_color = Color(0.025, 0.027, 0.029, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_bar_fill"]
+bg_color = Color(0.92, 0.79, 0.61, 1)
+border_width_top = 1
+border_width_bottom = 1
+border_color = Color(1, 0.91, 0.72, 0.85)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="LoadingTransition" type="Node" unique_id=1078042322]
+
+[node name="LoadingOverlay" type="CanvasLayer" parent="." unique_id=1382623282]
+process_mode = 3
+layer = 120
+script = ExtResource("1_script")
+
+[node name="Screen" type="Control" parent="LoadingOverlay" unique_id=1206058477]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Background" type="TextureRect" parent="LoadingOverlay/Screen" unique_id=1512145418]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_background")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Shade" type="ColorRect" parent="LoadingOverlay/Screen" unique_id=305861907]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.012, 0.018, 0.03, 0.22)
+
+[node name="Content" type="Control" parent="LoadingOverlay/Screen" unique_id=132879980]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="LoadingStack" type="VBoxContainer" parent="LoadingOverlay/Screen/Content" unique_id=265710727]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -380.0
+offset_top = -92.0
+offset_right = 380.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="LoadingTitle" type="Label" parent="LoadingOverlay/Screen/Content/LoadingStack" unique_id=2020398454]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.855, 0.735, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.92)
+theme_override_colors/font_outline_color = Color(0.08, 0.055, 0.045, 0.86)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 4
+theme_override_constants/outline_size = 2
+theme_override_fonts/font = SubResource("SystemFont_loading")
+theme_override_font_sizes/font_size = 42
+text = "ЗАГРУЗКА..."
+horizontal_alignment = 1
+
+[node name="BarRoot" type="Control" parent="LoadingOverlay/Screen/Content/LoadingStack" unique_id=223806348]
+custom_minimum_size = Vector2(760, 70)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ProgressBar" type="ProgressBar" parent="LoadingOverlay/Screen/Content/LoadingStack/BarRoot" unique_id=1540402172]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 52.0
+offset_top = 20.0
+offset_right = -52.0
+offset_bottom = -18.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBox_bar_background")
+theme_override_styles/fill = SubResource("StyleBox_bar_fill")
+value = 8.59
+show_percentage = false
+
+[node name="ProgressGlow" type="ColorRect" parent="LoadingOverlay/Screen/Content/LoadingStack/BarRoot/ProgressBar" unique_id=608122996]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_top = 3.0
+offset_right = 1.0
+offset_bottom = -3.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 0.91, 0.74, 0.16)
+
+[node name="OrnateFrame" type="TextureRect" parent="LoadingOverlay/Screen/Content/LoadingStack/BarRoot" unique_id=137674764]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_frame")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LoadingHint" type="Label" parent="LoadingOverlay/Screen/Content/LoadingStack" unique_id=1935506736]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.68, 0.62, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.96)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 3
+theme_override_fonts/font = SubResource("SystemFont_loading")
+theme_override_font_sizes/font_size = 22
+text = "СКОРО ВЫ СНОВА БУДЕТЕ В ИГРЕ"
+horizontal_alignment = 1

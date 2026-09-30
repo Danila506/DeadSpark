@@ -8,6 +8,8 @@
 [ext_resource type="Script" uid="uid://cfecgsgs2b18r" path="res://Animals/Deer/deer.gd" id="6_deer_script"]
 [ext_resource type="SpriteFrames" uid="uid://igboii0x84mf" path="res://Resources/Animals/Deer/deer_frames.tres" id="7_deer_frames"]
 
+[ext_resource type="PackedScene" path="res://Enemies/AI/enemy_hurtbox.tscn" id="99_hurtbox"]
+
 [sub_resource type="CircleShape2D" id="CircleShape2D_ocuje"]
 radius = 216.0
 
@@ -74,3 +76,7 @@ horizontal_alignment = 1
 position = Vector2(0, -2)
 scale = Vector2(0.565, 0.17)
 shape = SubResource("CapsuleShape2D_nmet0")
+
+[node name="Hurtbox" parent="." instance=ExtResource("99_hurtbox")]
+position = Vector2(0, -12)
+scale = Vector2(1.75, 1.25)

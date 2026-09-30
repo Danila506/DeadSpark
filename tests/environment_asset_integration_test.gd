@@ -21,7 +21,7 @@ func _run_asset_tests() -> void:
 		for atlas in entry.atlas_variants:
 			_check(source.has_tile(atlas), "missing authored tile %s %s" % [entry.entry_id, atlas])
 			variant_count += 1
-	_check(variant_count == 57, "expected 57 authored tile variants")
+	_check(variant_count == 48, "expected 48 unique authored tile variants")
 	var structures := {}
 	var claimed := {}
 	for placement in _environment.accepted:

@@ -9,6 +9,15 @@ func _camp(scene:PackedScene,id:String)->Node:
 func _manifest(seed:int,camps:Array)->Dictionary:return (PASS.new() as EnemyPopulationPass).build_manifests(seed,camps)
 func _run():
 	var a:=_camp(CAMP1,"poi/camp_a");var b:=_camp(CAMP2,"poi/camp_b");await get_tree().process_frame
+	_assert(a.y_sort_enabled and b.y_sort_enabled,"camp roots keep spawned guards in the world Y-sort chain")
+	_assert(a.z_index==0 and b.z_index==0,"camp roots must not force guards above trees")
+	var layer_a := a.get_node("BanditBaseLayer") as TileMapLayer; var layer_b := b.get_node("TileMapLayer") as TileMapLayer
+	_assert(layer_a.y_sort_enabled and layer_b.y_sort_enabled,"camp decor tile layers must Y-sort against actors")
+	_assert(layer_a.z_index==0 and layer_b.z_index==0,"camp decor must not use a fixed layer above actors")
+	var fire_root_a := a.get_node("BonfireSortRoot") as Node2D; var fire_root_b := b.get_node("BonfireSortRoot") as Node2D
+	_assert(fire_root_a.z_index==0 and fire_root_b.z_index==0,"bonfires must Y-sort against actors")
+	_assert(fire_root_a.position.y==12.0 and fire_root_b.position.y==12.0,"bonfire sorting origin must follow the coal bed")
+	_assert(a.get_node("BonfireSortRoot/Bonfire").position.y==-12.0 and b.get_node("BonfireSortRoot/Bonfire").position.y==-12.0,"bonfire visuals must keep their original world position")
 	_assert(EnemySpawnMarkerProviderContract.validate(a).valid and EnemySpawnMarkerProviderContract.validate(b).valid,"provider")
 	_assert(a.get_enemy_spawn_markers().size()==4 and b.get_enemy_spawn_markers().size()==4,"markers")
 	var one:=_manifest(1337,[a,b]);var two:=_manifest(1337,[b,a]);_assert(one.blocking_errors.is_empty() and one.population_manifest_hash==two.population_manifest_hash,"determinism/order")
