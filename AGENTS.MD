@@ -14,7 +14,7 @@ Dead Spark — 2D survival-action в заснеженном постапокал
 
 - Главная сцена: `res://Menu/Menu.tscn`.
 - Одиночная игра: `res://level.tscn` + `res://level.gd`.
-- LAN-мир: `res://World/network_test_world.tscn`, инстанцирует `res://LanMap.tscn` (ручной статический наследник основного уровня без процедурной генерации, с посёлком, loot-домами, сохранёнными в сцене слоями и `NetworkSpawnPoints`) и добавляет сетевую координацию.
+- LAN-мир: `res://World/network_test_world.tscn`, инстанцирует `res://LanMap.tscn` (ручной статический наследник основного уровня без процедурной генерации во время игры, с посёлком, loot-домами, сохранёнными в сцене слоями и `NetworkSpawnPoints`) и добавляет сетевую координацию. Декоративные деревья, группы деревьев и белая/зелёная трава из `PresetsLayer1` запекаются в `Y-Sort_Objects/LanVegetation` через `tools/build_lan_vegetation.gd`, существующий `EnvironmentGenerationPass` и `Resources/WorldGen/lan_vegetation_profile.tres`; ручные клетки сохраняются. Проверка — `tests/lan_vegetation_test.gd`, инструкции — `tools/lan_vegetation.md`.
 - Dedicated server: headless-запуск главной сцены с аргументами `--dedicated-server --server-port=<port>`; `Menu/menu.gd` поднимает сервер через `NetworkManager.start_dedicated_server()` и открывает `res://World/network_test_world.tscn` без локального игрока peer 1.
 - Генерация мира: `res://World/world_generation.tscn`.
 - Игрок/UI: `res://Player/player.tscn`, `res://gui/GUI.tscn`, `res://HUD/hud.tscn`.
@@ -35,6 +35,12 @@ Dead Spark — 2D survival-action в заснеженном постапокал
 - `addons/` — плагины, включая Godot MCP; не смешивать plugin-код с игровой архитектурой.
 
 ## Архитектурные связи
+
+- Стыковочные варианты четырёх авторских диагональных углов находятся в `Assets/World/Roads/RoadConnected256.png`, source ID 1 обоих дорожных TileSet. Их создаёт `tools/build_road_connectors.gd`: центральная часть сохраняется, подводка изменяет только 48 px у подключаемых краёв, крайние 8 px совпадают со старой прямой. Нестыковочные оригиналы source 0 (6:0, 7:0, 6:1, 7:1) доступны вручную, но исключены из terrain painting; уже поставленные оригиналы автоматически не заменяются. `tests/road_curve_alignment_test.gd` проверяет все совместимые пары старых и стыковочных тайлов, сохранность центра и непрерывность полотна. Генерация использует прежнюю палитру source 0 через `RoadGenerationProfile`.
+
+- Авторская графика дорог в `Assets/World/Roads/RoadLayer256.png` сохраняется без деформации и перерисовки. Положение четырёх диагональных углов (6:0, 7:0, 6:1, 7:1) задаётся через `TileData.texture_origin` в `RoadTileSet.tres`. `tools/build_road_atlas.ps1` по умолчанию только проверяет текущий PNG; явный `-SourcePath` копирует готовый авторский атлас без изменения пикселей. `RoadAuthoredAtlas.png` — эталон текущей авторской версии для `tests/road_curve_alignment_test.gd`; при намеренной смене рисунков обновлять эталон.
+
+- Ручной `RoadLayer` в `LanMap.tscn` использует `Assets/World/Roads/LanRoadTileSet.tres`: базовые тайлы и сетка 256 px совпадают с `RoadTileSet.tres`, дополнительные manual-only alternatives 1–15 смещают рисунок с шагом 64 px через `texture_origin`. Эти alternatives не участвуют в terrain painting. После изменения палитры базового TileSet пересобрать LAN-ресурс через `tools/build_lan_road_tileset.gd`; инструкции для ручного рисования — `tools/lan_road_painting.md`. Процедурный уровень продолжает использовать исходный `RoadTileSet.tres`.
 
 - `Menu` запускает/продолжает одиночную игру через `GameSaveManager`, а LAN — через `NetworkManager` и сетевой мир.
 - `level.tscn` композирует WorldGeneration, Player, HUD, GUI, ItemSpawner, биомы, дороги, фермерство и размещение построек.

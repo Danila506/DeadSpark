@@ -1,0 +1,63 @@
+[gd_resource type="Resource" script_class="EnvironmentGenerationProfile" format=3]
+
+[ext_resource type="Script" path="res://World/Generation/environment_generation_profile.gd" id="1"]
+[ext_resource type="Script" path="res://World/Generation/environment_entry.gd" id="2"]
+
+[sub_resource type="Resource" id="clusters"]
+script = ExtResource("2")
+entry_id = "00_lan_tree_clusters"
+category = "trees"
+kind = 1
+target_path = NodePath("../LanVegetation")
+atlas_variants = Array[Vector2i]([Vector2i(86, 14), Vector2i(86, 25)])
+position_jitter_cells = 0.35
+density = 0.055
+max_instances_per_chunk = 4
+candidate_budget_per_chunk = 160
+minimum_spacing_cells = 0
+
+[sub_resource type="Resource" id="trees"]
+script = ExtResource("2")
+entry_id = "01_lan_single_trees"
+category = "trees"
+kind = 1
+target_path = NodePath("../LanVegetation")
+atlas_variants = Array[Vector2i]([Vector2i(15, 2), Vector2i(15, 10), Vector2i(36, 4), Vector2i(64, 0), Vector2i(64, 8), Vector2i(64, 16)])
+atlas_variant_weights = Array[float]([3.0, 3.0, 2.0, 1.0, 1.0, 1.0])
+position_jitter_cells = 0.35
+density = 0.34
+max_instances_per_chunk = 48
+candidate_budget_per_chunk = 256
+minimum_spacing_cells = 0
+
+[sub_resource type="Resource" id="green"]
+script = ExtResource("2")
+entry_id = "02_lan_green_grass"
+category = "biom1_static_tiles"
+kind = 1
+target_path = NodePath("../LanVegetation")
+atlas_variants = Array[Vector2i]([Vector2i(86, 6), Vector2i(90, 6), Vector2i(90, 9)])
+position_jitter_cells = 0.4
+density = 0.4
+max_instances_per_chunk = 120
+candidate_budget_per_chunk = 256
+minimum_spacing_cells = 0
+
+[sub_resource type="Resource" id="white"]
+script = ExtResource("2")
+entry_id = "03_lan_white_grass"
+category = "biom2_static_tiles"
+kind = 1
+target_path = NodePath("../LanVegetation")
+atlas_variants = Array[Vector2i]([Vector2i(84, 11), Vector2i(87, 11), Vector2i(90, 11)])
+position_jitter_cells = 0.4
+density = 0.4
+max_instances_per_chunk = 120
+candidate_budget_per_chunk = 256
+minimum_spacing_cells = 0
+
+[resource]
+script = ExtResource("1")
+profile_id = "lan_authored_vegetation_v2"
+clearance_cells = 0
+entries = Array[ExtResource("2")]([SubResource("clusters"), SubResource("trees"), SubResource("green"), SubResource("white")])

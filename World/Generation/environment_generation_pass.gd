@@ -286,7 +286,7 @@ func _prepare_tile(candidate: Dictionary, entry: EnvironmentEntry) -> Array[Vect
 			break
 	if not source.has_tile(atlas): return []
 	var cell: Vector2i = candidate.cell
-	var position := Vector2(cell) * profile.logical_cell_size + profile.logical_cell_size * 0.5
+	var position := _scene_position(cell, entry)
 	var map_cell := layer.local_to_map(layer.to_local(position))
 	var data := source.get_tile_data(atlas, 0)
 	var size := Vector2(source.get_tile_size_in_atlas(atlas) * source.texture_region_size)

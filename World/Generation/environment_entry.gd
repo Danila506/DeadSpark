@@ -10,7 +10,8 @@ const KNOWN_CATEGORIES := [&"biom1_static_tiles", &"biom2_static_tiles", &"xz_st
 @export var kind: Kind = Kind.SCENE
 @export var target_path: NodePath
 @export var scene: PackedScene
-## Independent axis offset, as a fraction of the cell size. Keep the trunk inside its claim.
+## Deterministic independent axis offset, as a fraction of the cell size.
+## Scene origins and atlas tile anchors both use it; tile claims follow the shifted drawing.
 @export_range(0.0, 0.45, 0.01) var position_jitter_cells := 0.0
 @export var source_id := 0
 @export var atlas_coords := Vector2i.ZERO

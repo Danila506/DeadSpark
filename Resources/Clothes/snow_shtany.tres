@@ -1,0 +1,61 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://d3fdr885mfl0w"]
+
+[ext_resource type="Texture2D" uid="uid://d4fhnf6oat7tf" path="res://Assets/itemAssets/animation_sprites/clothes/Snezhnye_voennye_shtany.png" id="1_jhyhb"]
+[ext_resource type="Script" uid="uid://coyjdgggpij3i" path="res://items/scripts/item_data.gd" id="2_1gq7w"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2p67u"]
+atlas = ExtResource("1_jhyhb")
+region = Rect2(64, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gsegd"]
+atlas = ExtResource("1_jhyhb")
+region = Rect2(96, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_s4p60"]
+atlas = ExtResource("1_jhyhb")
+region = Rect2(128, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ace7g"]
+atlas = ExtResource("1_jhyhb")
+region = Rect2(160, 128, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_yfc5c"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2p67u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gsegd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_s4p60")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ace7g")
+}],
+"loop": true,
+"name": &"Up",
+"speed": 11.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"new_animation",
+"speed": 5.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o5p1r"]
+atlas = ExtResource("1_jhyhb")
+region = Rect2(386, 76, 21, 26)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gutk0"]
+atlas = ExtResource("1_jhyhb")
+region = Rect2(390, 105, 13, 8)
+
+[resource]
+script = ExtResource("2_1gq7w")
+storage_category = 2
+world_icon = SubResource("AtlasTexture_gutk0")
+inventory_icon = SubResource("AtlasTexture_o5p1r")
+item_type = 5
+equipped_frames = SubResource("SpriteFrames_yfc5c")
